@@ -1,0 +1,6 @@
+league_id,league,global_ah_acc,league_ah_acc,delta_ah,chosen,reason,global_wdl_acc,league_wdl_acc,global_ou_acc,league_ou_acc,league_best_xi,league_rho,n_ah_test,serie_a_note
+47,EPL,0.5696,0.6139,0.0443,league,league_AH_leads_by_0.044,0.4874,0.4573,0.4872,0.4103,0.8,-0.061229,158,
+87,LaLiga,0.5139,0.4931,-0.0208,global,league_AH_deficit_-0.021,0.5294,0.4706,0.6,0.54,0.7,-0.112956,144,
+54,Bundesliga,0.5079,0.5159,0.008,global,league_AH_deficit_0.008,0.5529,0.5176,0.3684,0.3684,0.0,-0.181332,126,
+55,SerieA,0.5031,0.5337,0.0306,league,league_AH_leads_by_0.031,0.5646,0.5455,0.5625,0.6042,0.2,-0.057051,163,Pure主力模型(xi=0.2)
+53,Ligue1,0.4959,0.4876,-0.0083,global,league_AH_deficit_-0.008,0.5467,0.5,0.4318,0.3864,0.3,-0.06869,121,

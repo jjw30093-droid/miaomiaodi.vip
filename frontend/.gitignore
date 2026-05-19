@@ -1,0 +1,103 @@
+# Environment variables
+.env
+.env.local
+.env.production
+
+# Next.js build output
+.next/
+out/
+
+# Dependencies
+node_modules/
+
+# Database files
+*.db
+*.db-wal
+*.db-shm
+*.db.bak*
+
+# Python backend (should not be in frontend dir)
+*.py
+*.pyc
+__pycache__/
+venv/
+
+# ML model binaries
+*.lgb
+*.pkl
+
+# Backend ML model directories (root-level)
+/models/
+/models_v4/
+/models_v4.bak*/
+/models_oos/
+
+# Backend data directories (root-level)
+/chrome_bot_profile/
+/logs/
+/reports/
+/schedule/
+/scratch/
+/odds/
+/fixtures/
+/deploy/
+/scripts/
+/src/
+/ui/
+/public_backup/
+/promo/
+/images/
+/dist/
+
+# Log files
+*.log
+
+# Backend-specific JSON (root-level data files)
+/best_params.json
+/ah_dc_params.json
+/ah_meta.json
+/pnl_results.json
+/team_mapping.json
+/team_name_mappings.json
+/player_zh.json
+/team_zh.json
+/zh_team_mapping.json
+/zh_player_mapping.json
+/metadata.json
+
+# Backup files
+*.bak
+*.bak.*
+*.bak_*
+
+# TypeScript build cache
+tsconfig.tsbuildinfo
+
+# OS
+.DS_Store
+
+# IDE / tool config
+.idea/
+.claude/
+
+# Backend project directories (contamination from rsync)
+/quant_dbt/
+/static/
+/赛后复盘/
+/数据湖字段.md
+
+# Backend scripts at root level
+/requirements.txt
+/start_api.sh
+/replace.cjs
+/test_fetch.js
+/test_step1.js
+/vite.config.ts
+/dev.log
+/shot_debug.log
+
+# SQL fragment files
+*.sql~
+
+# Weird root-level files from backend
+"2.5 IS NOT NULL*"

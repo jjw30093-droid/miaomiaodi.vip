@@ -1,0 +1,13 @@
+{
+  "league": "Bundesliga",
+  "league_id": 54,
+  "rho": -0.181332,
+  "xi": 0.0,
+  "best_val_ah_acc": 0.5702,
+  "n_wdl": 170,
+  "n_ou": 38,
+  "n_ah": 126,
+  "wdl_acc": 0.5176,
+  "ou_acc": 0.3684,
+  "ah_acc": 0.5159
+}

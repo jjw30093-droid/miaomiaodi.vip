@@ -1,0 +1,13 @@
+{
+  "league": "Ligue1",
+  "league_id": 53,
+  "rho": -0.06869,
+  "xi": 0.3,
+  "best_val_ah_acc": 0.5397,
+  "n_wdl": 150,
+  "n_ou": 44,
+  "n_ah": 121,
+  "wdl_acc": 0.5,
+  "ou_acc": 0.3864,
+  "ah_acc": 0.4876
+}

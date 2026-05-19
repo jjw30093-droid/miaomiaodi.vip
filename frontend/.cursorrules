@@ -1,0 +1,13 @@
+CRITICAL RULE FOR FILE EDITING:
+The built-in file editing tools (such as `edit_file`, `write_to_file`, or any file modification UI) are currently bugged and will cause the system to freeze. 
+
+Therefore, you MUST NOT use any built-in file modification tools under any circumstances. 
+
+Whenever you need to create, modify, or overwrite a file (especially .py, .json, .md files), you MUST strictly use the bash heredoc syntax via terminal execution. 
+
+Example format you must follow:
+cat <<'EOF' > path/to/filename.py
+# Write your code or content here
+EOF
+
+If you need to append to a file, use `cat <<'EOF' >> filename.py`. Never forget the single quotes around 'EOF' to prevent variable expansion issues.

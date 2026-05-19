@@ -1,0 +1,47 @@
+# Environment files
+.env
+*.env
+.env.*
+
+# Node modules
+node_modules/
+npm-debug.log*
+
+# Python virtual environment
+venv/
+.venv/
+env/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# Database files (too large for git)
+*.db
+*.db.bak*
+*.sqlite
+*.sqlite3
+
+# Next.js build cache
+.next/
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Claude settings
+.claude/

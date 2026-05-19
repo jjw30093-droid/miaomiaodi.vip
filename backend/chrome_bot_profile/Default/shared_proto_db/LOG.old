@@ -1,0 +1,9 @@
+2026/05/06-09:02:48.808 27d4fb Recovering log #4
+2026/05/06-09:02:48.810 27d4fb Level-0 table #7: started
+2026/05/06-09:02:48.818 27d4fb Level-0 table #7: 27640 bytes OK
+2026/05/06-09:02:48.818 27d4fb Level-0 table #8: started
+2026/05/06-09:02:48.823 27d4fb Level-0 table #8: 29458 bytes OK
+2026/05/06-09:02:48.823 27d4fb Level-0 table #9: started
+2026/05/06-09:02:48.828 27d4fb Level-0 table #9: 16894 bytes OK
+2026/05/06-09:02:48.841 27d4fb Delete type=0 #4
+2026/05/06-09:02:48.841 27d4fb Delete type=3 #1

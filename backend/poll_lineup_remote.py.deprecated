@@ -1,0 +1,361 @@
+"""
+poll_lineup.py
+==============
+赛前首发阵容轮询脚本（每 5 分钟由 cron 触发）
+功能：
+1. T-10 分钟触发赔率定稿并更新 prediction_audit
+2. 当首发确认时，重跑 Agent 3 并推送研报
+"""
+
+import os
+import sys
+import re
+import json
+import logging
+import sqlite3
+import subprocess
+from datetime import datetime, date
+
+PROJECT_ROOT  = os.environ.get("PROJECT_ROOT", os.path.dirname(os.path.abspath(__file__)))
+REPORTS_DIR   = os.path.join(PROJECT_ROOT, "reports")
+CONFIRMED_LOG = os.path.join(PROJECT_ROOT, "schedule", "lineup_confirmed.json")
+FINALIZED_LOG = os.path.join(PROJECT_ROOT, "schedule", "odds_finalized.json")
+LOGS_DIR      = os.path.join(PROJECT_ROOT, "logs")
+DB_PATH       = os.path.join(PROJECT_ROOT, "football_uk.db")
+
+os.makedirs(LOGS_DIR,   exist_ok=True)
+os.makedirs(REPORTS_DIR, exist_ok=True)
+
+sys.path.insert(0, PROJECT_ROOT)
+sys.path.insert(0, os.path.join(PROJECT_ROOT, "scripts"))
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+log = logging.getLogger(__name__)
+
+# 轮询窗口（距开球分钟数）
+POLL_START_MINS = 65   # 开球前 65 分钟开始轮询
+POLL_END_MINS   = -10  # 开球后 10 分钟停止
+FINALIZE_MINS   = 10   # 赛前 10 分钟定稿
+
+from lineup_fetcher import fetch_lineup
+from generate_match_report import load_models, refresh_pick_for_match, _ensure_models_and_odds
+from feature_engineering import FEATURES
+
+# ── 持久化逻辑 ──────────────────────────
+
+def _load_confirmed() -> set:
+    if os.path.exists(CONFIRMED_LOG):
+        try:
+            with open(CONFIRMED_LOG, encoding="utf-8") as f:
+                data = json.load(f)
+            if data.get("date") != date.today().isoformat():
+                return set()
+            return set(data.get("confirmed_ids", []))
+        except Exception:
+            pass
+    return set()
+
+def _save_confirmed(ids: set):
+    with open(CONFIRMED_LOG, "w", encoding="utf-8") as f:
+        json.dump({
+            "date": date.today().isoformat(),
+            "confirmed_ids": list(ids),
+            "updated_at": datetime.now().isoformat()
+        }, f)
+
+def _load_finalized() -> set:
+    if os.path.exists(FINALIZED_LOG):
+        try:
+            with open(FINALIZED_LOG, encoding="utf-8") as f:
+                data = json.load(f)
+            # 如果不是今天的记录，视为过期，返回空 set
+            if data.get("date") != date.today().isoformat():
+                return set()
+            return set(data.get("finalized_ids", []))
+        except Exception:
+            pass
+    return set()
+
+def _save_finalized(ids: set):
+    with open(FINALIZED_LOG, "w", encoding="utf-8") as f:
+        json.dump({
+            "date": date.today().isoformat(),
+            "finalized_ids": list(ids),
+            "updated_at": datetime.now().isoformat()
+        }, f)
+
+# ── 报告内容更新逻辑 ──────────────────────────────
+
+def _build_fallback_lineup_tables(lineup_data: dict, home_name: str = "主队", away_name: str = "客队") -> str:
+    """当 Agent 3 未生成表格时（如 K 联赛球员统计指标缺失），直接从 lineup_data 生成基础首发名单表格。"""
+    lines = ["### 确认首发名单",
+             "| 球队 | 位置 | 球员 | 进攻贡献 | 防守贡献 |",
+             "|---|---|---|---|---|"]
+    for side_key, team_label in [("home", home_name), ("away", away_name)]:
+        starters = lineup_data.get(side_key, {}).get("starters", [])
+        if not starters:
+            lines.append(f"| {team_label} | — | 首发数据暂缺 | — | — |")
+            continue
+        for p in starters:
+            name    = p.get("name", "—")
+            pos     = p.get("position", "—") or "—"
+            xg_xa   = p.get("xg_xa_share", 0.0)
+            def_s   = p.get("def_share", 0.0)
+            lines.append(
+                f"| {team_label} | {pos} | {name} | "
+                f"{'—' if not xg_xa else f'{xg_xa:.2f}'} | "
+                f"{'—' if not def_s else f'{def_s:.2f}'} |"
+            )
+    any_missing = any(
+        lineup_data.get(sk, {}).get("missing")
+        for sk in ("home", "away")
+    )
+    if any_missing:
+        lines += ["", "### 缺阵情报",
+                  "| 球队 | 球员 | 缺席原因 | 进攻贡献 | 防守贡献 |",
+                  "|---|---|---|---|---|"]
+        for side_key, team_label in [("home", home_name), ("away", away_name)]:
+            for p in lineup_data.get(side_key, {}).get("missing", []):
+                name    = p.get("name", "—")
+                reason  = p.get("reason", "—") or "—"
+                xg_xa   = p.get("xg_xa_share", 0.0)
+                def_s   = p.get("def_share", 0.0)
+                lines.append(
+                    f"| {team_label} | {name} | {reason} | "
+                    f"{'—' if not xg_xa else f'{xg_xa:.2f}'} | "
+                    f"{'—' if not def_s else f'{def_s:.2f}'} |"
+                )
+    return "\n".join(lines)
+
+
+def _format_agent3_for_report(new_agent3: str, lineup_data: dict = None,
+                               home_name: str = "主队", away_name: str = "客队") -> str:
+    """
+    将 agent3 原始输出（JSON + ---LINEUP_TABLES--- + Markdown 表格）转换为可读格式：
+    JSON → 阵型摘要文字；分隔符后 → Markdown 表格；若表格为空 → 兜底表格。
+    """
+    sep = '---LINEUP_TABLES---'
+    if sep in new_agent3:
+        json_part, tables_part = new_agent3.split(sep, 1)
+        tables_part = tables_part.strip()
+    else:
+        json_part, tables_part = new_agent3, ""
+
+    prose_lines = []
+    try:
+        import json as _json
+        data     = _json.loads(json_part.strip())
+        ts       = data.get("tactical_summary", {})
+        ni       = data.get("net_impact", {})
+        absences = data.get("absence_impact", [])
+        h_form   = ts.get("home_formation", "N/A")
+        a_form   = ts.get("away_formation", "N/A")
+        matchup  = ts.get("matchup_note", "")
+        tilt     = ni.get("tilt_direction", "均势")
+        tilt_rsn = ni.get("tilt_reason", "")
+        prose_lines.append(f"阵型对抗：主队 **{h_form}** vs 客队 **{a_form}**。{matchup}")
+        prose_lines.append(f"战力倾斜：**{tilt}**。{tilt_rsn}")
+        high_abs = [a for a in absences if a.get("severity") == "HIGH"]
+        if high_abs:
+            abs_strs = [
+                f"{a.get('team','')} **{a.get('player','')}**"
+                f"（{a.get('reason','')}，进攻 {a.get('xg_xa_share',0):.0%}，"
+                f"防守 {a.get('def_share',0):.0%}）"
+                for a in high_abs
+            ]
+            prose_lines.append("关键缺阵：" + "；".join(abs_strs))
+    except Exception:
+        prose_lines.append(json_part.strip())
+
+    prose = "\n\n".join(prose_lines)
+    if tables_part:
+        return f"{prose}\n\n{tables_part}"
+    if lineup_data:
+        fallback = _build_fallback_lineup_tables(lineup_data, home_name, away_name)
+        return f"{prose}\n\n{fallback}"
+    return f"{prose}\n\n> ℹ️ 首发阵容统计指标暂缺，阵容表格跳过。"
+
+
+def _replace_lineup_section(report_path: str, new_agent3: str,
+                             lineup_data: dict = None,
+                             home_name: str = "主队", away_name: str = "客队") -> bool:
+    """替换研报战力段落，自动格式化 agent3 输出（无原始 JSON，无分隔符明文）。"""
+    if not os.path.exists(report_path):
+        log.warning(f"  报告文件不存在: {report_path}")
+        return False
+    with open(report_path, "r", encoding="utf-8") as f:
+        content = f.read()
+    formatted = _format_agent3_for_report(new_agent3, lineup_data, home_name, away_name)
+    pattern = r'(## ⚔️ (?:战力评估|战术及战力损耗)[^\n]*\n)(.*?)(\n---|\Z)'
+    new_section = rf'\g<1>{formatted}\3'
+    new_content, n = re.subn(pattern, new_section, content, flags=re.DOTALL)
+    if n == 0:
+        log.warning(f"  未找到匹配的战力/战术段落")
+        return False
+    header_pattern = r'(## ⚔️ (?:战力评估|战术及战力损耗))(\n)'
+    if re.search(header_pattern, new_content):
+        new_content = re.sub(header_pattern, r'\1 ✅ 确认首发\2', new_content, count=1)
+    with open(report_path, "w", encoding="utf-8") as f:
+        f.write(new_content)
+    return True
+
+def _rerun_agent3(mid: str, match_name: str, lineup_data: dict) -> str | None:
+    try:
+        from qwen_client import get_flash
+        from workflow import build_agent_node, AGENT3_SYSTEM_PROMPT
+        llm = get_flash()  # 走统一千问工厂（含 fallback + 关联网搜索）
+        parts = match_name.split(" vs ")
+        state = {
+            "match_id": mid,
+            "lineup_data": lineup_data,
+            "match_info": {"home_name": parts[0].strip(), "away_name": parts[1].strip() if len(parts) > 1 else ""},
+            "agent3_output": "",
+        }
+        agent3_fn = build_agent_node(llm, AGENT3_SYSTEM_PROMPT, "agent3_output")
+        result = agent3_fn(state)
+        output = result.get("agent3_output", "")
+        return output if len(output) > 50 else None
+    except Exception as e:
+        log.error(f"  ❌ Agent 3 运行失败: {e}")
+        return None
+
+def main(force_ids=None):
+    today = date.today().isoformat()
+    now = datetime.now()
+    log.info(f"🚀 开始轮询首发状态 (Today: {today})")
+
+    schedule_path = os.path.join(PROJECT_ROOT, "schedule", "target_matches.json")
+    if not os.path.exists(schedule_path):
+        log.error("未找到 target_matches.json")
+        return
+
+    with open(schedule_path, encoding="utf-8") as f:
+        matches = json.load(f)
+
+    odds_path = os.path.join(PROJECT_ROOT, "odds", "match_odds_data.json")
+    odds_index = {}
+    if os.path.exists(odds_path):
+        with open(odds_path, encoding="utf-8") as f:
+            odds_list = json.load(f)
+            odds_index = {str(o.get('fotmob_id')): o.get('odds', {}) for o in odds_list if o.get('fotmob_id')}
+
+    confirmed_ids = _load_confirmed()
+    finalized_ids = _load_finalized()
+    
+    newly_confirmed = []
+    newly_finalized = []
+
+    # 预加载模型占位
+    model_wdl = model_ou = None
+
+    for m in matches:
+        mid = str(m["match_id"])
+        if force_ids and mid not in force_ids: continue
+        
+        kickoff = datetime.strptime(m["kickoff_time"], "%Y-%m-%d %H:%M:%S")
+        mins_to_kickoff = (kickoff - now).total_seconds() / 60.0
+
+        # 获取模型（按需加载）
+        def _get_models():
+            nonlocal model_wdl, model_ou
+            if not model_wdl:
+                model_wdl, model_ou, _ = load_models()
+            return model_wdl, model_ou
+
+        # ── T-10 定稿触发 ──
+        if (not force_ids) and (mid not in finalized_ids) and (0 <= mins_to_kickoff <= FINALIZE_MINS):
+            log.info(f"  ⏰ T-{mins_to_kickoff:.0f}min [{m['match_name']}] 触发赔率定稿...")
+            _ensure_models_and_odds()
+            match_odds_raw = odds_index.get(mid, {})
+            eu = match_odds_raw.get("european_1x2", {}).get("latest", {})
+            eu_h, eu_d, eu_a = float(eu.get("home", 0) or 0), float(eu.get("draw", 0) or 0), float(eu.get("away", 0) or 0)
+            
+            if eu_h > 1 and eu_d > 1 and eu_a > 1:
+                from review_engine import ReviewEngine
+                _rev = ReviewEngine(DB_PATH)
+                _rev.save_final_odds(mid, eu_h, eu_d, eu_a)
+                log.info(f"    ✅ 定稿赔率已写入 prediction_audit: H={eu_h} D={eu_d} A={eu_a}")
+                
+                m_wdl, m_ou = _get_models()
+                _fc = sqlite3.connect(DB_PATH); _fc.row_factory = sqlite3.Row
+                try:
+                    ok = refresh_pick_for_match(mid, m, _fc, m_wdl, m_ou, FEATURES, odds_index, today)
+                    if ok: log.info(f"    📡 定稿推荐方向已更新并推送")
+                finally:
+                    _fc.close()
+                finalized_ids.add(mid)
+                newly_finalized.append(m["match_name"])
+            else:
+                log.warning(f"    ⚠️ 定稿时赔率不完整，跳过")
+
+        # ── 轮询窗口校验 ──
+        if not (POLL_END_MINS <= mins_to_kickoff <= POLL_START_MINS):
+            continue
+            
+        if mid in confirmed_ids and not force_ids:
+            continue
+
+        log.info(f"🔍 轮询首发 [{mins_to_kickoff:.0f}分钟后开球]: {m['match_name']}")
+        
+        try:
+            lineup_data = fetch_lineup(mid) or {}
+        except Exception as e:
+            log.error(f"  ❌ 阵容抓取异常: {e}")
+            continue
+
+        if not lineup_data or lineup_data.get("status") != "confirmed":
+            continue
+
+        log.info(f"  🎉 获取到首发！开始更新报告...")
+        new_agent3 = _rerun_agent3(mid, m["match_name"], lineup_data)
+        if not new_agent3: continue
+
+        report_date = kickoff.strftime("%Y-%m-%d")
+        report_path = os.path.join(REPORTS_DIR, f"report_{report_date}_{mid}.md")
+        
+        # 补救旧日期报告
+        if not os.path.exists(report_path):
+            import glob
+            found = glob.glob(os.path.join(REPORTS_DIR, f"report_*_{mid}.md"))
+            if found:
+                found.sort(key=os.path.getmtime, reverse=True)
+                os.rename(found[0], report_path)
+
+        _parts = m["match_name"].split(" vs ")
+        _home_n = _parts[0].strip()
+        _away_n = _parts[1].strip() if len(_parts) > 1 else "客队"
+        if _replace_lineup_section(report_path, new_agent3,
+                                    lineup_data=lineup_data,
+                                    home_name=_home_n, away_name=_away_n):
+            m_wdl, m_ou = _get_models()
+            _fc = sqlite3.connect(DB_PATH); _fc.row_factory = sqlite3.Row
+            try:
+                refresh_pick_for_match(mid, m, _fc, m_wdl, m_ou, FEATURES, odds_index, today)
+            finally: _fc.close()
+            
+            # AWS 同步
+            try:
+                pem = os.environ.get("AWS_PEM_KEY", "")
+                if not pem:
+                    raise ValueError("AWS_PEM_KEY not configured")
+                remote = f"ubuntu@54.168.246.157:{os.path.join(PROJECT_ROOT, 'reports')}/"
+                subprocess.run(["scp", "-i", pem, report_path, remote], capture_output=True)
+            except: pass
+
+            confirmed_ids.add(mid)
+            newly_confirmed.append(m["match_name"])
+
+    if newly_finalized:
+        _save_finalized(finalized_ids)
+        log.info(f"  ⏰ 本次定稿：{newly_finalized}")
+    
+    if newly_confirmed:
+        _save_confirmed(confirmed_ids)
+        log.info(f"  🎉 本次确认首发：{newly_confirmed}")
+
+if __name__ == "__main__":
+    force = None
+    if "--force" in sys.argv:
+        idx = sys.argv.index("--force")
+        force = [str(x) for x in sys.argv[idx + 1:]]
+    main(force_ids=force)

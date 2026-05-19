@@ -1,0 +1,44 @@
+[
+  {
+    "match_id": 3625840,
+    "league_id": 53,
+    "league_name": "Serie A",
+    "season": "2021/2022",
+    "date": "2021-08-14",
+    "home": "Lille",
+    "away": "Nice",
+    "missing_periods": [
+      "opening",
+      "closing"
+    ],
+    "has_other_markets": false
+  },
+  {
+    "match_id": 3625852,
+    "league_id": 53,
+    "league_name": "Serie A",
+    "season": "2021/2022",
+    "date": "2021-08-22",
+    "home": "Marseille",
+    "away": "Nice",
+    "missing_periods": [
+      "opening",
+      "closing"
+    ],
+    "has_other_markets": false
+  },
+  {
+    "match_id": 3625959,
+    "league_id": 53,
+    "league_name": "Serie A",
+    "season": "2021/2022",
+    "date": "2021-11-21",
+    "home": "Marseille",
+    "away": "Lyon",
+    "missing_periods": [
+      "opening",
+      "closing"
+    ],
+    "has_other_markets": false
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "league": "LaLiga",
+  "league_id": 87,
+  "rho": -0.112956,
+  "xi": 0.7,
+  "best_val_ah_acc": 0.5503,
+  "n_wdl": 187,
+  "n_ou": 50,
+  "n_ah": 144,
+  "wdl_acc": 0.4706,
+  "ou_acc": 0.54,
+  "ah_acc": 0.4931
+}

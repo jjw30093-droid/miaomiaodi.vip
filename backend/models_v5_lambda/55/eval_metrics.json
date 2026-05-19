@@ -1,0 +1,13 @@
+{
+  "league": "SerieA",
+  "league_id": 55,
+  "rho": -0.057051,
+  "xi": 0.2,
+  "best_val_ah_acc": 0.4815,
+  "n_wdl": 209,
+  "n_ou": 48,
+  "n_ah": 163,
+  "wdl_acc": 0.5455,
+  "ou_acc": 0.6042,
+  "ah_acc": 0.5337
+}

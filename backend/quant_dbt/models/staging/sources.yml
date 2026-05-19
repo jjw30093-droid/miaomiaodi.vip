@@ -1,0 +1,12 @@
+version: 2
+
+sources:
+  - name: main
+    tables:
+      - name: dim_match
+      - name: fact_team_match_stats
+      - name: fact_player_match_stats
+      - name: fact_shotmap
+      - name: dim_player
+      - name: raw_footballdata_odds
+      - name: silver_match_odds

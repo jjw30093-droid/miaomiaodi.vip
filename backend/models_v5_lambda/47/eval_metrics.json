@@ -1,0 +1,13 @@
+{
+  "league": "EPL",
+  "league_id": 47,
+  "rho": -0.061229,
+  "xi": 0.8,
+  "best_val_ah_acc": 0.517,
+  "n_wdl": 199,
+  "n_ou": 39,
+  "n_ah": 158,
+  "wdl_acc": 0.4573,
+  "ou_acc": 0.4103,
+  "ah_acc": 0.6139
+}

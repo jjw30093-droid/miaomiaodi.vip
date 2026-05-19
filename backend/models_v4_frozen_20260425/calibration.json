@@ -1,0 +1,11 @@
+{
+  "wdl_temperature": 1.0,
+  "home_adj": -0.0427,
+  "draw_adj": -0.0351,
+  "away_adj": 0.0778,
+  "n_samples": 102,
+  "cross_entropy_before": 1.0771,
+  "cross_entropy_after": 1.0451,
+  "updated_at": "2026-04-22T18:16:08.697640",
+  "status": "ok"
+}

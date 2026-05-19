@@ -1,0 +1,264 @@
+match_id,League_ID,league_name,Date,home,away,home_score,away_score,lam_h,lam_a,p_h,p_d,p_a,p_over,p_under,max_p,pred_wdl,actual_wdl,wdl_correct,pred_ou,actual_ou,ou_correct,match_type,league_category,home_big5,away_big5
+4927181,133,EFL Cup,2025-08-26,AFC Bournemouth,Brentford,0,2,1.03,1.188,0.317,0.287,0.396,0.382,0.618,0.396,away_win,away_win,1,under,under,1,both_big5,domestic_cup,True,True
+4927183,133,EFL Cup,2025-08-26,Wolverhampton Wanderers,West Ham United,3,2,0.883,1.151,0.28,0.3,0.419,0.332,0.668,0.419,away_win,home_win,0,under,over,0,both_big5,domestic_cup,True,True
+4935322,141,Coppa Italia,2026-04-22,Atalanta,Lazio,1,1,1.454,1.08,0.458,0.261,0.281,0.465,0.535,0.458,home_win,draw,0,under,under,1,both_big5,domestic_cup,True,True
+4935323,141,Coppa Italia,2026-04-21,Inter,Como,3,2,1.46,1.194,0.433,0.257,0.31,0.495,0.505,0.433,home_win,home_win,1,under,over,0,both_big5,domestic_cup,True,True
+4945936,133,EFL Cup,2025-09-16,Brentford,Aston Villa,1,1,0.843,1.197,0.26,0.297,0.443,0.334,0.666,0.443,away_win,draw,0,under,under,1,both_big5,domestic_cup,True,True
+4945938,133,EFL Cup,2025-09-23,Liverpool,Southampton,2,1,1.375,1.059,0.442,0.269,0.29,0.439,0.561,0.442,home_win,home_win,1,under,over,0,both_big5,domestic_cup,True,True
+4945940,133,EFL Cup,2025-09-23,Wolverhampton Wanderers,Everton,2,0,0.824,1.266,0.243,0.289,0.468,0.348,0.652,0.468,away_win,home_win,0,under,under,1,both_big5,domestic_cup,True,True
+4947101,42,UCL,2025-09-17,Bayern München,Chelsea,3,1,1.847,1.171,0.532,0.226,0.241,0.581,0.419,0.532,home_win,home_win,1,over,over,1,both_big5,european,True,True
+4947102,42,UCL,2025-11-04,Paris Saint-Germain,Bayern München,1,2,1.1,1.212,0.332,0.281,0.387,0.407,0.593,0.387,away_win,away_win,1,under,over,0,both_big5,european,True,True
+4947104,42,UCL,2025-11-26,Arsenal,Bayern München,3,1,0.894,1.286,0.26,0.284,0.456,0.372,0.628,0.456,away_win,home_win,0,under,over,0,both_big5,european,True,True
+4947105,42,UCL,2025-12-09,Bayern München,Sporting CP,3,1,1.079,1.034,0.363,0.297,0.34,0.354,0.646,0.363,home_win,home_win,1,under,over,0,one_big5,european,True,False
+4947106,42,UCL,2026-01-28,PSV Eindhoven,Bayern München,1,2,0.78,1.288,0.227,0.288,0.486,0.342,0.658,0.486,away_win,away_win,1,under,over,0,one_big5,european,False,True
+4947107,42,UCL,2026-01-21,Bayern München,Union St.Gilloise,2,0,1.433,0.967,0.479,0.266,0.255,0.43,0.57,0.479,home_win,home_win,1,under,under,1,one_big5,european,True,False
+4947109,42,UCL,2025-11-25,Chelsea,Barcelona,3,0,0.956,1.238,0.286,0.286,0.428,0.376,0.624,0.428,away_win,home_win,0,under,over,0,both_big5,european,True,True
+4947111,42,UCL,2025-12-09,Atalanta,Chelsea,2,1,0.939,1.207,0.287,0.291,0.422,0.363,0.637,0.422,away_win,home_win,0,under,over,0,both_big5,european,True,True
+4947113,42,UCL,2026-01-28,Napoli,Chelsea,2,3,0.907,1.205,0.278,0.293,0.43,0.354,0.646,0.43,away_win,away_win,1,under,over,0,both_big5,european,True,True
+4947114,42,UCL,2026-01-21,Chelsea,Pafos FC,1,0,1.192,0.991,0.406,0.289,0.305,0.373,0.627,0.406,home_win,home_win,1,under,under,1,one_big5,european,True,False
+4947115,42,UCL,2025-11-05,Qarabag FK,Chelsea,2,2,0.88,1.304,0.252,0.283,0.465,0.373,0.627,0.465,away_win,draw,0,under,over,0,one_big5,european,False,True
+4947116,42,UCL,2025-12-10,Real Madrid,Manchester City,1,2,1.243,1.17,0.381,0.274,0.345,0.434,0.566,0.381,home_win,away_win,0,under,over,0,both_big5,european,True,True
+4947117,42,UCL,2025-11-04,Liverpool,Real Madrid,1,0,0.917,1.258,0.271,0.286,0.443,0.371,0.629,0.443,away_win,home_win,0,under,under,1,both_big5,european,True,True
+4947118,42,UCL,2025-10-22,Real Madrid,Juventus,1,0,1.271,0.966,0.435,0.283,0.283,0.387,0.613,0.435,home_win,home_win,1,under,under,1,both_big5,european,True,True
+4947119,42,UCL,2026-01-28,Benfica,Real Madrid,4,2,0.773,1.314,0.22,0.285,0.495,0.347,0.653,0.495,away_win,home_win,0,under,over,0,one_big5,european,False,True
+4947120,42,UCL,2025-09-16,Real Madrid,Marseille,2,1,1.084,1.033,0.365,0.297,0.339,0.355,0.645,0.365,home_win,home_win,1,under,over,0,both_big5,european,True,True
+4947121,42,UCL,2025-11-26,Olympiacos,Real Madrid,3,4,0.91,1.122,0.294,0.302,0.404,0.332,0.668,0.404,away_win,away_win,1,under,over,0,one_big5,european,False,True
+4947122,42,UCL,2026-01-20,Real Madrid,Monaco,6,1,1.154,1.079,0.375,0.287,0.338,0.386,0.614,0.375,home_win,home_win,1,under,over,0,both_big5,european,True,True
+4947124,42,UCL,2025-12-09,Inter,Liverpool,0,1,1.062,1.081,0.348,0.294,0.358,0.362,0.638,0.358,away_win,away_win,1,under,under,1,both_big5,european,True,True
+4947125,42,UCL,2026-01-28,Borussia Dortmund,Inter,0,2,0.779,1.226,0.236,0.296,0.468,0.325,0.675,0.468,away_win,away_win,1,under,under,1,both_big5,european,True,True
+4947126,42,UCL,2026-01-20,Inter,Arsenal,1,3,1.012,1.143,0.321,0.293,0.387,0.365,0.635,0.387,away_win,away_win,1,under,over,0,both_big5,european,True,True
+4947130,42,UCL,2025-11-05,Inter,Kairat Almaty,2,1,1.189,1.055,0.391,0.286,0.324,0.389,0.611,0.391,home_win,home_win,1,under,over,0,one_big5,european,True,False
+4947132,42,UCL,2025-11-05,Manchester City,Borussia Dortmund,4,1,1.324,0.977,0.447,0.277,0.277,0.404,0.596,0.447,home_win,home_win,1,under,over,0,both_big5,european,True,True
+4947133,42,UCL,2025-11-25,Borussia Dortmund,Villarreal,4,0,0.937,1.152,0.296,0.297,0.407,0.347,0.653,0.407,away_win,home_win,0,under,over,0,both_big5,european,True,True
+4947134,42,UCL,2025-09-16,Juventus,Borussia Dortmund,4,4,0.928,1.285,0.269,0.283,0.448,0.381,0.619,0.448,away_win,draw,0,under,over,0,both_big5,european,True,True
+4947135,42,UCL,2025-12-10,Borussia Dortmund,Bodø/Glimt,2,2,1.169,1.061,0.383,0.287,0.33,0.385,0.615,0.383,home_win,draw,0,under,over,0,one_big5,european,True,False
+4947136,42,UCL,2026-01-20,Tottenham Hotspur,Borussia Dortmund,2,0,0.822,1.256,0.244,0.29,0.466,0.344,0.656,0.466,away_win,home_win,0,under,under,1,both_big5,european,True,True
+4947137,42,UCL,2025-10-01,Borussia Dortmund,Athletic Club,4,1,1.108,0.998,0.38,0.297,0.323,0.352,0.648,0.38,home_win,home_win,1,under,over,0,both_big5,european,True,True
+4947139,42,UCL,2025-09-17,Liverpool,Atletico Madrid,3,2,1.761,1.117,0.525,0.234,0.241,0.549,0.451,0.525,home_win,home_win,1,over,over,1,both_big5,european,True,True
+4947140,42,UCL,2025-10-22,Eintracht Frankfurt,Liverpool,1,5,0.781,1.287,0.227,0.288,0.485,0.342,0.658,0.485,away_win,away_win,1,under,over,0,both_big5,european,True,True
+4947142,42,UCL,2026-01-21,Marseille,Liverpool,0,3,1.005,1.056,0.336,0.301,0.363,0.34,0.66,0.363,away_win,away_win,1,under,over,0,both_big5,european,True,True
+4947143,42,UCL,2026-01-28,Liverpool,Qarabag FK,6,0,1.22,1.253,0.357,0.27,0.373,0.449,0.551,0.373,away_win,home_win,0,under,over,0,one_big5,european,True,False
+4947145,42,UCL,2025-10-01,Barcelona,Paris Saint-Germain,1,2,1.256,1.071,0.406,0.279,0.315,0.411,0.589,0.406,home_win,away_win,0,under,over,0,both_big5,european,True,True
+4947146,42,UCL,2025-12-09,Barcelona,Eintracht Frankfurt,2,1,1.28,1.074,0.412,0.276,0.312,0.418,0.582,0.412,home_win,home_win,1,under,over,0,both_big5,european,True,True
+4947147,42,UCL,2025-11-05,Club Brugge,Barcelona,3,3,0.881,1.3,0.254,0.283,0.463,0.372,0.628,0.463,away_win,draw,0,under,over,0,one_big5,european,False,True
+4947151,42,UCL,2026-01-21,Slavia Prague,Barcelona,2,4,0.684,1.239,0.206,0.298,0.497,0.303,0.697,0.497,away_win,away_win,1,under,over,0,one_big5,european,False,True
+4947152,42,UCL,2026-01-28,Barcelona,FC København,4,1,1.322,1.075,0.424,0.273,0.304,0.43,0.57,0.424,home_win,home_win,1,under,over,0,one_big5,european,True,False
+4947153,42,UCL,2025-09-18,Newcastle United,Barcelona,1,2,1.276,1.501,0.323,0.251,0.426,0.525,0.475,0.426,away_win,away_win,1,over,over,1,both_big5,european,True,True
+4947154,42,UCL,2025-09-17,Paris Saint-Germain,Atalanta,4,0,1.274,1.059,0.414,0.278,0.308,0.413,0.587,0.414,home_win,home_win,1,under,over,0,both_big5,european,True,True
+4947155,42,UCL,2025-10-21,Bayer Leverkusen,Paris Saint-Germain,2,7,0.965,1.147,0.306,0.295,0.399,0.353,0.647,0.399,away_win,away_win,1,under,over,0,both_big5,european,True,True
+4947156,42,UCL,2025-11-26,Paris Saint-Germain,Tottenham Hotspur,5,3,1.259,1.14,0.392,0.275,0.334,0.43,0.57,0.392,home_win,home_win,1,under,over,0,both_big5,european,True,True
+4947157,42,UCL,2026-01-20,Sporting CP,Paris Saint-Germain,2,1,0.684,1.223,0.208,0.3,0.492,0.298,0.702,0.492,away_win,home_win,0,under,over,0,one_big5,european,False,True
+4947158,42,UCL,2026-01-28,Paris Saint-Germain,Newcastle United,1,1,1.16,1.073,0.378,0.287,0.335,0.386,0.614,0.378,home_win,draw,0,under,under,1,both_big5,european,True,True
+4947159,42,UCL,2025-12-10,Athletic Club,Paris Saint-Germain,0,0,0.762,1.272,0.224,0.29,0.486,0.332,0.668,0.486,away_win,draw,0,under,under,1,both_big5,european,True,True
+4947160,42,UCL,2025-11-25,Manchester City,Bayer Leverkusen,0,2,1.137,1.074,0.371,0.289,0.34,0.38,0.62,0.371,home_win,away_win,0,under,under,1,both_big5,european,True,True
+4947161,42,UCL,2025-10-21,Villarreal,Manchester City,0,2,0.879,1.345,0.246,0.278,0.477,0.384,0.616,0.477,away_win,away_win,1,under,under,1,both_big5,european,True,True
+4947162,42,UCL,2025-09-18,Manchester City,Napoli,2,0,1.623,1.142,0.486,0.245,0.269,0.522,0.478,0.486,home_win,home_win,1,over,under,0,both_big5,european,True,True
+4947163,42,UCL,2026-01-20,Bodø/Glimt,Manchester City,3,1,0.825,1.197,0.255,0.298,0.447,0.329,0.671,0.447,away_win,home_win,0,under,over,0,one_big5,european,False,True
+4947164,42,UCL,2026-01-28,Manchester City,Galatasaray,2,0,1.231,1.04,0.406,0.283,0.311,0.396,0.604,0.406,home_win,home_win,1,under,under,1,one_big5,european,True,False
+4947165,42,UCL,2025-10-01,Monaco,Manchester City,2,2,0.887,1.248,0.264,0.289,0.447,0.36,0.64,0.447,away_win,draw,0,under,over,0,both_big5,european,True,True
+4947167,42,UCL,2026-01-28,Bayer Leverkusen,Villarreal,3,0,0.963,1.173,0.3,0.293,0.407,0.36,0.64,0.407,away_win,home_win,0,under,over,0,both_big5,european,True,True
+4947168,42,UCL,2025-11-05,Benfica,Bayer Leverkusen,0,1,1.001,1.302,0.287,0.278,0.435,0.405,0.595,0.435,away_win,away_win,1,under,under,1,one_big5,european,False,True
+4947170,42,UCL,2026-01-20,Olympiacos,Bayer Leverkusen,2,0,0.86,1.329,0.243,0.28,0.477,0.374,0.626,0.477,away_win,home_win,0,under,under,1,one_big5,european,False,True
+4947171,42,UCL,2025-12-10,Bayer Leverkusen,Newcastle United,2,2,1.175,1.174,0.361,0.279,0.36,0.417,0.583,0.361,home_win,draw,0,under,over,0,both_big5,european,True,True
+4947173,42,UCL,2025-10-21,Arsenal,Atletico Madrid,4,0,1.143,1.146,0.358,0.283,0.359,0.401,0.599,0.359,away_win,home_win,0,under,over,0,both_big5,european,True,True
+4947174,42,UCL,2025-12-10,Club Brugge,Arsenal,0,3,0.805,1.211,0.246,0.297,0.457,0.328,0.672,0.457,away_win,away_win,1,under,over,0,one_big5,european,False,True
+4947176,42,UCL,2025-11-04,Slavia Prague,Arsenal,0,3,0.946,1.283,0.275,0.282,0.443,0.385,0.615,0.443,away_win,away_win,1,under,over,0,one_big5,european,False,True
+4947177,42,UCL,2026-01-28,Arsenal,Kairat Almaty,3,2,1.185,1.076,0.385,0.285,0.331,0.394,0.606,0.385,home_win,home_win,1,under,over,0,one_big5,european,True,False
+4947178,42,UCL,2025-09-16,Athletic Club,Arsenal,0,2,1.185,1.574,0.288,0.248,0.464,0.521,0.479,0.464,away_win,away_win,1,over,under,0,both_big5,european,True,True
+4947180,42,UCL,2025-11-26,Eintracht Frankfurt,Atalanta,0,3,0.83,1.18,0.259,0.3,0.441,0.326,0.674,0.441,away_win,away_win,1,under,over,0,both_big5,european,True,True
+4947182,42,UCL,2025-11-05,Marseille,Atalanta,0,1,1.05,1.117,0.337,0.292,0.371,0.369,0.631,0.371,away_win,away_win,1,under,under,1,both_big5,european,True,True
+4947183,42,UCL,2026-01-21,Atalanta,Athletic Club,2,3,0.895,1.076,0.298,0.308,0.394,0.316,0.684,0.394,away_win,away_win,1,under,over,0,both_big5,european,True,True
+4947184,42,UCL,2026-01-28,Union St.Gilloise,Atalanta,1,0,0.654,1.394,0.176,0.275,0.549,0.336,0.664,0.549,away_win,home_win,0,under,under,1,one_big5,european,False,True
+4947185,42,UCL,2026-01-21,Juventus,Benfica,2,0,1.328,0.946,0.455,0.277,0.267,0.397,0.603,0.455,home_win,home_win,1,under,under,1,one_big5,european,True,False
+4947186,42,UCL,2025-12-10,Benfica,Napoli,2,0,0.837,1.113,0.273,0.308,0.419,0.31,0.69,0.419,away_win,home_win,0,under,under,1,one_big5,european,False,True
+4947187,42,UCL,2025-11-25,Ajax,Benfica,0,2,1.057,1.135,0.335,0.29,0.374,0.375,0.625,0.374,away_win,away_win,1,under,under,1,neither_big5,european,False,False
+4947190,42,UCL,2026-01-28,Club Brugge,Marseille,3,0,0.864,1.287,0.251,0.285,0.464,0.364,0.636,0.464,away_win,home_win,0,under,over,0,one_big5,european,False,True
+4947194,42,UCL,2025-09-30,Atletico Madrid,Eintracht Frankfurt,5,1,1.214,1.12,0.383,0.279,0.337,0.413,0.587,0.383,home_win,home_win,1,under,over,0,both_big5,european,True,True
+4947195,42,UCL,2026-01-28,Eintracht Frankfurt,Tottenham Hotspur,0,2,0.813,1.325,0.23,0.282,0.488,0.361,0.639,0.488,away_win,away_win,1,under,under,1,both_big5,european,True,True
+4947196,42,UCL,2025-11-04,Napoli,Eintracht Frankfurt,0,0,0.895,1.046,0.304,0.311,0.384,0.307,0.693,0.384,away_win,draw,0,under,under,1,both_big5,european,True,True
+4947198,42,UCL,2026-01-21,Qarabag FK,Eintracht Frankfurt,3,2,0.858,1.213,0.262,0.294,0.444,0.342,0.658,0.444,away_win,home_win,0,under,over,0,one_big5,european,False,True
+4947199,42,UCL,2025-10-01,Villarreal,Juventus,2,2,1.113,1.112,0.356,0.288,0.356,0.384,0.616,0.356,home_win,draw,0,under,over,0,both_big5,european,True,True
+4947200,42,UCL,2025-11-04,Juventus,Sporting CP,1,1,1.149,0.99,0.394,0.294,0.313,0.361,0.639,0.394,home_win,draw,0,under,under,1,one_big5,european,True,False
+4947201,42,UCL,2025-11-25,Bodø/Glimt,Juventus,2,3,1.012,1.145,0.32,0.292,0.387,0.366,0.634,0.387,away_win,away_win,1,under,over,0,one_big5,european,False,True
+4947202,42,UCL,2025-12-10,Juventus,Pafos FC,2,0,1.28,1.117,0.402,0.274,0.323,0.43,0.57,0.402,home_win,home_win,1,under,under,1,one_big5,european,True,False
+4947203,42,UCL,2026-01-28,Monaco,Juventus,0,0,0.712,1.302,0.205,0.288,0.508,0.327,0.673,0.508,away_win,draw,0,under,under,1,both_big5,european,True,True
+4947204,42,UCL,2026-01-28,Atletico Madrid,Bodø/Glimt,1,2,1.315,1.087,0.419,0.273,0.308,0.431,0.569,0.419,home_win,away_win,0,under,over,0,one_big5,european,True,False
+4947205,42,UCL,2025-12-09,PSV Eindhoven,Atletico Madrid,2,3,1.007,1.141,0.319,0.293,0.388,0.363,0.637,0.388,away_win,away_win,1,under,over,0,one_big5,european,False,True
+4947206,42,UCL,2025-11-04,Atletico Madrid,Union St.Gilloise,3,1,1.227,0.912,0.435,0.29,0.275,0.361,0.639,0.435,home_win,home_win,1,under,over,0,one_big5,european,True,False
+4947207,42,UCL,2026-01-21,Galatasaray,Atletico Madrid,1,1,0.759,1.328,0.214,0.283,0.503,0.347,0.653,0.503,away_win,draw,0,under,under,1,one_big5,european,False,True
+4947208,42,UCL,2026-01-20,Villarreal,Ajax,1,2,1.207,1.015,0.405,0.286,0.309,0.383,0.617,0.405,home_win,away_win,0,under,over,0,one_big5,european,True,False
+4947209,42,UCL,2025-09-16,Tottenham Hotspur,Villarreal,1,0,1.343,1.438,0.352,0.252,0.396,0.526,0.474,0.396,away_win,home_win,0,over,under,0,both_big5,european,True,True
+4947210,42,UCL,2025-12-10,Villarreal,FC København,2,3,1.271,1.08,0.408,0.277,0.315,0.417,0.583,0.408,home_win,away_win,0,under,over,0,one_big5,european,True,False
+4947211,42,UCL,2025-11-05,Pafos FC,Villarreal,1,0,0.831,1.308,0.238,0.284,0.478,0.361,0.639,0.478,away_win,home_win,0,under,under,1,one_big5,european,False,True
+4947216,42,UCL,2025-11-25,Marseille,Newcastle United,2,1,1.094,1.132,0.347,0.288,0.366,0.384,0.616,0.366,away_win,home_win,0,under,over,0,both_big5,european,True,True
+4947217,42,UCL,2025-12-09,Union St.Gilloise,Marseille,2,3,0.866,1.226,0.262,0.292,0.446,0.348,0.652,0.446,away_win,away_win,1,under,over,0,one_big5,european,False,True
+4947218,42,UCL,2025-12-09,Tottenham Hotspur,Slavia Prague,3,0,1.077,1.064,0.356,0.295,0.35,0.361,0.639,0.356,home_win,home_win,1,under,over,0,one_big5,european,True,False
+4947220,42,UCL,2025-11-04,Tottenham Hotspur,FC København,4,0,1.074,1.132,0.341,0.289,0.37,0.379,0.621,0.37,away_win,home_win,0,under,over,0,one_big5,european,True,False
+4947221,42,UCL,2025-10-22,Monaco,Tottenham Hotspur,0,0,1.161,1.143,0.363,0.282,0.355,0.405,0.595,0.363,home_win,draw,0,under,under,1,both_big5,european,True,True
+4947223,42,UCL,2025-11-04,Bodø/Glimt,Monaco,0,1,0.978,1.284,0.284,0.281,0.435,0.394,0.606,0.435,away_win,away_win,1,under,under,1,one_big5,european,False,True
+4947227,42,UCL,2026-01-28,Athletic Club,Sporting CP,2,3,1.116,1.063,0.368,0.291,0.341,0.372,0.628,0.368,home_win,away_win,0,under,over,0,one_big5,european,True,False
+4947228,42,UCL,2025-11-04,Olympiacos,PSV Eindhoven,1,1,1.065,1.258,0.313,0.279,0.408,0.41,0.59,0.408,away_win,draw,0,under,under,1,neither_big5,european,False,False
+4947232,42,UCL,2025-11-05,Ajax,Galatasaray,0,3,0.933,1.105,0.304,0.302,0.394,0.334,0.666,0.394,away_win,away_win,1,under,over,0,neither_big5,european,False,False
+4947234,42,UCL,2025-11-25,Slavia Prague,Athletic Club,0,0,1.013,1.165,0.316,0.291,0.393,0.371,0.629,0.393,away_win,draw,0,under,under,1,one_big5,european,False,True
+4947238,42,UCL,2026-01-21,Newcastle United,PSV Eindhoven,3,0,1.102,1.034,0.37,0.295,0.335,0.36,0.64,0.37,home_win,home_win,1,under,over,0,one_big5,european,True,False
+4947239,42,UCL,2025-11-25,Napoli,Qarabag FK,2,0,1.202,1.08,0.389,0.283,0.328,0.399,0.601,0.389,home_win,home_win,1,under,under,1,one_big5,european,True,False
+4947240,42,UCL,2026-01-20,FC København,Napoli,1,1,0.701,1.413,0.186,0.272,0.542,0.354,0.646,0.542,away_win,draw,0,under,under,1,one_big5,european,False,True
+4947245,42,UCL,2025-11-05,Newcastle United,Athletic Club,2,0,0.978,1.024,0.335,0.307,0.359,0.324,0.676,0.359,away_win,home_win,0,under,under,1,both_big5,european,True,True
+4947247,42,UCL,2025-12-09,Monaco,Galatasaray,1,0,0.886,1.061,0.298,0.31,0.391,0.309,0.691,0.391,away_win,home_win,0,under,under,1,one_big5,european,True,False
+4947248,42,UCL,2025-11-26,Pafos FC,Monaco,2,2,0.913,1.307,0.261,0.281,0.458,0.383,0.617,0.458,away_win,draw,0,under,over,0,one_big5,european,False,True
+4947249,42,UCL,2025-11-25,Galatasaray,Union St.Gilloise,0,1,1.179,1.226,0.351,0.275,0.374,0.432,0.568,0.374,away_win,away_win,1,under,under,1,neither_big5,european,False,False
+4947772,73,UEL,2025-10-02,Roma,Lille,0,1,0.83,1.21,0.254,0.296,0.45,0.334,0.666,0.45,away_win,away_win,1,under,under,1,both_big5,european,True,True
+4947775,73,UEL,2026-01-22,Roma,VfB Stuttgart,2,0,0.993,1.216,0.301,0.287,0.412,0.38,0.62,0.412,away_win,home_win,0,under,under,1,both_big5,european,True,True
+4947786,73,UEL,2026-01-29,Lille,Freiburg,1,0,0.988,1.174,0.307,0.291,0.402,0.367,0.633,0.402,away_win,home_win,0,under,under,1,both_big5,european,True,True
+4947797,73,UEL,2025-11-06,Real Betis,Lyon,2,0,1.035,1.091,0.338,0.296,0.366,0.357,0.643,0.366,away_win,home_win,0,under,under,1,both_big5,european,True,True
+4947798,73,UEL,2025-09-24,Real Betis,Nottingham Forest,2,2,0.882,1.131,0.284,0.303,0.414,0.327,0.673,0.414,away_win,draw,0,under,over,0,both_big5,european,True,True
+4947804,73,UEL,2026-01-29,Aston Villa,Salzburg,3,2,1.236,1.08,0.398,0.28,0.322,0.408,0.592,0.398,home_win,home_win,1,under,over,0,one_big5,european,True,False
+4947807,73,UEL,2025-09-25,Aston Villa,Bologna,1,0,0.99,1.072,0.328,0.301,0.371,0.34,0.66,0.371,away_win,home_win,0,under,under,1,both_big5,european,True,True
+4947821,73,UEL,2026-01-29,Lyon,PAOK Thessaloniki,4,2,1.306,1.075,0.419,0.274,0.307,0.425,0.575,0.419,home_win,home_win,1,under,over,0,one_big5,european,True,False
+4947843,73,UEL,2026-01-29,Maccabi Tel Aviv,Bologna,0,3,0.935,1.246,0.279,0.287,0.435,0.372,0.628,0.435,away_win,away_win,1,under,over,0,one_big5,european,False,True
+4947848,73,UEL,2025-12-11,Basel,Aston Villa,1,2,0.904,1.204,0.277,0.293,0.43,0.352,0.648,0.43,away_win,away_win,1,under,over,0,one_big5,european,False,True
+4947857,73,UEL,2026-01-22,Freiburg,Maccabi Tel Aviv,1,0,1.281,1.1,0.406,0.275,0.319,0.425,0.575,0.406,home_win,home_win,1,under,under,1,one_big5,european,True,False
+4947876,73,UEL,2025-09-24,Nice,Roma,1,2,0.958,1.207,0.292,0.29,0.418,0.368,0.632,0.418,away_win,away_win,1,under,over,0,both_big5,european,True,True
+4947878,73,UEL,2025-11-06,Nice,Freiburg,1,3,0.673,1.196,0.209,0.304,0.487,0.288,0.712,0.487,away_win,away_win,1,under,over,0,both_big5,european,True,True
+4947879,73,UEL,2026-01-22,Nice,Go Ahead Eagles,3,1,1.191,1.124,0.376,0.281,0.343,0.408,0.592,0.376,home_win,home_win,1,under,over,0,one_big5,european,True,False
+4947883,73,UEL,2025-10-02,Bologna,Freiburg,1,1,0.797,1.206,0.245,0.298,0.457,0.324,0.676,0.457,away_win,draw,0,under,under,1,both_big5,european,True,True
+4947885,73,UEL,2026-01-22,Celta Vigo,Lille,2,1,1.012,1.189,0.311,0.288,0.4,0.378,0.622,0.4,away_win,home_win,0,under,over,0,both_big5,european,True,True
+4947887,73,UEL,2025-10-23,Celta Vigo,Nice,2,1,1.045,1.118,0.335,0.292,0.372,0.368,0.632,0.372,away_win,home_win,0,under,over,0,both_big5,european,True,True
+4947888,73,UEL,2025-12-11,Celta Vigo,Bologna,1,2,0.836,1.134,0.269,0.305,0.426,0.315,0.685,0.426,away_win,away_win,1,under,over,0,both_big5,european,True,True
+4947892,73,UEL,2025-09-25,VfB Stuttgart,Celta Vigo,2,1,1.048,1.143,0.331,0.29,0.379,0.375,0.625,0.379,away_win,home_win,0,under,over,0,both_big5,european,True,True
+4947907,73,UEL,2025-12-11,FC Utrecht,Nottingham Forest,1,2,0.966,1.169,0.302,0.293,0.405,0.36,0.64,0.405,away_win,away_win,1,under,over,0,one_big5,european,False,True
+4978144,133,EFL Cup,2025-10-29,Arsenal,Brighton & Hove Albion,2,0,1.268,1.08,0.407,0.277,0.316,0.417,0.583,0.407,home_win,home_win,1,under,under,1,both_big5,domestic_cup,True,True
+4978147,133,EFL Cup,2025-10-29,Newcastle United,Tottenham Hotspur,2,0,1.176,1.118,0.373,0.283,0.344,0.402,0.598,0.373,home_win,home_win,1,under,under,1,both_big5,domestic_cup,True,True
+4978149,133,EFL Cup,2025-10-29,Liverpool,Crystal Palace,0,3,1.112,1.171,0.344,0.283,0.373,0.399,0.601,0.373,away_win,away_win,1,under,over,0,both_big5,domestic_cup,True,True
+4978150,133,EFL Cup,2025-10-29,Wolverhampton Wanderers,Chelsea,3,4,0.768,1.257,0.228,0.292,0.48,0.33,0.67,0.48,away_win,away_win,1,under,over,0,both_big5,domestic_cup,True,True
+5034192,133,EFL Cup,2025-12-23,Arsenal,Crystal Palace,1,1,1.159,1.058,0.381,0.288,0.331,0.382,0.618,0.381,home_win,draw,0,under,under,1,both_big5,domestic_cup,True,True
+5034194,133,EFL Cup,2025-12-17,Manchester City,Brentford,2,0,1.346,0.962,0.457,0.275,0.268,0.406,0.594,0.457,home_win,home_win,1,under,under,1,both_big5,domestic_cup,True,True
+5034195,133,EFL Cup,2025-12-17,Newcastle United,Fulham,2,1,1.01,1.086,0.331,0.298,0.37,0.349,0.651,0.37,away_win,home_win,0,under,over,0,both_big5,domestic_cup,True,True
+5078983,134,Coupe de France,2025-12-21,Nice,Saint-Etienne,2,1,0.917,1.131,0.295,0.3,0.405,0.336,0.664,0.405,away_win,home_win,0,under,over,0,both_big5,domestic_cup,True,True
+5078985,134,Coupe de France,2025-12-21,Auxerre,Monaco,1,2,0.882,1.255,0.262,0.288,0.45,0.36,0.64,0.45,away_win,away_win,1,under,over,0,both_big5,domestic_cup,True,True
+5089895,132,FA Cup,2026-01-10,Tottenham Hotspur,Aston Villa,1,2,0.856,1.143,0.274,0.303,0.423,0.323,0.677,0.423,away_win,away_win,1,under,over,0,both_big5,domestic_cup,True,True
+5089905,132,FA Cup,2026-01-10,Everton,Sunderland,1,1,0.898,1.07,0.301,0.308,0.391,0.315,0.685,0.391,away_win,draw,0,under,under,1,both_big5,domestic_cup,True,True
+5089915,132,FA Cup,2026-01-10,Newcastle United,AFC Bournemouth,3,3,1.194,1.039,0.396,0.286,0.318,0.386,0.614,0.396,home_win,draw,0,under,over,0,both_big5,domestic_cup,True,True
+5089922,132,FA Cup,2026-01-11,Manchester United,Brighton & Hove Albion,1,2,1.006,1.032,0.341,0.304,0.355,0.334,0.666,0.355,away_win,away_win,1,under,over,0,both_big5,domestic_cup,True,True
+5091454,138,Copa del Rey,2025-12-17,Deportivo Alaves,Sevilla,1,0,0.861,1.189,0.267,0.297,0.436,0.337,0.663,0.436,away_win,home_win,0,under,under,1,both_big5,domestic_cup,True,True
+5091464,138,Copa del Rey,2026-01-06,Granada,Rayo Vallecano,1,3,0.815,1.241,0.244,0.293,0.463,0.339,0.661,0.463,away_win,away_win,1,under,over,0,both_big5,domestic_cup,True,True
+5103357,133,EFL Cup,2026-01-14,Chelsea,Arsenal,2,3,1.013,1.24,0.302,0.283,0.415,0.392,0.608,0.415,away_win,away_win,1,under,over,0,both_big5,domestic_cup,True,True
+5103358,133,EFL Cup,2026-02-03,Arsenal,Chelsea,1,0,1.101,1.251,0.324,0.277,0.398,0.418,0.582,0.398,away_win,home_win,0,under,under,1,both_big5,domestic_cup,True,True
+5103359,133,EFL Cup,2026-01-13,Newcastle United,Manchester City,0,2,0.946,1.239,0.283,0.287,0.43,0.373,0.627,0.43,away_win,away_win,1,under,under,1,both_big5,domestic_cup,True,True
+5103360,133,EFL Cup,2026-02-04,Manchester City,Newcastle United,3,1,1.04,1.142,0.329,0.291,0.38,0.372,0.628,0.38,away_win,home_win,0,under,over,0,both_big5,domestic_cup,True,True
+5108149,134,Coupe de France,2026-01-10,Angers,Toulouse,1,1,0.753,1.269,0.222,0.291,0.487,0.329,0.671,0.487,away_win,draw,0,under,under,1,both_big5,domestic_cup,True,True
+5108155,134,Coupe de France,2026-01-11,Nantes,Nice,1,1,0.831,1.301,0.239,0.284,0.477,0.359,0.641,0.477,away_win,draw,0,under,under,1,both_big5,domestic_cup,True,True
+5108157,134,Coupe de France,2026-01-11,Metz,Montpellier,0,4,0.934,1.134,0.299,0.299,0.402,0.342,0.658,0.402,away_win,away_win,1,under,over,0,both_big5,domestic_cup,True,True
+5108159,134,Coupe de France,2026-01-11,Lille,Lyon,1,2,0.915,1.18,0.285,0.295,0.42,0.349,0.651,0.42,away_win,away_win,1,under,over,0,both_big5,domestic_cup,True,True
+5108160,134,Coupe de France,2026-01-12,Paris Saint-Germain,Paris FC,0,1,1.285,0.927,0.448,0.283,0.269,0.381,0.619,0.448,home_win,away_win,0,under,under,1,both_big5,domestic_cup,True,True
+5111571,133,EFL Cup,2026-03-22,Arsenal,Manchester City,0,2,0.963,1.183,0.298,0.292,0.41,0.363,0.637,0.41,away_win,away_win,1,under,under,1,both_big5,domestic_cup,True,True
+5125321,138,Copa del Rey,2026-01-14,Deportivo Alaves,Rayo Vallecano,2,0,0.865,1.141,0.277,0.302,0.421,0.325,0.675,0.421,away_win,home_win,0,under,under,1,both_big5,domestic_cup,True,True
+5125327,138,Copa del Rey,2026-01-14,Real Betis,Elche,2,1,1.178,1.122,0.373,0.282,0.345,0.404,0.596,0.373,home_win,home_win,1,under,over,0,both_big5,domestic_cup,True,True
+5125328,138,Copa del Rey,2026-01-13,Real Sociedad,Osasuna,2,2,0.94,1.081,0.311,0.304,0.385,0.329,0.671,0.385,away_win,draw,0,under,over,0,both_big5,domestic_cup,True,True
+5135162,132,FA Cup,2026-02-14,Liverpool,Brighton & Hove Albion,3,0,1.171,1.081,0.38,0.285,0.335,0.391,0.609,0.38,home_win,home_win,1,under,over,0,both_big5,domestic_cup,True,True
+5135174,132,FA Cup,2026-02-14,Aston Villa,Newcastle United,1,3,1.149,1.041,0.382,0.29,0.328,0.375,0.625,0.382,home_win,away_win,0,under,over,0,both_big5,domestic_cup,True,True
+5138482,134,Coupe de France,2026-02-03,Marseille,Rennes,3,0,0.91,1.109,0.297,0.303,0.4,0.328,0.672,0.4,away_win,home_win,0,under,over,0,both_big5,domestic_cup,True,True
+5138484,134,Coupe de France,2026-02-04,Nice,Montpellier,3,2,0.974,1.092,0.319,0.3,0.38,0.341,0.659,0.38,away_win,home_win,0,under,over,0,both_big5,domestic_cup,True,True
+5138486,134,Coupe de France,2026-02-04,Lorient,Paris FC,2,0,0.963,0.992,0.337,0.311,0.352,0.311,0.689,0.352,away_win,home_win,0,under,under,1,both_big5,domestic_cup,True,True
+5138487,134,Coupe de France,2026-02-04,Troyes,Lens,2,4,0.72,1.311,0.206,0.286,0.508,0.332,0.668,0.508,away_win,away_win,1,under,over,0,both_big5,domestic_cup,True,True
+5138488,134,Coupe de France,2026-02-05,Strasbourg,Monaco,3,1,1.042,1.203,0.317,0.285,0.398,0.389,0.611,0.398,away_win,home_win,0,under,over,0,both_big5,domestic_cup,True,True
+5144837,138,Copa del Rey,2026-02-04,Deportivo Alaves,Real Sociedad,2,3,0.939,1.157,0.296,0.296,0.408,0.349,0.651,0.408,away_win,away_win,1,under,over,0,both_big5,domestic_cup,True,True
+5144839,138,Copa del Rey,2026-02-05,Real Betis,Atletico Madrid,0,5,0.936,1.129,0.301,0.299,0.4,0.341,0.659,0.4,away_win,away_win,1,under,over,0,both_big5,domestic_cup,True,True
+5144840,138,Copa del Rey,2026-02-04,Valencia,Athletic Club,1,2,0.865,1.172,0.271,0.299,0.43,0.334,0.666,0.43,away_win,away_win,1,under,over,0,both_big5,domestic_cup,True,True
+5161859,42,UCL,2026-02-17,Benfica,Real Madrid,0,1,0.887,1.322,0.252,0.28,0.468,0.38,0.62,0.468,away_win,away_win,1,under,under,1,one_big5,european,False,True
+5161860,42,UCL,2026-02-25,Real Madrid,Benfica,2,1,1.325,0.991,0.444,0.276,0.28,0.408,0.592,0.444,home_win,home_win,1,under,over,0,one_big5,european,True,False
+5161861,42,UCL,2026-02-18,Bodø/Glimt,Inter,3,1,0.711,1.379,0.193,0.277,0.53,0.347,0.653,0.53,away_win,home_win,0,under,over,0,one_big5,european,False,True
+5161862,42,UCL,2026-02-24,Inter,Bodø/Glimt,1,2,1.289,1.126,0.403,0.273,0.324,0.434,0.566,0.403,home_win,away_win,0,under,over,0,one_big5,european,True,False
+5161863,42,UCL,2026-02-17,Monaco,Paris Saint-Germain,2,3,0.763,1.339,0.214,0.281,0.505,0.351,0.649,0.505,away_win,away_win,1,under,over,0,both_big5,european,True,True
+5161864,42,UCL,2026-02-25,Paris Saint-Germain,Monaco,2,2,1.32,1.047,0.429,0.274,0.297,0.422,0.578,0.429,home_win,draw,0,under,over,0,both_big5,european,True,True
+5161865,42,UCL,2026-02-18,Qarabag FK,Newcastle United,1,6,0.765,1.249,0.228,0.293,0.478,0.327,0.673,0.478,away_win,away_win,1,under,over,0,one_big5,european,False,True
+5161866,42,UCL,2026-02-24,Newcastle United,Qarabag FK,3,2,1.25,1.12,0.393,0.277,0.33,0.422,0.578,0.393,home_win,home_win,1,under,over,0,one_big5,european,True,False
+5161867,42,UCL,2026-02-17,Galatasaray,Juventus,5,2,0.83,1.201,0.256,0.297,0.448,0.332,0.668,0.448,away_win,home_win,0,under,over,0,one_big5,european,False,True
+5161868,42,UCL,2026-02-25,Juventus,Galatasaray,3,2,0.968,1.117,0.313,0.298,0.389,0.347,0.653,0.389,away_win,home_win,0,under,over,0,one_big5,european,True,False
+5161869,42,UCL,2026-02-18,Club Brugge,Atletico Madrid,3,3,0.658,1.32,0.187,0.286,0.527,0.317,0.683,0.527,away_win,draw,0,under,over,0,one_big5,european,False,True
+5161870,42,UCL,2026-02-24,Atletico Madrid,Club Brugge,4,1,1.175,1.103,0.376,0.284,0.34,0.398,0.602,0.376,home_win,home_win,1,under,over,0,one_big5,european,True,False
+5161871,42,UCL,2026-02-17,Borussia Dortmund,Atalanta,2,0,1.123,1.05,0.373,0.292,0.336,0.37,0.63,0.373,home_win,home_win,1,under,under,1,both_big5,european,True,True
+5161872,42,UCL,2026-02-25,Atalanta,Borussia Dortmund,4,1,0.879,1.075,0.294,0.309,0.397,0.311,0.689,0.397,away_win,home_win,0,under,over,0,both_big5,european,True,True
+5161873,42,UCL,2026-02-18,Olympiacos,Bayer Leverkusen,0,2,0.82,1.231,0.247,0.294,0.459,0.337,0.663,0.459,away_win,away_win,1,under,under,1,one_big5,european,False,True
+5161874,42,UCL,2026-02-24,Bayer Leverkusen,Olympiacos,0,0,1.189,1.047,0.392,0.286,0.322,0.387,0.613,0.392,home_win,draw,0,under,under,1,one_big5,european,True,False
+5161885,73,UEL,2026-02-19,PAOK Thessaloniki,Celta Vigo,1,2,0.991,1.224,0.299,0.286,0.415,0.381,0.619,0.415,away_win,away_win,1,under,over,0,one_big5,european,False,True
+5161886,73,UEL,2026-02-19,Fenerbahçe,Nottingham Forest,0,3,0.991,1.193,0.305,0.289,0.406,0.373,0.627,0.406,away_win,away_win,1,under,over,0,one_big5,european,False,True
+5161890,73,UEL,2026-02-26,VfB Stuttgart,Celtic,0,1,1.244,1.048,0.408,0.281,0.311,0.402,0.598,0.408,home_win,away_win,0,under,under,1,one_big5,european,True,False
+5161891,73,UEL,2026-02-26,Bologna,Brann,1,0,1.246,1.17,0.381,0.274,0.345,0.435,0.565,0.381,home_win,home_win,1,under,under,1,one_big5,european,True,False
+5161893,73,UEL,2026-02-26,Celta Vigo,PAOK Thessaloniki,1,0,1.045,1.041,0.351,0.299,0.349,0.347,0.653,0.351,home_win,home_win,1,under,under,1,one_big5,european,True,False
+5161894,73,UEL,2026-02-26,Nottingham Forest,Fenerbahçe,1,2,1.13,1.182,0.347,0.281,0.372,0.407,0.593,0.372,away_win,away_win,1,under,over,0,one_big5,european,True,False
+5161895,73,UEL,2026-02-26,FK Crvena Zvezda,Lille,0,2,0.987,1.307,0.282,0.278,0.44,0.402,0.598,0.44,away_win,away_win,1,under,under,1,one_big5,european,False,True
+5172612,134,Coupe de France,2026-03-04,Lorient,Nice,0,0,1.025,1.149,0.323,0.291,0.386,0.37,0.63,0.386,away_win,draw,0,under,under,1,both_big5,domestic_cup,True,True
+5172613,134,Coupe de France,2026-03-05,Lyon,Lens,2,2,0.874,1.239,0.262,0.29,0.448,0.354,0.646,0.448,away_win,draw,0,under,over,0,both_big5,domestic_cup,True,True
+5172614,134,Coupe de France,2026-03-04,Marseille,Toulouse,2,2,1.028,1.012,0.353,0.303,0.344,0.334,0.666,0.353,home_win,draw,0,under,over,0,both_big5,domestic_cup,True,True
+5172615,134,Coupe de France,2026-03-03,Strasbourg,Reims,2,1,0.931,1.088,0.307,0.304,0.389,0.328,0.672,0.389,away_win,home_win,0,under,over,0,both_big5,domestic_cup,True,True
+5173358,138,Copa del Rey,2026-02-11,Athletic Club,Real Sociedad,0,1,1.004,1.085,0.33,0.299,0.372,0.347,0.653,0.372,away_win,away_win,1,under,under,1,both_big5,domestic_cup,True,True
+5173359,138,Copa del Rey,2026-03-04,Real Sociedad,Athletic Club,1,0,1.009,1.049,0.339,0.302,0.36,0.339,0.661,0.36,away_win,home_win,0,under,under,1,both_big5,domestic_cup,True,True
+5173360,138,Copa del Rey,2026-02-12,Atletico Madrid,Barcelona,4,0,0.893,1.307,0.256,0.282,0.462,0.377,0.623,0.462,away_win,home_win,0,under,over,0,both_big5,domestic_cup,True,True
+5173361,138,Copa del Rey,2026-03-03,Barcelona,Atletico Madrid,3,0,1.237,1.042,0.407,0.282,0.311,0.399,0.601,0.407,home_win,home_win,1,under,over,0,both_big5,domestic_cup,True,True
+5173387,138,Copa del Rey,2026-04-18,Atletico Madrid,Real Sociedad,2,2,1.61,1.215,0.466,0.245,0.289,0.536,0.464,0.466,home_win,draw,0,over,over,1,both_big5,domestic_cup,True,True
+5186378,132,FA Cup,2026-03-08,Fulham,Southampton,0,1,1.123,0.984,0.387,0.296,0.316,0.352,0.648,0.387,home_win,away_win,0,under,under,1,both_big5,domestic_cup,True,True
+5186380,132,FA Cup,2026-03-07,Newcastle United,Manchester City,1,3,0.906,1.272,0.266,0.285,0.449,0.372,0.628,0.449,away_win,away_win,1,under,over,0,both_big5,domestic_cup,True,True
+5186381,132,FA Cup,2026-03-08,Leeds United,Norwich City,3,0,0.937,1.043,0.318,0.308,0.374,0.318,0.682,0.374,away_win,home_win,0,under,over,0,both_big5,domestic_cup,True,True
+5186383,132,FA Cup,2026-03-06,Wolverhampton Wanderers,Liverpool,1,3,0.719,1.358,0.199,0.28,0.522,0.344,0.656,0.522,away_win,away_win,1,under,over,0,both_big5,domestic_cup,True,True
+5186385,132,FA Cup,2026-03-09,West Ham United,Brentford,2,2,0.833,1.274,0.244,0.288,0.468,0.352,0.648,0.468,away_win,draw,0,under,over,0,both_big5,domestic_cup,True,True
+5196580,209,DFB-Pokal,2026-04-22,Bayer Leverkusen,Bayern München,0,2,1.324,1.756,0.291,0.232,0.477,0.595,0.405,0.477,away_win,away_win,1,over,under,0,both_big5,domestic_cup,True,True
+5196581,209,DFB-Pokal,2026-04-23,VfB Stuttgart,Freiburg,2,1,2.011,1.128,0.578,0.213,0.209,0.607,0.393,0.578,home_win,home_win,1,over,over,1,both_big5,domestic_cup,True,True
+5205729,42,UCL,2026-03-11,Paris Saint-Germain,Chelsea,5,2,1.247,1.129,0.391,0.276,0.333,0.424,0.576,0.391,home_win,home_win,1,under,over,0,both_big5,european,True,True
+5205730,42,UCL,2026-03-17,Chelsea,Paris Saint-Germain,0,3,0.963,1.252,0.285,0.285,0.43,0.381,0.619,0.43,away_win,away_win,1,under,over,0,both_big5,european,True,True
+5205731,42,UCL,2026-03-11,Real Madrid,Manchester City,3,0,0.927,1.342,0.259,0.277,0.464,0.396,0.604,0.464,away_win,home_win,0,under,over,0,both_big5,european,True,True
+5205732,42,UCL,2026-03-17,Manchester City,Real Madrid,1,2,1.285,1.145,0.398,0.272,0.33,0.438,0.562,0.398,home_win,away_win,0,under,over,0,both_big5,european,True,True
+5205733,42,UCL,2026-03-10,Newcastle United,Barcelona,1,1,0.741,1.231,0.224,0.297,0.479,0.316,0.684,0.479,away_win,draw,0,under,under,1,both_big5,european,True,True
+5205734,42,UCL,2026-03-18,Barcelona,Newcastle United,7,2,1.342,1.129,0.417,0.269,0.315,0.449,0.551,0.417,home_win,home_win,1,under,over,0,both_big5,european,True,True
+5205737,42,UCL,2026-03-10,Galatasaray,Liverpool,1,0,0.851,1.175,0.267,0.299,0.434,0.331,0.669,0.434,away_win,home_win,0,under,under,1,one_big5,european,False,True
+5205738,42,UCL,2026-03-18,Liverpool,Galatasaray,4,0,1.082,1.126,0.345,0.289,0.366,0.379,0.621,0.366,away_win,home_win,0,under,over,0,one_big5,european,True,False
+5205739,42,UCL,2026-03-10,Atalanta,Bayern München,1,6,0.827,1.138,0.266,0.305,0.429,0.314,0.686,0.429,away_win,away_win,1,under,over,0,both_big5,european,True,True
+5205740,42,UCL,2026-03-18,Bayern München,Atalanta,4,1,1.259,0.986,0.427,0.283,0.291,0.389,0.611,0.427,home_win,home_win,1,under,over,0,both_big5,european,True,True
+5205741,42,UCL,2026-03-10,Atletico Madrid,Tottenham Hotspur,5,2,1.213,0.952,0.421,0.289,0.289,0.368,0.632,0.421,home_win,home_win,1,under,over,0,both_big5,european,True,True
+5205742,42,UCL,2026-03-18,Tottenham Hotspur,Atletico Madrid,3,2,0.711,1.383,0.193,0.276,0.531,0.349,0.651,0.531,away_win,home_win,0,under,over,0,both_big5,european,True,True
+5205743,42,UCL,2026-03-11,Bayer Leverkusen,Arsenal,1,1,1.045,1.245,0.31,0.281,0.409,0.401,0.599,0.409,away_win,draw,0,under,under,1,both_big5,european,True,True
+5205744,42,UCL,2026-03-17,Arsenal,Bayer Leverkusen,2,0,1.033,1.028,0.351,0.301,0.348,0.34,0.66,0.351,home_win,home_win,1,under,under,1,both_big5,european,True,True
+5205789,42,UCL,2026-04-08,Paris Saint-Germain,Liverpool,0,0,1.157,1.164,0.358,0.281,0.361,0.41,0.59,0.361,away_win,draw,0,under,under,1,both_big5,european,True,True
+5205790,42,UCL,2026-04-14,Liverpool,Paris Saint-Germain,0,2,1.629,1.362,0.439,0.24,0.321,0.575,0.425,0.439,home_win,away_win,0,over,under,0,both_big5,european,True,True
+5205791,42,UCL,2026-04-07,Real Madrid,Bayern München,0,0,0.779,1.278,0.228,0.289,0.483,0.339,0.661,0.483,away_win,draw,0,under,under,1,both_big5,european,True,True
+5205792,42,UCL,2026-04-15,Bayern München,Real Madrid,4,3,1.914,1.057,0.574,0.22,0.206,0.57,0.43,0.574,home_win,home_win,1,over,over,1,both_big5,european,True,True
+5205793,42,UCL,2026-04-08,Barcelona,Atletico Madrid,0,0,1.282,0.999,0.43,0.28,0.29,0.399,0.601,0.43,home_win,draw,0,under,under,1,both_big5,european,True,True
+5205794,42,UCL,2026-04-14,Atletico Madrid,Barcelona,1,2,1.067,1.622,0.25,0.246,0.504,0.504,0.496,0.504,away_win,away_win,1,over,over,1,both_big5,european,True,True
+5205795,42,UCL,2026-04-07,Sporting CP,Arsenal,0,0,0.756,1.266,0.223,0.291,0.486,0.329,0.671,0.486,away_win,draw,0,under,under,1,one_big5,european,False,True
+5205796,42,UCL,2026-04-15,Arsenal,Sporting CP,0,0,1.743,1.007,0.547,0.235,0.218,0.519,0.481,0.547,home_win,draw,0,over,under,0,one_big5,european,True,False
+5205811,42,UCL,2026-04-28,Paris Saint-Germain,Bayern München,5,4,1.605,1.362,0.433,0.241,0.326,0.569,0.431,0.433,home_win,home_win,1,over,over,1,both_big5,european,True,True
+5205812,42,UCL,2026-05-06,Bayern München,Paris Saint-Germain,1,1,1.839,1.179,0.529,0.227,0.244,0.581,0.419,0.529,home_win,draw,0,over,under,0,both_big5,european,True,True
+5205813,42,UCL,2026-04-29,Atletico Madrid,Arsenal,1,1,1.113,1.349,0.309,0.269,0.422,0.446,0.554,0.422,away_win,draw,0,under,under,1,both_big5,european,True,True
+5205814,42,UCL,2026-05-05,Arsenal,Atletico Madrid,1,0,1.698,1.033,0.53,0.239,0.231,0.514,0.486,0.53,home_win,home_win,1,over,under,0,both_big5,european,True,True
+5206093,73,UEL,2026-03-12,Bologna,Roma,1,1,0.808,1.354,0.224,0.279,0.497,0.367,0.633,0.497,away_win,draw,0,under,under,1,both_big5,european,True,True
+5206095,73,UEL,2026-03-12,Celta Vigo,Lyon,1,1,0.777,1.214,0.237,0.298,0.465,0.321,0.679,0.465,away_win,draw,0,under,under,1,both_big5,european,True,True
+5206097,73,UEL,2026-03-12,Lille,Aston Villa,0,1,0.912,1.178,0.284,0.295,0.42,0.348,0.652,0.42,away_win,away_win,1,under,under,1,both_big5,european,True,True
+5206100,73,UEL,2026-03-19,FC Porto,VfB Stuttgart,2,0,0.874,1.282,0.255,0.285,0.46,0.366,0.634,0.46,away_win,home_win,0,under,under,1,one_big5,european,False,True
+5206101,73,UEL,2026-03-19,Roma,Bologna,3,4,0.898,1.056,0.303,0.31,0.387,0.311,0.689,0.387,away_win,away_win,1,under,over,0,both_big5,european,True,True
+5206103,73,UEL,2026-03-19,Lyon,Celta Vigo,0,2,0.961,1.122,0.31,0.298,0.392,0.346,0.654,0.392,away_win,away_win,1,under,under,1,both_big5,european,True,True
+5206104,73,UEL,2026-03-19,FC Midtjylland,Nottingham Forest,1,2,1.023,1.255,0.302,0.281,0.417,0.398,0.602,0.417,away_win,away_win,1,under,over,0,one_big5,european,False,True
+5206105,73,UEL,2026-03-19,Aston Villa,Lille,2,0,0.906,1.056,0.306,0.309,0.385,0.313,0.687,0.385,away_win,home_win,0,under,under,1,both_big5,european,True,True
+5206166,73,UEL,2026-04-09,Freiburg,Celta Vigo,0,0,0.795,1.214,0.243,0.297,0.46,0.326,0.674,0.46,away_win,draw,0,under,under,1,both_big5,european,True,True
+5206167,73,UEL,2026-04-09,FC Porto,Nottingham Forest,0,0,0.954,1.202,0.292,0.29,0.418,0.365,0.635,0.418,away_win,draw,0,under,under,1,one_big5,european,False,True
+5206168,73,UEL,2026-04-09,Bologna,Aston Villa,0,0,0.853,1.19,0.264,0.297,0.439,0.335,0.665,0.439,away_win,draw,0,under,under,1,both_big5,european,True,True
+5206169,73,UEL,2026-04-16,Real Betis,Braga,2,4,1.517,1.169,0.453,0.253,0.293,0.503,0.497,0.453,home_win,away_win,0,over,over,1,one_big5,european,True,False
+5206170,73,UEL,2026-04-16,Celta Vigo,Freiburg,1,3,1.431,1.283,0.406,0.255,0.338,0.51,0.49,0.406,home_win,away_win,0,over,over,1,both_big5,european,True,True
+5206171,73,UEL,2026-04-16,Nottingham Forest,FC Porto,1,0,1.234,1.15,0.383,0.276,0.342,0.426,0.574,0.383,home_win,home_win,1,under,under,1,one_big5,european,True,False
+5206172,73,UEL,2026-04-16,Aston Villa,Bologna,4,0,1.62,1.197,0.473,0.244,0.283,0.535,0.465,0.473,home_win,home_win,1,over,over,1,both_big5,european,True,True
+5206173,73,UEL,2026-04-30,Braga,Freiburg,2,1,1.378,1.161,0.419,0.264,0.317,0.466,0.534,0.419,home_win,home_win,1,under,over,0,one_big5,european,False,True
+5206174,73,UEL,2026-04-30,Nottingham Forest,Aston Villa,1,0,1.236,1.262,0.36,0.269,0.372,0.456,0.544,0.372,away_win,home_win,0,under,under,1,both_big5,european,True,True
+5206175,73,UEL,2026-05-07,Freiburg,Braga,3,1,1.441,1.181,0.431,0.259,0.31,0.487,0.513,0.431,home_win,home_win,1,under,over,0,one_big5,european,True,False
+5206176,73,UEL,2026-05-07,Aston Villa,Nottingham Forest,4,0,1.524,1.288,0.429,0.249,0.322,0.533,0.467,0.429,home_win,home_win,1,over,over,1,both_big5,european,True,True
+5206260,10216,UECL,2026-04-09,Crystal Palace,Fiorentina,0,0,0.836,1.114,0.273,0.307,0.42,0.31,0.69,0.42,away_win,draw,0,under,under,1,both_big5,european,True,True
+5206262,10216,UECL,2026-04-09,Mainz 05,Strasbourg,0,0,0.858,1.252,0.255,0.289,0.455,0.353,0.647,0.455,away_win,draw,0,under,under,1,both_big5,european,True,True
+5206264,10216,UECL,2026-04-16,Fiorentina,Crystal Palace,2,1,1.155,1.374,0.316,0.265,0.419,0.464,0.536,0.419,away_win,home_win,0,under,over,0,both_big5,european,True,True
+5206266,10216,UECL,2026-04-16,Strasbourg,Mainz 05,4,0,1.598,1.178,0.472,0.246,0.282,0.525,0.475,0.472,home_win,home_win,1,over,over,1,both_big5,european,True,True
+5206268,10216,UECL,2026-04-30,Rayo Vallecano,Strasbourg,1,0,1.282,1.295,0.365,0.264,0.371,0.476,0.524,0.371,away_win,home_win,0,under,under,1,both_big5,european,True,True
+5206270,10216,UECL,2026-05-07,Strasbourg,Rayo Vallecano,0,1,1.348,1.212,0.4,0.264,0.336,0.471,0.529,0.4,home_win,away_win,0,under,under,1,both_big5,european,True,True
+5223978,134,Coupe de France,2026-04-21,Lens,Toulouse,4,1,2.033,0.957,0.623,0.206,0.17,0.575,0.425,0.623,home_win,home_win,1,over,over,1,both_big5,domestic_cup,True,True
+5223979,134,Coupe de France,2026-04-22,Strasbourg,Nice,0,2,1.813,1.071,0.548,0.229,0.223,0.55,0.45,0.548,home_win,away_win,0,over,under,0,both_big5,domestic_cup,True,True
+5231045,132,FA Cup,2026-04-04,Southampton,Arsenal,2,1,0.861,1.518,0.214,0.258,0.528,0.425,0.575,0.528,away_win,home_win,0,under,over,0,both_big5,domestic_cup,True,True
+5231047,132,FA Cup,2026-04-04,Manchester City,Liverpool,4,0,1.725,1.205,0.496,0.236,0.268,0.561,0.439,0.496,home_win,home_win,1,over,over,1,both_big5,domestic_cup,True,True
+5231346,132,FA Cup,2026-04-05,West Ham United,Leeds United,2,2,1.179,1.171,0.363,0.279,0.359,0.417,0.583,0.363,home_win,draw,0,under,over,0,both_big5,domestic_cup,True,True
+5293793,132,FA Cup,2026-04-25,Manchester City,Southampton,2,1,2.141,0.99,0.637,0.198,0.165,0.606,0.394,0.637,home_win,home_win,1,over,over,1,both_big5,domestic_cup,True,True
+5293794,132,FA Cup,2026-04-26,Chelsea,Leeds United,1,0,1.71,1.182,0.498,0.237,0.265,0.552,0.448,0.498,home_win,home_win,1,over,under,0,both_big5,domestic_cup,True,True

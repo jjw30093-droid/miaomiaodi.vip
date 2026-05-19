@@ -1,0 +1,3 @@
+model,league_id,league,split,n_wdl,n_ou,n_ah,wdl_acc,ou_acc,ah_acc,best_xi,rho
+league_54,54,Bundesliga,val,136,-,-,-,-,0.5702,0.0,-0.1813
+league_54,54,Bundesliga,test,170,38,126,0.5176,0.3684,0.5159,0.0,-0.1813

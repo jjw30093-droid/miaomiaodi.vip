@@ -1,0 +1,37 @@
+{
+  "generated_at": "2026-04-25T13:06:54.646334",
+  "baseline_rps": 0.21556515303046592,
+  "round1_threshold": 0.0003,
+  "n_candidates": 154,
+  "n_survivors_round1": 118,
+  "n_accepted_pairs": 1,
+  "n_accepted_triples": 1,
+  "winners": [
+    {
+      "name": "combo_opp_adj_npxgd_-_npxGD",
+      "type": "pair",
+      "label_a": "opp_adj_npxgd",
+      "op": "-",
+      "label_b": "npxGD",
+      "modifier": "",
+      "mod_op": "",
+      "round1_delta": 0.0032995878270486168,
+      "round1_std": 0.01246807398572783,
+      "greedy_delta": 0.0032995878270486168,
+      "greedy_std": 0.01246807398572783
+    },
+    {
+      "name": "triple_combo_opp_adj_npxgd_-_npxGD_div_ppda",
+      "type": "triple",
+      "label_a": "opp_adj_npxgd",
+      "op": "-",
+      "label_b": "npxGD",
+      "modifier": "ppda",
+      "mod_op": "/",
+      "round1_delta": 0.004996379072808144,
+      "round1_std": 0.01146427391629473,
+      "greedy_delta": 0.004996379072808144,
+      "greedy_std": 0.01146427391629473
+    }
+  ]
+}

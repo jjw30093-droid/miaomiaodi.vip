@@ -1,0 +1,474 @@
+"""
+fotmob_scheduler.py v3.1（daily_matches + curl_cffi + ThorData）
+================================================================
+从 FotMob daily_matches 端点获取未来 48h 内的比赛赛程。
+使用 curl_cffi TLS指纹模拟 + ThorData住宅代理 绕过反爬。
+
+写入 schedule/target_matches.json 供后续流程使用。
+"""
+
+import os
+import json
+import time
+import sqlite3
+import logging
+import subprocess
+import shutil
+from datetime import datetime, timedelta, timezone
+
+# CLAUDE.md §4：FotMob API 查询日期必须用 CST（UTC+8）
+CST = timezone(timedelta(hours=8))
+
+DB_PATH = os.environ.get("DB_PATH", os.path.join(
+    os.environ.get("PROJECT_ROOT", os.path.dirname(os.path.abspath(__file__))),
+    "football_uk.db"
+))
+
+PROJECT_ROOT = os.environ.get("PROJECT_ROOT", os.path.dirname(os.path.abspath(__file__)))
+SCHEDULE_DIR = os.path.join(PROJECT_ROOT, "schedule")
+os.makedirs(SCHEDULE_DIR, exist_ok=True)
+OUTPUT_JSON = os.path.join(SCHEDULE_DIR, "target_matches.json")
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+log = logging.getLogger(__name__)
+
+# ── 联赛白名单 ──
+BIG_FIVE_LIDS     = [47, 87, 54, 55, 53]
+DOMESTIC_CUP_LIDS = [132, 133, 138, 209, 141, 134]
+EURO_LIDS         = [42, 73, 10216]
+ASIA_PAC_LIDS     = [223, 9080, 113]
+TARGET_LIDS       = BIG_FIVE_LIDS + DOMESTIC_CUP_LIDS + EURO_LIDS + ASIA_PAC_LIDS
+TARGET_LIDS_SET   = set(TARGET_LIDS)
+
+# 扫描窗口
+DATES_AHEAD = 3  # 今天 + 未来2天
+
+
+def _is_valid_target_match(m: dict) -> bool:
+    """target_matches.json 最小可用字段校验。"""
+    return bool(
+        m.get("match_id")
+        and m.get("kickoff_time")
+        and m.get("league_id")
+        and m.get("match_name")
+    )
+
+
+def _load_future_old_matches(now_dt: datetime, keep_buffer: timedelta = timedelta(hours=6)) -> list:
+    """
+    读取旧 target_matches.json 中仍可能有用的未来场次。
+    保留 6h buffer，沿用事故 #7 的“宁可少删勿多删”策略。
+    """
+    if not os.path.exists(OUTPUT_JSON):
+        return []
+
+    try:
+        with open(OUTPUT_JSON, "r", encoding="utf-8") as f:
+            old_data = json.load(f)
+    except Exception as e:
+        log.warning(f"读取旧 target_matches.json 失败（忽略旧文件 merge）: {e}")
+        return []
+
+    future_old = []
+    for m in old_data:
+        try:
+            kickoff = datetime.strptime(m.get("kickoff_time", "2000-01-01 00:00:00"), "%Y-%m-%d %H:%M:%S")
+        except Exception:
+            continue
+        if kickoff > now_dt - keep_buffer and _is_valid_target_match(m):
+            future_old.append(m)
+    return future_old
+
+
+def _merge_matches_by_id(*groups: list) -> list:
+    """按 match_id 去重合并，后出现的分组覆盖先出现的分组。"""
+    by_id = {}
+    for group in groups:
+        for m in group or []:
+            if not _is_valid_target_match(m):
+                continue
+            by_id[str(m.get("match_id"))] = m
+    return sorted(by_id.values(), key=lambda x: x.get("kickoff_time", ""))
+
+
+def _has_big_five_in_window(now_utc: datetime) -> bool:
+    """
+    判断未来 DATES_AHEAD 天内是否本应有 BIG_FIVE 比赛。
+    粗略基线：连续 3 天里 BIG_FIVE 几乎一定有比赛日（除非赛季末）。
+    赛季末/夏歇期返回 False，避免误告警。
+
+    实现：查 dim_match 看历史这个窗口内 BIG_FIVE 是否有比赛
+    （如果近 4 周同样的"今+2"窗口都 0 场，说明赛季已结束）。
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH, timeout=5)
+        # 看过去 28 天里 BIG_FIVE 联赛中位场次：> 0 表示赛季中
+        rows = conn.execute(
+            f"""
+            SELECT COUNT(*) FROM dim_match
+            WHERE League_ID IN ({','.join('?' * len(BIG_FIVE_LIDS))})
+              AND Date >= date(?, '-28 days')
+              AND Date < ?
+            """,
+            (*BIG_FIVE_LIDS, now_utc.strftime("%Y-%m-%d"), now_utc.strftime("%Y-%m-%d")),
+        ).fetchone()
+        conn.close()
+        recent = rows[0] if rows else 0
+        # 4 周 BIG_FIVE 历史 < 5 场 → 赛季外，不强校验
+        return recent >= 5
+    except Exception as e:
+        log.warning(f"_has_big_five_in_window 失败，默认 True：{e}")
+        return True
+
+
+def fetch_fotmob_schedule():
+    from fotmob_client import FotMobClient
+    client = FotMobClient()
+
+    now = datetime.now(timezone.utc)       # 用于 sanity check 和 dim_match 入库（UTC）
+    now_cst = datetime.now(CST)            # CLAUDE.md §4：API 查询日期用 CST
+    dates = [(now_cst + timedelta(days=i)).strftime("%Y%m%d") for i in range(DATES_AHEAD)]
+
+    log.info("=" * 60)
+    log.info("📅 FotMob 赛程爬取 v3.1（daily_matches + curl_cffi）")
+    log.info(f"📆 扫描日期: {dates}")
+    log.info("=" * 60)
+
+    target_matches = []
+    seen_ids = set()
+
+    for d in dates:
+        log.info(f"\n📡 正在抓取 [{d}] 赛程...")
+        try:
+            data = client.daily_matches(d)
+        except Exception as e:
+            log.error(f"❌ [{d}] 请求失败: {e}")
+            continue
+
+        leagues = data.get("leagues", [])
+        log.info(f"   获取到 {len(leagues)} 个联赛")
+
+        for league in leagues:
+            lid = league.get("primaryId") or league.get("id")
+            if lid not in TARGET_LIDS_SET:
+                continue
+
+            league_name = league.get("name", "")
+            for match in league.get("matches", []):
+                status = match.get("status", {})
+                if status.get("finished"):
+                    continue
+
+                match_id = str(match.get("id", ""))
+                if not match_id or match_id in seen_ids:
+                    continue
+
+                home = match.get("home", {})
+                away = match.get("away", {})
+                home_name = home.get("name", "")
+                away_name = away.get("name", "")
+
+                # 解析开球时间
+                utc_time = status.get("utcTime", "")
+                try:
+                    t = utc_time.replace(".000Z", "Z").replace("Z", "+00:00")
+                    kickoff = datetime.fromisoformat(t)
+                    kickoff_str = kickoff.strftime("%Y-%m-%d %H:%M:%S")
+                except:
+                    kickoff_str = ""
+
+                if not kickoff_str:
+                    continue
+
+                seen_ids.add(match_id)
+                target_matches.append({
+                    "date":         kickoff_str[:10],
+                    "match_id":     int(match_id),
+                    "match_name":   f"{home_name} vs {away_name}",
+                    "home_id":      home.get("id", 0),
+                    "away_id":      away.get("id", 0),
+                    "league":       league_name,
+                    "league_id":    lid,
+                    "kickoff_time": kickoff_str,
+                })
+                log.info(f"✅ [{kickoff_str[5:16]}] [{league_name}] {home_name} vs {away_name}")
+
+        time.sleep(0.5)
+
+    target_matches.sort(key=lambda x: x["kickoff_time"])
+
+    # ── Sanity check（§19 target_matches 覆盖不变量，2026-04-27 新增）──────
+    # 抓后校验：0 场才视为 fatal；低赛程日只告警，不再阻断写入。
+    big_five_count = sum(1 for m in target_matches if m.get("league_id") in BIG_FIVE_LIDS)
+    euro_count     = sum(1 for m in target_matches if m.get("league_id") in EURO_LIDS)
+    sanity_fatal = False
+    sanity_warning = False
+    failure_reason = ""
+
+    if len(target_matches) == 0:
+        sanity_fatal = True
+        failure_reason = "total_zero"
+    elif big_five_count < 5 and _has_big_five_in_window(now):
+        # 欧冠/欧联杯赛周：五大联赛集体停赛，EURO_LIDS ≥ 1 時豁免
+        # （典型场景：UCL/UEL 半决赛/决赛夜，48h 窗口五大联赛可能为 0）
+        if euro_count >= 1:
+            log.info(
+                f"⚽ 欧冠/欧联杯赛周豁免 sanity：euro={euro_count}, big_five={big_five_count}，跳过低阈值校验"
+            )
+        else:
+            # 赛季末/周中低赛程日可能只有少量真实比赛；记录 warning，但不丢弃有效新赛程。
+            sanity_warning = True
+            failure_reason = f"big_five_too_low N={big_five_count}"
+
+    if sanity_fatal:
+        log.error(f"❌ Sanity check 失败：{failure_reason}（total={len(target_matches)}, big_five={big_five_count}）")
+        try:
+            from scripts.ingest_failure_helper import record_failure
+            record_failure(
+                script_name="fotmob_scheduler",
+                step="sanity_check",
+                error_msg=f"{failure_reason} | total={len(target_matches)} | big_five={big_five_count}",
+            )
+        except Exception as e:
+            log.warning(f"record_failure 调用失败：{e}")
+
+        # 保留旧 .json：清理已过期场次后写回，不允许新空/异常文件覆盖
+        future_old = _load_future_old_matches(datetime.now())
+        if future_old:
+            stale = "unknown"
+            log.warning(f"⚠️ 保留旧文件 {len(future_old)} 场未来比赛（清理 {stale} 场已过期）")
+            with open(OUTPUT_JSON, "w", encoding="utf-8") as f:
+                json.dump(future_old, f, ensure_ascii=False, indent=4)
+            return future_old
+
+        # 没旧文件也不能写空/异常文件，直接返回（让 run_tonight 的双闸门兜底）
+        log.error("⚠️ 无可用旧文件，target_matches.json 保持不变")
+        return target_matches
+
+    if sanity_warning:
+        log.warning(
+            f"⚠️ Sanity warning：{failure_reason}（total={len(target_matches)}, big_five={big_five_count}），"
+            "保留有效新赛程并继续写入"
+        )
+        try:
+            from scripts.ingest_failure_helper import record_failure
+            record_failure(
+                script_name="fotmob_scheduler",
+                step="sanity_warning",
+                error_msg=f"{failure_reason} | total={len(target_matches)} | big_five={big_five_count}",
+            )
+        except Exception as e:
+            log.warning(f"record_failure(sanity_warning) 调用失败：{e}")
+
+        # 低赛程日不回滚旧文件；将新抓有效场次与旧文件仍未来的场次合并，避免 API 局部缺口覆盖掉可用数据。
+        future_old = _load_future_old_matches(datetime.now())
+        if future_old:
+            before = len(target_matches)
+            target_matches = _merge_matches_by_id(future_old, target_matches)
+            log.warning(f"⚠️ 低赛程日 merge 旧未来场次：new={before}, old_future={len(future_old)}, merged={len(target_matches)}")
+
+    # ── 联赛级 sanity：单独 ERROR（不阻断写入）─────────────────────────────
+    by_league = {}
+    for m in target_matches:
+        by_league.setdefault(m.get("league_id"), []).append(m)
+    log.info(f"📊 BIG_FIVE 分布：" + " | ".join(
+        f"L{lid}={len(by_league.get(lid, []))}" for lid in BIG_FIVE_LIDS
+    ))
+
+    # ── BIG_FIVE 联赛级回归检测（2026-05-04，事故 #7 防御）────────────────
+    # 对比旧 target_matches.json 各联赛场次，检测渐进性丢失（单一总数阈值检测不到）
+    _prev_per_lid = {}
+    if os.path.exists(OUTPUT_JSON):
+        try:
+            with open(OUTPUT_JSON, "r", encoding="utf-8") as _f:
+                _old_data = json.load(_f)
+            from collections import Counter
+            _prev_per_lid = Counter(m.get("league_id") for m in _old_data
+                                    if m.get("league_id") in BIG_FIVE_LIDS)
+        except Exception as _e:
+            log.warning(f"联赛回归检测：读旧文件失败（忽略）: {_e}")
+
+    if _prev_per_lid:
+        _new_per_lid = {lid: len(by_league.get(lid, [])) for lid in BIG_FIVE_LIDS}
+        for _lid in BIG_FIVE_LIDS:
+            _prev = _prev_per_lid.get(_lid, 0)
+            _curr = _new_per_lid.get(_lid, 0)
+            # 旧文件该联赛 ≥ 3 场 且 新文件不到旧的一半 → 疑似渐进性丢失
+            if _prev >= 3 and _curr < _prev * 0.5:
+                _drop_pct = (1 - _curr / _prev) * 100 if _prev > 0 else 100
+                log.error(
+                    f"🚨 BIG_FIVE 联赛回归: L{_lid} prev={_prev} → curr={_curr} "
+                    f"(-{_drop_pct:.0f}%) 可能渐进性丢失"
+                )
+                try:
+                    from scripts.ingest_failure_helper import record_failure as _rf
+                    _rf(
+                        "fotmob_scheduler",
+                        step="league_coverage_regression",
+                        error_msg=(
+                            f"L{_lid}: prev={_prev} curr={_curr} "
+                            f"drop={_drop_pct:.0f}% — 疑似渐进性 BIG_FIVE 丢失（事故 #7 模式）"
+                        ),
+                    )
+                except Exception as _rfe:
+                    log.warning(f"record_failure(league_coverage_regression) 失败: {_rfe}")
+
+    # ── 原子写入：先 .new 再 rename，避免半写入文件 ─────────────────────────
+    tmp_path = OUTPUT_JSON + ".new"
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        json.dump(target_matches, f, ensure_ascii=False, indent=4)
+    os.replace(tmp_path, OUTPUT_JSON)
+
+    log.info(f"\n🏁 共锁定 {len(target_matches)} 场目标赛事 → {OUTPUT_JSON}")
+
+    # ── 同步写入 dim_match（INSERT OR IGNORE，不覆盖已有数据）──────────────
+    _seed_dim_match(target_matches)
+
+    # ── V1 研报异步触发（新抓到的 mid 立即起 subprocess 生成 v1 稿）──────
+    try:
+        prev_path = OUTPUT_JSON + ".prev"
+        if os.path.exists(prev_path):
+            with open(prev_path, "r", encoding="utf-8") as f:
+                old_ids = {str(x.get("match_id")) for x in json.load(f)}
+        else:
+            old_ids = set()
+        curr_ids = {str(m.get("match_id")) for m in target_matches}
+        new_mids = sorted(curr_ids - old_ids)
+        shutil.copy(OUTPUT_JSON, prev_path)
+
+        if new_mids:
+            log.info(f"🆕 新抓到 {len(new_mids)} 场，异步触发 V1 研报（错峰 30s/场）...")
+            RTR_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "run_tonight_reports.py")
+            LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
+            os.makedirs(LOG_DIR, exist_ok=True)
+            for i, mid in enumerate(new_mids):
+                try:
+                    # 错峰启动：每场间隔 30s，避免并发 SQLite WAL checkpoint 竞争卡死
+                    if i > 0:
+                        time.sleep(30)
+                    log_path = os.path.join(LOG_DIR, f"v1_{mid}.log")
+                    subprocess.Popen(
+                        ["python3", RTR_SCRIPT, "--single-match", str(mid), "--version", "v1"],
+                        stdout=open(log_path, "a"),
+                        stderr=subprocess.STDOUT,
+                        cwd=os.path.dirname(RTR_SCRIPT),
+                    )
+                    log.info(f"  ▶ V1 started: {mid} → v1_{mid}.log")
+                except Exception as e:
+                    log.warning(f"  ⚠ V1 触发失败 {mid}: {e}")
+        else:
+            log.info("无新增 match_id，跳过 V1 触发")
+    except Exception as e:
+        log.warning(f"V1 触发模块异常（不影响 scheduler 主流程）: {e}")
+
+    return target_matches
+
+
+SEASON_GAP_DAYS = 45   # 两场比赛间隔超过此天数 → 认为进入新赛季
+
+
+def _infer_season(league_id: int, match_date_str: str, conn: sqlite3.Connection) -> str:
+    """
+    根据数据库中该联赛的历史记录推断赛季。
+
+    算法：
+      1. 从 dim_match 查该联赛最近一场已知比赛的日期和赛季。
+      2. 若新比赛与最近比赛间隔 ≤ SEASON_GAP_DAYS（45天），沿用同一赛季。
+      3. 若间隔 > 45天（跨赛季夏歇），将赛季年份各 +1（"A/B" → "B/C"）。
+      4. 若 dim_match 中该联赛无历史记录，降级到年份+月份推断（8月前=上一赛季）。
+    """
+    try:
+        match_dt = datetime.strptime(match_date_str, "%Y-%m-%d")
+    except Exception:
+        return "2025/2026"
+
+    try:
+        row = conn.execute("""
+            SELECT Date, Season FROM dim_match
+            WHERE League_ID = ?
+              AND Date IS NOT NULL
+              AND Season IS NOT NULL
+              AND status != 'Scheduled'
+            ORDER BY Date DESC
+            LIMIT 1
+        """, (league_id,)).fetchone()
+    except Exception:
+        row = None
+
+    if row:
+        last_date_str, last_season = row[0], row[1]
+        try:
+            last_dt = datetime.strptime(last_date_str, "%Y-%m-%d")
+            gap_days = (match_dt - last_dt).days
+
+            if gap_days <= SEASON_GAP_DAYS:
+                # 同赛季
+                return last_season
+            else:
+                # 跨赛季：将 "A/B" 升为 "B/C"
+                parts = str(last_season).split("/")
+                if len(parts) == 2:
+                    try:
+                        y1, y2 = int(parts[0]), int(parts[1])
+                        return f"{y2}/{y2 + 1}"
+                    except ValueError:
+                        pass
+        except Exception:
+            pass
+
+    # 降级：按月份判断（8月之前视为上一赛季末）
+    y, mo = match_dt.year, match_dt.month
+    if mo >= 8:
+        return f"{y}/{y + 1}"
+    else:
+        return f"{y - 1}/{y}"
+
+
+def _seed_dim_match(matches: list) -> None:
+    """
+    把赛程列表中的比赛预写入 dim_match（INSERT OR IGNORE）。
+    已存在的记录保持不变；新比赛占位写入，后续 batch_sync 再补全统计字段。
+    这样 closing_odds_watcher / poll_lineup 等下游不会因 dim_match 缺记录而静默失败。
+    """
+    if not matches:
+        return
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        inserted = 0
+        for m in matches:
+            mid        = m.get("match_id")
+            date_str   = m.get("date", "")
+            league_id  = m.get("league_id")
+            match_name = m.get("match_name", "")
+            try:
+                parts     = match_name.split(" vs ", 1)
+                home_name = parts[0].strip()
+                away_name = parts[1].strip() if len(parts) > 1 else ""
+            except Exception:
+                home_name = away_name = ""
+
+            season = _infer_season(league_id, date_str, conn)
+            conn.execute("""
+                INSERT OR IGNORE INTO dim_match
+                    (Match_ID, Season, League_ID, Date,
+                     Home_Team_ID, Away_Team_ID,
+                     Home_Team_Name, Away_Team_Name,
+                     status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Scheduled')
+            """, (
+                mid, season, league_id, date_str,
+                m.get("home_id"), m.get("away_id"),
+                home_name, away_name,
+            ))
+            if conn.execute("SELECT changes()").fetchone()[0]:
+                inserted += 1
+
+        conn.commit()
+        conn.close()
+        log.info(f"📥 dim_match 预写入完成：{inserted} 场新增 / {len(matches) - inserted} 场已存在")
+    except Exception as e:
+        log.warning(f"⚠️  dim_match 预写入失败（非致命）: {e}")
+
+
+if __name__ == "__main__":
+    fetch_fotmob_schedule()

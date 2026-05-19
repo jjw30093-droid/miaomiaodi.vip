@@ -1,0 +1,84 @@
+{
+  "global": {
+    "wdl_acc": 0.4919,
+    "ou_acc": 0.4791,
+    "ah_acc": 0.5525,
+    "n_wdl": 1240,
+    "n_ou": 503,
+    "n_ah": 943
+  },
+  "by_league": {
+    "47": {
+      "league": "EPL",
+      "n_wdl": 199,
+      "n_ou": 39,
+      "n_ah": 158,
+      "wdl_acc": 0.4874,
+      "ou_acc": 0.4872,
+      "ah_acc": 0.5696
+    },
+    "53": {
+      "league": "Ligue1",
+      "n_wdl": 150,
+      "n_ou": 44,
+      "n_ah": 121,
+      "wdl_acc": 0.5467,
+      "ou_acc": 0.4318,
+      "ah_acc": 0.4959
+    },
+    "54": {
+      "league": "Bundesliga",
+      "n_wdl": 170,
+      "n_ou": 38,
+      "n_ah": 126,
+      "wdl_acc": 0.5529,
+      "ou_acc": 0.3684,
+      "ah_acc": 0.5079
+    },
+    "55": {
+      "league": "SerieA",
+      "n_wdl": 209,
+      "n_ou": 48,
+      "n_ah": 163,
+      "wdl_acc": 0.5646,
+      "ou_acc": 0.5625,
+      "ah_acc": 0.5031
+    },
+    "87": {
+      "league": "LaLiga",
+      "n_wdl": 187,
+      "n_ou": 50,
+      "n_ah": 144,
+      "wdl_acc": 0.5294,
+      "ou_acc": 0.6,
+      "ah_acc": 0.5139
+    },
+    "113": {
+      "league": "A-League",
+      "n_wdl": 116,
+      "n_ou": 103,
+      "n_ah": 89,
+      "wdl_acc": 0.3534,
+      "ou_acc": 0.4272,
+      "ah_acc": 0.6517
+    },
+    "223": {
+      "league": "J-League",
+      "n_wdl": 138,
+      "n_ou": 115,
+      "n_ah": 91,
+      "wdl_acc": 0.3841,
+      "ou_acc": 0.5043,
+      "ah_acc": 0.6703
+    },
+    "9080": {
+      "league": "K-League",
+      "n_wdl": 71,
+      "n_ou": 66,
+      "n_ah": 51,
+      "wdl_acc": 0.3662,
+      "ou_acc": 0.4545,
+      "ah_acc": 0.6275
+    }
+  }
+}

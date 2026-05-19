@@ -1,0 +1,102 @@
+[
+  {
+    "fotmob_id": "3625852",
+    "match_date": "2021-08-22",
+    "league": "Ligue 1",
+    "fotmob_home": "Marseille",
+    "fotmob_away": "Nice",
+    "candidates": [
+      {
+        "titan_id": "2034628",
+        "nowgoal_home": "Stade Brestois",
+        "nowgoal_away": "Paris Saint Germain (PSG)",
+        "kickoff_local": "2021-08-21 03:00",
+        "score": 0.0,
+        "is_swapped": false
+      },
+      {
+        "titan_id": "2034629",
+        "nowgoal_home": "Monaco",
+        "nowgoal_away": "Lens",
+        "kickoff_local": "2021-08-21 23:00",
+        "score": 0.0,
+        "is_swapped": false
+      },
+      {
+        "titan_id": "2034630",
+        "nowgoal_home": "Saint Etienne",
+        "nowgoal_away": "Lille",
+        "kickoff_local": "2021-08-22 03:00",
+        "score": 0.0,
+        "is_swapped": false
+      },
+      {
+        "titan_id": "2034636",
+        "nowgoal_home": "Lyon",
+        "nowgoal_away": "Clermont",
+        "kickoff_local": "2021-08-22 19:00",
+        "score": 0.0,
+        "is_swapped": false
+      },
+      {
+        "titan_id": "2034632",
+        "nowgoal_home": "Metz",
+        "nowgoal_away": "Reims",
+        "kickoff_local": "2021-08-22 21:00",
+        "score": 0.0,
+        "is_swapped": false
+      }
+    ],
+    "reason": "best_score_too_low_0.000"
+  },
+  {
+    "fotmob_id": "3625959",
+    "match_date": "2021-11-21",
+    "league": "Ligue 1",
+    "fotmob_home": "Marseille",
+    "fotmob_away": "Lyon",
+    "candidates": [
+      {
+        "titan_id": "2034739",
+        "nowgoal_home": "Monaco",
+        "nowgoal_away": "Lille",
+        "kickoff_local": "2021-11-20 04:00",
+        "score": 0.0,
+        "is_swapped": false
+      },
+      {
+        "titan_id": "2034747",
+        "nowgoal_home": "Paris Saint Germain (PSG)",
+        "nowgoal_away": "Nantes",
+        "kickoff_local": "2021-11-20 23:59",
+        "score": 0.0,
+        "is_swapped": false
+      },
+      {
+        "titan_id": "2034745",
+        "nowgoal_home": "Rennes",
+        "nowgoal_away": "Montpellier",
+        "kickoff_local": "2021-11-21 04:00",
+        "score": 0.0,
+        "is_swapped": false
+      },
+      {
+        "titan_id": "2034738",
+        "nowgoal_home": "Stade Brestois",
+        "nowgoal_away": "Lens",
+        "kickoff_local": "2021-11-21 20:00",
+        "score": 0.0,
+        "is_swapped": false
+      },
+      {
+        "titan_id": "2034740",
+        "nowgoal_home": "Metz",
+        "nowgoal_away": "Bordeaux",
+        "kickoff_local": "2021-11-21 22:00",
+        "score": 0.0,
+        "is_swapped": false
+      }
+    ],
+    "reason": "best_score_too_low_0.000"
+  }
+]

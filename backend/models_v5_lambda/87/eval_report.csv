@@ -1,0 +1,3 @@
+model,league_id,league,split,n_wdl,n_ou,n_ah,wdl_acc,ou_acc,ah_acc,best_xi,rho
+league_87,87,LaLiga,val,193,-,-,-,-,0.5503,0.7,-0.113
+league_87,87,LaLiga,test,187,50,144,0.4706,0.54,0.4931,0.7,-0.113

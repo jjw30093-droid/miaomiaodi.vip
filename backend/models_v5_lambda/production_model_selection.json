@@ -1,0 +1,67 @@
+{
+  "generated_at": "2026-05-06T15:01:15.627412",
+  "ah_lead_threshold": 0.02,
+  "global_model_dir": "/home/ubuntu/app/backend/models_v5_lambda/global",
+  "leagues": {
+    "47": {
+      "league": "EPL",
+      "chosen_model": "league",
+      "model_dir": "/home/ubuntu/app/backend/models_v5_lambda/47",
+      "xi": 0.8,
+      "rho": -0.061229,
+      "global_ah_acc": 0.5696,
+      "league_ah_acc": 0.6139,
+      "delta_ah": 0.0443,
+      "reason": "league_AH_leads_by_0.044",
+      "serie_a_note": null
+    },
+    "87": {
+      "league": "LaLiga",
+      "chosen_model": "global",
+      "model_dir": "/home/ubuntu/app/backend/models_v5_lambda/global",
+      "xi": 0.6,
+      "rho": 0.00731505622899235,
+      "global_ah_acc": 0.5139,
+      "league_ah_acc": 0.4931,
+      "delta_ah": -0.0208,
+      "reason": "league_AH_deficit_-0.021",
+      "serie_a_note": null
+    },
+    "54": {
+      "league": "Bundesliga",
+      "chosen_model": "global",
+      "model_dir": "/home/ubuntu/app/backend/models_v5_lambda/global",
+      "xi": 0.6,
+      "rho": -0.11310088811564632,
+      "global_ah_acc": 0.5079,
+      "league_ah_acc": 0.5159,
+      "delta_ah": 0.008,
+      "reason": "league_AH_deficit_0.008",
+      "serie_a_note": null
+    },
+    "55": {
+      "league": "SerieA",
+      "chosen_model": "league",
+      "model_dir": "/home/ubuntu/app/backend/models_v5_lambda/55",
+      "xi": 0.2,
+      "rho": -0.057051,
+      "global_ah_acc": 0.5031,
+      "league_ah_acc": 0.5337,
+      "delta_ah": 0.0306,
+      "reason": "league_AH_leads_by_0.031",
+      "serie_a_note": "Pure主力模型(xi=0.2)"
+    },
+    "53": {
+      "league": "Ligue1",
+      "chosen_model": "global",
+      "model_dir": "/home/ubuntu/app/backend/models_v5_lambda/global",
+      "xi": 0.6,
+      "rho": -0.0543183299502947,
+      "global_ah_acc": 0.4959,
+      "league_ah_acc": 0.4876,
+      "delta_ah": -0.0083,
+      "reason": "league_AH_deficit_-0.008",
+      "serie_a_note": null
+    }
+  }
+}

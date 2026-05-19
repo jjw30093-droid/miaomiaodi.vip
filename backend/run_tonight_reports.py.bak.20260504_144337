@@ -1,0 +1,1907 @@
+"""
+run_tonight_reports.py
+======================
+生成今晚比赛研报并推送 AWS
+
+流程：
+  1. 读取 target_matches.json + match_odds_data.json
+  2. 用前瞻预测（generate_match_report.py 逻辑）构建真实 ML 输出
+  3. 用 workflow.py 的 4-Agent 链生成 LLM 叙事
+  4. 保存 Markdown 研报 → 推送 AWS
+"""
+
+import sys, os, json, sqlite3, logging, re
+from datetime import datetime, date
+from typing import Optional, List, Dict, Any
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import numpy as np
+import pandas as pd
+
+PROJECT_ROOT = os.environ.get("PROJECT_ROOT", os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, PROJECT_ROOT)
+
+DB_PATH    = os.path.join(PROJECT_ROOT, "football_uk.db")
+MODEL_DIR  = os.path.join(PROJECT_ROOT, "models_v4")
+REPORTS_DIR = os.path.join(PROJECT_ROOT, "reports")
+os.makedirs(REPORTS_DIR, exist_ok=True)
+
+# 研报版本标签：默认 v3，由 main() 根据 --version 覆盖。
+# 必须是模块级，因为线程函数 _process_match_llm_phase 取不到 main() 的局部 args。
+REPORT_VERSION = "v3"
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+log = logging.getLogger(__name__)
+
+# ── ML 预测（沿用 generate_match_report.py 的前瞻逻辑）──
+import lightgbm as lgb
+import shap
+from generate_match_report import load_models, load_calibrators, load_ah_predictor, apply_calibration, get_team_features, build_feature_row, adapt_for_review
+from ah_model import LAMBDA_FEATURES
+from lineup_fetcher import fetch_lineups_batch
+from review_engine import ReviewEngine
+from pick_parser import parse_inference
+from scripts.ingest_failure_helper import record_failure
+
+# ── LLM ──
+# 从 .env 加载所有环境变量（DASHSCOPE_API_KEY 等）
+if os.path.exists(os.path.join(PROJECT_ROOT, ".env")):
+    with open(os.path.join(PROJECT_ROOT, ".env")) as _f:
+        for _line in _f:
+            if "=" in _line and not _line.strip().startswith("#"):
+                _k, _v = _line.strip().split("=", 1)
+                os.environ.setdefault(_k, _v)
+from workflow import (
+    build_agent_node,
+    AGENT1_SYSTEM_PROMPT,
+    AGENT2_SYSTEM_PROMPT,
+    AGENT3_SYSTEM_PROMPT,
+    AGENT4_SYSTEM_PROMPT,
+)
+
+# 统一千问工厂：每个角色自带 primary→fallback 链；联网搜索默认关（账单优化）
+# CLAUDE.md §A0：所有 LLM 调用走 qwen_client，不在本文件直接 ChatOpenAI(...)
+from qwen_client import get_flash, get_pro
+
+llm_flash    = get_flash()    # qwen-plus 主 / qwen-turbo 备
+llm_pro      = get_pro()      # qwen-max-latest 主 / qwen-plus 备
+llm_fallback = llm_flash      # Pro 失败时用 Flash 链兜底（不再指向已耗尽模型）
+
+# ── 联赛优先级（欧洲 > 亚洲）──────────────────────────────────────────────
+_LEAGUE_PRIORITY_MAP = {
+    "champions league": 1, "ucl": 1,
+    "premier league":   2,
+    "europa league":    3, "uel": 3,
+    "bundesliga":       4,
+    "serie a":          5,
+    "laliga":           6, "la liga": 6,
+    "ligue 1":          7,
+    "conference league": 8, "uecl": 8,
+    "j. league":        9, "j league": 9,
+    "a-league":        10,
+    "k-league":        11,
+}
+
+def _league_priority_key(league_name: str) -> int:
+    """返回联赛优先级数字（越小越优先）。未知联赛返回 99。"""
+    lg = (league_name or "").lower()
+    for key, pri in _LEAGUE_PRIORITY_MAP.items():
+        if key in lg:
+            return pri
+    return 99
+
+# ── AWS 推送 ──
+sys.path.insert(0, os.path.join(PROJECT_ROOT, "scripts"))
+from aws_pusher import push_match_payload
+
+# ── 校准模块 ──────────────────────────────────────────────────────────────────
+sys.path.insert(0, os.path.join(PROJECT_ROOT, "calibration"))
+_CALIB_CACHE: dict = {}  # 进程级缓存，避免每场重复 IO
+
+def _get_wdl_calibration() -> dict:
+    """懒加载 WDL 温度缩放参数（models_v4/calibration.json）。"""
+    if "wdl" not in _CALIB_CACHE:
+        try:
+            from calibration.temperature_scale import load_calibration
+            _CALIB_CACHE["wdl"] = load_calibration(MODEL_DIR)
+            log.info(f"  📐 WDL 校准: T={_CALIB_CACHE['wdl'].get('wdl_temperature'):.3f}")
+        except Exception as _e:
+            log.warning(f"  WDL 校准加载失败: {_e}，使用恒等变换")
+            _CALIB_CACHE["wdl"] = {"wdl_temperature": 1.0, "home_adj": 0.0,
+                                    "draw_adj": 0.0, "away_adj": 0.0}
+    return _CALIB_CACHE["wdl"]
+
+def _get_ou_calibration() -> dict:
+    """懒加载联赛 OU 偏置表（calibration_league）。{league_id: {"bias": float, "threshold": float}}"""
+    if "ou" not in _CALIB_CACHE:
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            rows = conn.execute(
+                "SELECT league_id, ou_bias, ou_threshold, ou_actual_rate FROM calibration_league"
+            ).fetchall()
+            conn.close()
+            _CALIB_CACHE["ou"] = {r[0]: {"bias": r[1], "threshold": r[2],
+                                          "actual_rate": r[3]} for r in rows}
+            log.info(f"  📐 OU 联赛校准: {len(_CALIB_CACHE['ou'])} 联赛")
+        except Exception as _e:
+            log.warning(f"  OU 校准加载失败: {_e}，使用默认阈值 0.5")
+            _CALIB_CACHE["ou"] = {}
+    return _CALIB_CACHE["ou"]
+
+_GLOBAL_OU_BIAS = 0.032  # 全局兜底偏置（历史实际大球率 - 模型均值）
+
+# ── Emergency: Post-hoc OU bias shift (stopgap) ──────────────────────────────
+OU_BIAS_SHIFT = float(os.environ.get("OU_BIAS_SHIFT", "0.02"))
+# 补偿量：审计显示 ou_over_xgb（已含 _GLOBAL_OU_BIAS=0.032 或联赛校准 bias）
+# 距离实际 over 率还差 ~2pp，本 shift 只填这个残差。
+# 注意：ou_over_xgb 已经叠了一次 league/global bias，这里是「在其之上再抬一点」。
+# 若未来联赛校准表更精准，可通过 .env 设 OU_BIAS_SHIFT=0 关闭。
+
+
+def _get_bp_model():
+    """懒加载 Bivariate Poisson 模型（models_v5/bp_params.json）。
+    若文件不存在则返回 None，推理路径降级到原 DC 模型。"""
+    if "bp" in _CALIB_CACHE:
+        return _CALIB_CACHE["bp"]
+    try:
+        bp_dir = os.path.join(PROJECT_ROOT, "models_v5")
+        bp_path = os.path.join(bp_dir, "bp_params.json")
+        if not os.path.exists(bp_path):
+            _CALIB_CACHE["bp"] = None
+            return None
+        from models_v5.bivariate_poisson import BivariatePoissonModel
+        bp = BivariatePoissonModel().load(bp_dir)
+        _CALIB_CACHE["bp"] = bp
+        log.info(f"  📐 BP 模型: {len(bp.teams)} 队  λ₃={bp.lambda3:.4f}")
+        return bp
+    except Exception as _e:
+        log.warning(f"  BP 加载失败: {_e}")
+        _CALIB_CACHE["bp"] = None
+        return None
+
+
+def _predict_bp(home_name: str, away_name: str,
+                ou_line: float = 2.5, ah_line: float = 0.0) -> dict | None:
+    """调 BP 模型输出 WDL/OU/AH 联合概率；若未加载或队名缺失则返回 None。"""
+    bp = _get_bp_model()
+    if bp is None:
+        return None
+    l1, l2, l3 = bp.get_lambdas(home_name, away_name)
+    if l1 is None:
+        return None
+    from models_v5.bivariate_poisson import BivariatePoissonModel
+    M = BivariatePoissonModel.score_matrix(l1, l2, l3, max_goals=bp.max_goals)
+    mkts = BivariatePoissonModel.markets_from_matrix(M, ah_line=ah_line, ou_line=ou_line)
+    mkts["lambda_home"] = l1
+    mkts["lambda_away"] = l2
+    mkts["lambda3"]     = l3
+    return mkts
+
+
+def _calc_shap_top3_wdl(explainer, X, wdl_probs, feature_names):
+    """WDL 最大概率方向 Top-3 SHAP"""
+    try:
+        sv = explainer.shap_values(X)
+        best_class = int(wdl_probs.argmax())
+        vals = sv[best_class][0] if isinstance(sv, list) else sv[0, :, best_class]
+        top_idx = sorted(range(len(vals)), key=lambda i: abs(vals[i]), reverse=True)[:3]
+        label = {0: '主胜', 1: '平局', 2: '客胜'}.get(best_class, str(best_class))
+        return [{"feature": feature_names[i], "shap_value": round(float(vals[i]), 4), "direction": label}
+                for i in top_idx]
+    except Exception as e:
+        log.warning(f"SHAP WDL 失败: {e}")
+        return []
+
+
+def _calc_shap_top3_ou(explainer, X, ou_prob, feature_names):
+    """OU 方向 Top-3 SHAP"""
+    try:
+        sv = explainer.shap_values(X)
+        if isinstance(sv, list):
+            vals = sv[1][0] if ou_prob >= 0.5 else sv[0][0]
+        else:
+            vals = sv[0]
+        top_idx = sorted(range(len(vals)), key=lambda i: abs(vals[i]), reverse=True)[:3]
+        direction = '大球' if ou_prob >= 0.5 else '小球'
+        return [{"feature": feature_names[i], "shap_value": round(float(vals[i]), 4), "direction": direction}
+                for i in top_idx]
+    except Exception as e:
+        log.warning(f"SHAP OU 失败: {e}")
+        return []
+
+
+def _poisson_convert_ou(p_over_25: float, market_line: float) -> float:
+    """
+    用 Poisson 分布把 ML 的 P(进球>2.5) 转换为 P(进球>market_line)。
+
+    亚盘线类型：
+      X.5  → P_eff = P(>=X+1)                           半球线，直接取整
+      X.25 → P_eff = P(>=X+1) + 0.5*P(=X)              四分之一球，=X 时半负（退半注）
+      X.75 → P_eff = P(>=X+2) + 0.5*P(=X+1)            四分之三球，=X+1 时半赢
+      X.0  → P_eff = P(>=X+1)                           整球线，=X 时平（退全注）
+    """
+    import math
+
+    if market_line <= 2.5:
+        return p_over_25  # 训练线即是实际线，无需转换
+
+    # 把概率钳位到合法范围
+    p = max(0.001, min(0.999, p_over_25))
+
+    # 二分法求泊松 λ，使 P(goals>=3) = p
+    # P(goals<=2) = e^-λ * (1 + λ + λ²/2)
+    target = 1.0 - p
+
+    def cdf2(lam):
+        return math.exp(-lam) * (1.0 + lam + lam * lam / 2.0)
+
+    lo, hi = 0.01, 20.0
+    for _ in range(60):
+        mid = (lo + hi) / 2.0
+        if cdf2(mid) > target:
+            lo = mid
+        else:
+            hi = mid
+    lam = (lo + hi) / 2.0
+
+    def pmf(k):
+        if k < 0 or k > 40:
+            return 0.0
+        return math.exp(-lam) * (lam ** k) / math.factorial(k)
+
+    base = int(market_line)
+    frac = market_line - base
+
+    # P(goals <= base)
+    p_le_base = sum(pmf(k) for k in range(base + 1))
+    p_gt_base = max(0.0, 1.0 - p_le_base)   # P(goals >= base+1)
+
+    if abs(frac - 0.5) < 0.01:              # X.5 线
+        return min(p_gt_base, 0.995)
+
+    elif abs(frac - 0.25) < 0.01:           # X.25 线：=base 时退半注
+        p_eq_base = pmf(base)
+        return min(p_gt_base + 0.5 * p_eq_base, 0.995)
+
+    elif abs(frac - 0.75) < 0.01:           # X.75 线：=base+1 时赢半注
+        p_eq_base1 = pmf(base + 1)
+        p_le_base1 = p_le_base + p_eq_base1
+        p_gt_base1 = max(0.0, 1.0 - p_le_base1)  # P(goals >= base+2)
+        return min(p_gt_base1 + 0.5 * p_eq_base1, 0.995)
+
+    else:                                    # X.0 整球线：=base 时退全注
+        return min(p_gt_base, 0.995)
+
+
+def _compute_value_edge(wdl: dict, ou: dict, odds_data: dict,
+                        ah_pred=None, ah_line=None) -> dict:
+    """预计算 ML 概率 vs 市场隐含概率的价值差表（含 AH 亚盘维度）"""
+    eu = odds_data.get("european_1x2", {}).get("latest", {})
+    eu_h = float(eu.get("home", 0) or 0)
+    eu_d = float(eu.get("draw", 0) or 0)
+    eu_a = float(eu.get("away", 0) or 0)
+
+    # 欧赔归一化隐含概率
+    if eu_h > 1 and eu_d > 1 and eu_a > 1:
+        s = (1/eu_h) + (1/eu_d) + (1/eu_a)
+        imp_h, imp_d, imp_a = (1/eu_h)/s, (1/eu_d)/s, (1/eu_a)/s
+    else:
+        imp_h = imp_d = imp_a = None
+
+    # OU 隐含概率（使用实际市场线）
+    ou_raw = odds_data.get("over_under", {}).get("latest", {})
+    market_line = float(ou_raw.get("line", 2.5) or 2.5)
+    ou_over_w  = float(ou_raw.get("over_or_home", 0) or 0)
+    ou_under_w = float(ou_raw.get("under_or_away", 0) or 0)
+    if ou_over_w > 0 and ou_under_w > 0:
+        ou_over_odds  = 1 + ou_over_w
+        ou_under_odds = 1 + ou_under_w
+        s2 = (1/ou_over_odds) + (1/ou_under_odds)
+        imp_o, imp_u = (1/ou_over_odds)/s2, (1/ou_under_odds)/s2
+    else:
+        imp_o = imp_u = None
+
+    # 将 ML P(>2.5) 转换为 P(>market_line)
+    ml_over_market  = _poisson_convert_ou(ou.get("over_25", 0), market_line)
+    ml_under_market = round(1.0 - ml_over_market, 4)
+
+    # 大小球方向标签含实际盘口线
+    over_label  = f"大球(>{market_line})"
+    under_label = f"小球(≤{market_line})"
+
+    def _edge_label(edge):
+        if edge is None: return "数据缺失"
+        if edge > 0.05: return "显著正向价值"
+        if edge > 0.02: return "轻微正向价值"
+        if edge > -0.02: return "合理定价"
+        return "市场溢价"
+
+    directions = [
+        ("主胜",       "WDL", wdl.get("home", 0), imp_h, eu_h if eu_h > 1 else None),
+        ("平局",       "WDL", wdl.get("draw", 0), imp_d, eu_d if eu_d > 1 else None),
+        ("客胜",       "WDL", wdl.get("away", 0), imp_a, eu_a if eu_a > 1 else None),
+        (over_label,  "OU",  ml_over_market,      imp_o, round(1+ou_over_w, 2) if ou_over_w > 0 else None),
+        (under_label, "OU",  ml_under_market,     imp_u, round(1+ou_under_w, 2) if ou_under_w > 0 else None),
+    ]
+
+    # AH 亚盘（Dixon-Coles + xG 模型）
+    if ah_pred and ah_line is not None:
+        ah_raw  = odds_data.get("asian_handicap", {}).get("latest", {})
+        _ah_h_w = float(ah_raw.get("over_or_home", 0) or 0)
+        _ah_a_w = float(ah_raw.get("under_or_away", 0) or 0)
+        # NowGoal 亚盘赔率以"水位"格式存储（同 OU），需 +1 转换为小数赔率
+        ah_h_od = round(1 + _ah_h_w, 3) if _ah_h_w > 0 else 0.0
+        ah_a_od = round(1 + _ah_a_w, 3) if _ah_a_w > 0 else 0.0
+        # 亚盘市场隐含概率（归一化）
+        if ah_h_od > 1 and ah_a_od > 1:
+            s3 = (1/ah_h_od) + (1/ah_a_od)
+            imp_ah_h = (1/ah_h_od) / s3
+            imp_ah_a = (1/ah_a_od) / s3
+        else:
+            imp_ah_h = imp_ah_a = None
+
+        # NowGoal 约定：正值 = 主队让分（主让），负值 = 主队受让（主受）
+        if ah_line > 0:
+            ah_h_label = f"主让{abs(ah_line):.2g}"
+            ah_a_label = f"客受{abs(ah_line):.2g}"
+        else:
+            ah_h_label = f"主受{abs(ah_line):.2g}"
+            ah_a_label = f"客让{abs(ah_line):.2g}"
+
+        directions.append((
+            ah_h_label, "AH",
+            ah_pred["ah_cover"], imp_ah_h,
+            round(ah_h_od, 2) if ah_h_od > 1 else None
+        ))
+        directions.append((
+            ah_a_label, "AH",
+            ah_pred["ah_away_cover"], imp_ah_a,
+            round(ah_a_od, 2) if ah_a_od > 1 else None
+        ))
+
+    table = []
+    for label, market, ml_p, mkt_p, ref_odds in directions:
+        edge = round(ml_p - mkt_p, 4) if mkt_p is not None else None
+        table.append({
+            "direction": label, "market": market,
+            "ml_prob": round(ml_p, 4),
+            "market_implied_prob": round(mkt_p, 4) if mkt_p else None,
+            "edge": edge,
+            "edge_pct": f"{edge:+.1%}" if edge is not None else "N/A",
+            "edge_label": _edge_label(edge),
+            "reference_odds": ref_odds,
+        })
+
+    positive = [d for d in table if d["edge"] is not None and d["edge"] > 0]
+    best_value = max(positive, key=lambda x: x["edge"]) if positive else None
+    return {"directions": table, "best_value": best_value}
+
+
+def _persist_value_edge(conn: sqlite3.Connection, match_id, edge: dict) -> None:
+    """
+    Phase 3 Step 9: 将 value_edge 计算结果持久化到 prediction_audit。
+    写入 market_home/draw/away, edge_home/draw/away, edge_label, kelly_fraction。
+    若表缺少这些列（迁移007未跑）则静默忽略。
+    """
+    if not edge:
+        return
+    directions = edge.get("directions", [])
+
+    # 提取 WDL 方向的市场隐含概率和 edge
+    def _find(label_key: str, market: str = "WDL"):
+        for d in directions:
+            if d.get("market") == market and label_key in d.get("direction", ""):
+                return d
+        return None
+
+    home_d = _find("主胜")
+    draw_d = _find("平局")
+    away_d = _find("客胜")
+
+    market_home  = home_d["market_implied_prob"] if home_d else None
+    market_draw  = draw_d["market_implied_prob"] if draw_d else None
+    market_away  = away_d["market_implied_prob"] if away_d else None
+    edge_home    = home_d["edge"] if home_d else None
+    edge_draw    = draw_d["edge"] if draw_d else None
+    edge_away    = away_d["edge"] if away_d else None
+
+    # 最大 edge 方向 → edge_label
+    best = edge.get("best_value")
+    if best:
+        dir_label = best["direction"]
+        if "主胜" in dir_label:
+            el = "value_home"
+        elif "平局" in dir_label:
+            el = "value_draw"
+        elif "客胜" in dir_label:
+            el = "value_away"
+        else:
+            el = "no_edge"
+    else:
+        el = "no_edge"
+
+    # Quarter Kelly: f = max(0, min(0.25, (p*b - (1-p)) / b))
+    kelly = None
+    if best and best.get("ml_prob") and best.get("reference_odds"):
+        try:
+            p = float(best["ml_prob"])
+            b = float(best["reference_odds"]) - 1.0
+            if b > 0:
+                kelly = round(max(0.0, min(0.25, (p * b - (1 - p)) / b)), 4)
+        except (TypeError, ValueError):
+            pass
+
+    try:
+        conn.execute("""
+            UPDATE prediction_audit
+            SET market_home=?, market_draw=?, market_away=?,
+                edge_home=?, edge_draw=?, edge_away=?,
+                edge_label=?, kelly_fraction=?
+            WHERE match_id=?
+        """, (market_home, market_draw, market_away,
+              edge_home, edge_draw, edge_away,
+              el, kelly,
+              str(match_id)))
+        conn.commit()
+    except Exception as e:
+        # 列不存在（迁移007未执行）时静默忽略
+        log.debug(f"  _persist_value_edge 失败（迁移007未跑?）: {e}")
+
+
+def _get_reference_odds(pick: str, odds_data: dict) -> Optional[float]:
+    """从赔率数据中取出对应方向的参考赔率（展示用，不参与选择逻辑）"""
+    try:
+        eu = odds_data.get("european_1x2", {}).get("latest", {})
+        ou_raw = odds_data.get("over_under", {}).get("latest", {})
+        if pick == "home_win":
+            v = float(eu.get("home", 0) or 0)
+            return v if v > 1 else None
+        elif pick == "draw":
+            v = float(eu.get("draw", 0) or 0)
+            return v if v > 1 else None
+        elif pick == "away_win":
+            v = float(eu.get("away", 0) or 0)
+            return v if v > 1 else None
+        elif pick == "over":
+            w = float(ou_raw.get("over_or_home", 0) or 0)
+            return round(1 + w, 2) if w > 0 else None
+        elif pick == "under":
+            w = float(ou_raw.get("under_or_away", 0) or 0)
+            return round(1 + w, 2) if w > 0 else None
+    except Exception:
+        pass
+    return None
+
+
+def _select_single_pick(wdl: dict, ou: dict, odds_data: dict, ah_pred=None,
+                        league_id: int = None, bp_pred: dict = None) -> dict:
+    """
+    选出模型把握最大的唯一推荐方向。
+
+    规则：
+    - 置信等级 LOW → 返回「观望」（A4：LOW 命中率低于硬币，不输出推荐）。
+    - OU 方向使用 Poisson 转换后的市场实际盘口概率（而非训练用的 >2.5）；
+      并叠加联赛级 OU 偏置校正（A1/A2）。
+    - WDL 概率经温度缩放 + 方向微调（A3）。
+    - 用归一化置信分跨市场公平比较，消除 WDL 因三方向占优的偏差：
+        score = (ml_prob - 等概率基准) / (1 - 等概率基准)
+        WDL 基准 = 1/3（三选一），OU/AH 基准 = 1/2（二选一）
+    - 置信等级：HIGH(score≥0.45) / MID(score≥0.30) / LOW(其余→SKIP)
+    - AH 方向（Dixon-Coles + xG 模型）与 WDL/OU 公平竞争
+    - BP 融合（C3.1）：若 bp_pred 可用，OU/AH 概率以 50:50 加权与原 XGB/DC 平均，
+      修正 XGB 系统性低估大球的偏差（近90天各联赛 +3~17pp 偏差）。
+    """
+    WDL_BASE = 1 / 3
+    OU_BASE  = 1 / 2
+    AH_BASE  = 1 / 2
+    WDL_MIN_ODDS = 1.60   # B5：WDL 赔率 <1.60 不出 WDL 推荐（让位给 OU/AH）
+
+    # ── A3: WDL 温度缩放 + 方向偏置校正 ─────────────────────────────────
+    try:
+        from calibration.temperature_scale import apply_wdl_calibration
+        wdl = apply_wdl_calibration(wdl, _get_wdl_calibration())
+    except Exception as _ce:
+        pass  # 失败静默降级，用原始概率
+
+    # ── A1/A2: 联赛级 OU 偏置校正 ───────────────────────────────────────
+    ou_calib   = _get_ou_calibration()
+    lid_info   = ou_calib.get(league_id, {}) if league_id else {}
+    ou_bias    = lid_info.get("bias", _GLOBAL_OU_BIAS)   # 正值 = 实际大球率更高
+
+    # 获取实际市场盘口线并转换 ML 概率
+    ou_raw = odds_data.get("over_under", {}).get("latest", {})
+    market_line = float(ou_raw.get("line", 2.5) or 2.5)
+    ou_over_market_raw  = _poisson_convert_ou(ou.get("over_25", 0), market_line)
+    # 叠加联赛偏置：实际大球率比模型高 → 提升 over 概率
+    ou_over_xgb  = round(min(0.97, max(0.03, ou_over_market_raw + ou_bias)), 4)
+
+    # BP OU 融合：回测显示 50:50 融合使 Brier 变差（0.239→0.245），BP 作为信号保留
+    # 但不参与概率融合；AH 同理。仅在 _select_single_pick 里用 BP 做不一致告警。
+    ou_over_market = ou_over_xgb  # 原始值：用于写库/对比，不做 post-hoc shift
+
+    # (A) Post-hoc OU bias shift：仅用于 pick 判定（止血 under 偏置），不覆盖原始概率
+    p_ou_over_adj = max(0.01, min(0.99, float(ou_over_market) + OU_BIAS_SHIFT))
+    p_ou_under_adj = round(1.0 - p_ou_over_adj, 4)
+
+    ou_under_market = round(1.0 - ou_over_market, 4)  # 原始值：用于写库/对比
+
+    over_label  = f"大球(>{market_line})"
+    under_label = f"小球(≤{market_line})"
+
+    # OU 基线：用历史实际 over 率（而非 0.5）作为等概率点，消除 under 选择偏差。
+    # calibration_league.ou_actual_rate 约为 0.48~0.62 视联赛不同，fallback 0.55。
+    ou_actual_base = float(lid_info.get("actual_rate") or 0.55)
+    # 对称 score 公式：over 用 base=actual_rate，under 用 base=1-actual_rate
+    # 这样 over 超出基线才加分，under 低于基线才加分
+    # WDL 不再参与单推竞争（2026-04-28：WDL 近期命中率低，AH/OU 是核心竞争力）
+    # WDL 概率仍计算并存储，供前端概率三宫格展示，不影响 pred_wdl_* 字段。
+    candidates = []
+    for market, pick, label, prob, base in [
+        # OU：pick 判定使用 p_ou_over_adj / p_ou_under_adj（原始 ou_over_market 保留用于审计）
+        ("OU",  "over",     over_label,  p_ou_over_adj,    ou_actual_base),
+        ("OU",  "under",    under_label, p_ou_under_adj,   1 - ou_actual_base),
+    ]:
+        # 防 base 过大导致分母为负；OU 基线 clip 到 [0.3, 0.7]
+        b = max(0.3, min(0.7, base))
+        score = (prob - b) / (1 - b) if prob >= b else (prob - b) / b
+        ref_odds  = _get_reference_odds(pick, odds_data)
+        candidates.append({
+            "market": market, "pick": pick, "label": label,
+            "ml_prob": prob, "conf_score": score, "odds": ref_odds,
+        })
+
+    # ── AH 方向（Dixon-Coles + xG 独立预测，仅在有预测时参与竞争）──────
+    if ah_pred:
+        ah_raw   = odds_data.get("asian_handicap", {}).get("latest", {})
+        ah_line_val = float(ah_raw.get("line", 0) or 0) if ah_raw.get("line") is not None else None
+        _h_w = float(ah_raw.get("over_or_home", 0) or 0)
+        _a_w = float(ah_raw.get("under_or_away", 0) or 0)
+        # NowGoal 亚盘赔率以"水位"格式存储（同 OU），需 +1 转换为小数赔率
+        h_odds = round(1 + _h_w, 3) if _h_w > 0 else 0.0
+        a_odds = round(1 + _a_w, 3) if _a_w > 0 else 0.0
+
+        if ah_line_val is not None:
+            # AH BP 融合：OU 回测显示硬融合伤准确率，AH 暂不硬融合（bp_pred 保留为信号）
+            # 主队覆盖
+            cover = ah_pred["ah_cover"]
+            # NowGoal 约定：正值 = 主队让分（主让），负值 = 主队受让（主受）
+            if ah_line_val > 0:
+                ah_home_label = f"主让{abs(ah_line_val):.2f}".rstrip("0").rstrip(".")
+            else:
+                ah_home_label = f"主受{abs(ah_line_val):.2f}".rstrip("0").rstrip(".")
+            candidates.append({
+                "market":     "AH",
+                "pick":       "ah_home_cover",
+                "label":      ah_home_label,
+                "ml_prob":    round(cover, 4),
+                "conf_score": (cover - AH_BASE) / (1 - AH_BASE),
+                "odds":       h_odds if h_odds > 1 else None,
+            })
+
+            # 客队覆盖
+            away_cover = ah_pred["ah_away_cover"]
+            if ah_line_val < 0:
+                ah_away_label = f"客让{abs(ah_line_val):.2f}".rstrip("0").rstrip(".")
+            else:
+                ah_away_label = f"客受{abs(ah_line_val):.2f}".rstrip("0").rstrip(".")
+            candidates.append({
+                "market":     "AH",
+                "pick":       "ah_away_cover",
+                "label":      ah_away_label,
+                "ml_prob":    round(away_cover, 4),
+                "conf_score": (away_cover - AH_BASE) / (1 - AH_BASE),
+                "odds":       a_odds if a_odds > 1 else None,
+            })
+
+    # 按归一化置信分降序
+    candidates.sort(key=lambda x: x["conf_score"], reverse=True)
+    # 兜底：AH/OU 均无有效候选（极罕见，通常意味着赔率数据完全缺失）
+    if not candidates:
+        ou_dir = "over" if p_ou_over_adj >= 0.5 else "under"
+        return {
+            "market": "OU", "pick": ou_dir, "label": over_label if ou_dir == "over" else under_label,
+            "ml_prob": round(p_ou_over_adj if ou_dir == "over" else p_ou_under_adj, 4),
+            "conf_score": 0.0,
+            "odds": _get_reference_odds(ou_dir, odds_data),
+            "confidence": "SKIP", "direction": ou_dir,
+            "rationale": "AH/OU 赔率数据缺失，兜底输出模型 OU 方向。",
+        }
+    best  = candidates[0]
+    score = best["conf_score"]
+    # B6：保留分层但不作为短路条件；SKIP 仅内部标记，前端不暴露
+    if score >= 0.45:
+        conf = "HIGH"
+    elif score >= 0.30:
+        conf = "MID"
+    elif score >= 0.15:
+        conf = "LOW"
+    else:
+        conf = "SKIP"   # 仅后端分层用，前端仍强制给出推荐
+
+    mkt_map = {"WDL": "胜平负", "OU": "大小球", "AH": "亚盘"}
+    market_label = mkt_map.get(best["market"], best["market"])
+    ou_bias_note = (
+        f"（大小球概率已换算为实际{market_line}球盘口，联赛偏置修正{ou_bias:+.3f}"
+        f"，紧急纠偏OU_BIAS_SHIFT={OU_BIAS_SHIFT:+.3f} 仅影响推荐不影响审计）"
+        if best["market"] == "OU" else ""
+    )
+    rationale = (
+        f"模型对【{best['label']}】置信度{best['ml_prob']:.1%}"
+        f"（{market_label}归一化得分{score:.2f}），"
+        f"为本场把握最大方向，置信等级 {conf}。"
+        + ou_bias_note
+        + (f"（亚盘 Dixon-Coles+xG 独立预测）" if best["market"] == "AH" else "")
+    )
+
+    # B2/audit：方向标准化（用于 picked_direction 写入）
+    # CLAUDE.md §18：canonical = 长形式（与 actual_wdl 同字典）
+    _dir_map = {
+        "home_win": "home_win", "draw": "draw", "away_win": "away_win",
+        "over": "over", "under": "under",
+        "ah_home_cover": "ah_home", "ah_away_cover": "ah_away",
+    }
+
+    primary = {
+        "market":     best["market"],
+        "pick":       best["pick"],
+        "label":      best["label"],
+        "direction":  _dir_map.get(best["pick"], best["pick"]),
+        "ml_prob":    round(best["ml_prob"], 4),
+        "conf_score": round(score, 4),
+        "odds":       best["odds"],
+        "confidence": conf,
+        "rationale":  rationale,
+    }
+
+    # ── B7：双推（primary=AH/OU HIGH 且另一市场也有强把握时追加）──
+    # WDL 已退出单推竞争，双推仅限 AH+OU 组合。
+    if primary["market"] in ("AH", "OU") and conf == "HIGH":
+        secondary = None
+        target_mkt = "OU" if primary["market"] == "AH" else "AH"
+        for c in candidates[1:]:
+            if c["market"] == target_mkt and c["conf_score"] >= 0.55:
+                secondary = c; break
+        if secondary:
+            primary["secondary"] = {
+                "market":    secondary["market"],
+                "pick":      secondary["pick"],
+                "label":     secondary["label"],
+                "direction": _dir_map.get(secondary["pick"], secondary["pick"]),
+                "ml_prob":   round(secondary["ml_prob"], 4),
+                "conf_score": round(secondary["conf_score"], 4),
+                "odds":      secondary["odds"],
+                "confidence": "HIGH" if secondary["conf_score"] >= 0.65 else "MID",
+            }
+
+    return primary
+
+
+def invoke_agent_handicap(state: dict, _llm=None) -> str:
+    """Agent1 亚盘分析 —— 独立可调用入口（B1 抽出，供 final_lock T-30 重写复用）
+
+    state 需包含：ml_output / odds_data / team_stats_summary / match_info 等字段
+    返回：agent1 输出的 markdown 段落文本（不含 ## 标题）
+    """
+    _flash = _llm or llm_flash
+    fn = build_agent_node(_flash, AGENT1_SYSTEM_PROMPT, "agent1_output")
+    return fn(state).get("agent1_output", "") or ""
+
+
+def invoke_agent_ou(state: dict, _llm=None) -> str:
+    """Agent2 大小球分析 —— 独立可调用入口（B1 抽出）
+
+    state 需包含：ml_output / odds_data / team_stats_summary / match_info 等字段
+    返回：agent2 输出的 markdown 段落文本（不含 ## 标题）
+    """
+    _flash = _llm or llm_flash
+    fn = build_agent_node(_flash, AGENT2_SYSTEM_PROMPT, "agent2_output")
+    return fn(state).get("agent2_output", "") or ""
+
+
+def run_agents(state: dict, _llm_flash=None, _llm_pro=None) -> str:
+    """按顺序跑 4 个 Agent（Flash×3 + Pro×1），返回最终研报文本"""
+    _flash = _llm_flash or llm_flash
+    _pro   = _llm_pro or _flash  # 没有 Pro 则降级到 Flash
+
+    for node_key, prompt, model in [
+        ("agent1_output", AGENT1_SYSTEM_PROMPT, _flash),
+        ("agent2_output", AGENT2_SYSTEM_PROMPT, _flash),
+        ("agent3_output", AGENT3_SYSTEM_PROMPT, _flash),
+        ("final_report",  AGENT4_SYSTEM_PROMPT, _pro),
+    ]:
+        node_fn = build_agent_node(model, prompt, node_key)
+        state.update(node_fn(state))
+    return state.get("final_report", "")
+
+
+def _process_match_llm_phase(job: dict) -> dict | None:
+    """
+    Phase 2（线程池）：LLM 研报生成 + 后处理 + 保存 + DB 同步 + AWS 推送。
+    每个线程持有独立的 ReviewEngine 实例，LLM 实例复用模块级变量（无状态 HTTP 客户端）。
+    """
+    m                  = job['m']
+    mid                = job['mid']
+    home_team          = job['home_team']
+    away_team          = job['away_team']
+    state              = job['state']
+    ml_output          = job['ml_output']
+    odds_data          = job['odds_data']
+    h_feat             = job['h_feat']
+    a_feat             = job['a_feat']
+    lineup_data        = job['lineup_data']
+    report_date        = job['report_date']
+    _quant_table       = job['_quant_table']
+    _market_line       = job['_market_line']
+    ah_line            = job['ah_line']
+    _ah_line_for_audit = job['_ah_line_for_audit']
+    _ah_pick_for_audit = job['_ah_pick_for_audit']
+    _wdl_pick_cn       = job['_wdl_pick_cn']
+    _ou_pick_cn        = job['_ou_pick_cn']
+
+    # ── 预检：若 report_store 已有合格报告（非降级、长度够），检查是否要跳过重新生成 ──
+    # 防止 T-30 刷新时遇到 LLM 503 用降级报告覆盖已有正常报告（Inter vs Como 2026-04-21 事件）。
+    _existing_report = None
+    _existing_is_good = False
+    try:
+        _c = sqlite3.connect(DB_PATH)
+        _row = _c.execute(
+            "SELECT markdown_content FROM report_store WHERE match_id=?", (mid,)
+        ).fetchone()
+        _c.close()
+        if _row and _row[0]:
+            _existing_report = _row[0]
+            _existing_is_good = (
+                len(_existing_report) > 1500
+                and "LLM 叙事模块异常回退" not in _existing_report
+            )
+    except Exception:
+        pass
+
+    # ── Step 3: 4-Agent LLM 叙事（Flash×3 + Pro×1）──
+    # 错峰延迟：每场比赛按序号错开 25s，避免多场同时打 Gemini API 触发 503
+    _stagger = job.get('stagger_idx', 0)
+    if _stagger > 0:
+        import time as _time
+        _delay = _stagger * 25
+        log.info(f"  [T] ⏱️ {m['match_name']} 错峰等待 {_delay}s (场次序号={_stagger})...")
+        _time.sleep(_delay)
+    log.info(f"  [T] 🤖 {m['match_name']} 启动 4-Agent 研报生成 [Flash×3 + Pro×1]...")
+    try:
+        final_report = run_agents(state, _llm_flash=llm_flash, _llm_pro=llm_pro)
+    except Exception as e:
+        import traceback
+        log.error(f"  [T] ❌ {m['match_name']} Agent 管道失败: {e}\n{traceback.format_exc()}")
+        log.info(f"  [T] 🔄 {m['match_name']} 全部降级到 Flash 重试...")
+        for k in ("agent1_output", "agent2_output", "agent3_output", "final_report"):
+            state[k] = ""
+        try:
+            final_report = run_agents(state, _llm_flash=llm_fallback, _llm_pro=llm_fallback)
+            log.info(f"  [T] ✅ {m['match_name']} Flash 全量兜底成功")
+        except Exception as e2:
+            log.error(f"  [T] ❌ {m['match_name']} Flash 全量兜底也失败: {e2}")
+            final_report = ""  # 留空让后续降级逻辑决定
+
+    # 降级决策：优先保留已有合格报告，否则再走 fallback
+    _llm_failed = not final_report or len(final_report.strip()) < 100
+    if _llm_failed:
+        if _existing_is_good:
+            log.warning(
+                f"  [T] ♻️ {m['match_name']} LLM 失败，但已有合格旧版研报（{len(_existing_report)}字），"
+                "保留旧版不覆盖；Server酱发送降级告警。"
+            )
+            final_report = _existing_report
+            # 发告警推送
+            try:
+                from notify_utils import notify
+                notify(
+                    title=f"⚠️ 喵弟研报 LLM 失败降级",
+                    msg=f"{m['match_name']}: LLM 全量失败（Pro+Flash 均异常），已保留旧版研报。请稍后手动刷新。"
+                )
+            except Exception:
+                pass
+        else:
+            log.warning(f"  [T] ⚠️ {m['match_name']} 研报过短或为空，使用降级报告")
+            final_report = _fallback_report(m, ml_output, odds_data, h_feat, a_feat, lineup_data)
+            # 也通知告警，避免用户收到低质量研报不知情
+            try:
+                from notify_utils import notify
+                notify(
+                    title=f"⚠️ 喵弟研报降级通知",
+                    msg=f"{m['match_name']}: LLM 叙事失败，已输出纯量化版降级研报。"
+                )
+            except Exception:
+                pass
+
+    # ── Step 3b: 后处理——替换 LLM 量化板块为 Python 精确版本 ──
+    import re as _re
+    _shap_wdl = ml_output.get('shap_wdl_top3', ml_output.get('attribution', []))
+    _shap_ou  = ml_output.get('shap_ou_top3', [])
+    _feat_cn  = {
+        # 射门节奏 & 进攻效率
+        'home_roll_shot_pace': '主队射门节奏', 'away_roll_shot_pace': '客队射门节奏',
+        'total_shot_pace': '全场射门节奏',
+        'home_roll_trailing_xg_ratio': '主队落后时进攻比', 'away_roll_trailing_xg_ratio': '客队落后时进攻比',
+        'home_roll_level_xg_ratio': '主队平局时进攻比', 'away_roll_level_xg_ratio': '客队平局时进攻比',
+        # 对手强度加权
+        'home_roll_opp_adj_npxgd': '主队对手强度加权进球差', 'away_roll_opp_adj_npxgd': '客队对手强度加权进球差',
+        # 休息天数
+        'home_roll_rest_days': '主队近期休息天数', 'away_roll_rest_days': '客队近期休息天数',
+        'home_rest_days': '主队休息天数', 'away_rest_days': '客队休息天数',
+        'rest_days_diff': '双方休息天数差',
+        # 近5场滚动统计
+        'home_roll_5_npxGD': '主队近5场非罚进球差', 'away_roll_5_npxGD': '客队近5场非罚进球差',
+        'home_roll_5_xGD': '主队近5场预期进球差', 'away_roll_5_xGD': '客队近5场预期进球差',
+        'home_roll_5_ppda': '主队近5场防守压迫强度', 'away_roll_5_ppda': '客队近5场防守压迫强度',
+        'home_roll_5_field_tilt': '主队近5场阵地推进', 'away_roll_5_field_tilt': '客队近5场阵地推进',
+        'home_roll_5_box_shot_ratio': '主队近5场禁区射门占比', 'away_roll_5_box_shot_ratio': '客队近5场禁区射门占比',
+        'home_roll_5_poss_diff': '主队近5场控球率差值', 'away_roll_5_poss_diff': '客队近5场控球率差值',
+        'home_roll_5_big_chances_created': '主队近5场大机会创造', 'away_roll_5_big_chances_created': '客队近5场大机会创造',
+        'home_roll_5_shot_quality_added': '主队近5场射门质量增益', 'away_roll_5_shot_quality_added': '客队近5场射门质量增益',
+        # ELO & 综合差值
+        'home_pre_match_elo': '主队赛前实力评分', 'away_pre_match_elo': '客队赛前实力评分',
+        'elo_diff': '实力评分差', 'xGD_diff': '预期进球差差值',
+        'ppda_diff': '防守压迫强度差', 'field_tilt_diff': '阵地推进比差值',
+        'npxGD_abs_diff': '非罚进球差绝对值',
+        # 欧赔
+        'eu_implied_home': '欧赔隐含主胜概率', 'eu_implied_draw': '欧赔隐含平局概率',
+        'eu_implied_away': '欧赔隐含客胜概率', 'eu_odds_home': '欧赔主胜赔率',
+        'eu_odds_draw': '欧赔平局赔率', 'eu_odds_away': '欧赔客胜赔率',
+        'odds_max_prob': '赔率最大隐含概率', 'odds_entropy': '赔率信息熵',
+        # 亚盘
+        'ah_line': '亚盘让球线', 'ah_home_odds': '亚盘主队赔率', 'ah_away_odds': '亚盘客队赔率',
+        'ah_implied_home': '亚盘隐含主队概率', 'ah_line_abs': '亚盘让球绝对值',
+        'ah_line_direction': '亚盘让球方向',
+        # 其他
+        'is_cup': '杯赛标识',
+    }
+    # 只显示 single_pick 对应市场的 SHAP（OU推荐只看OU归因，AH推荐看WDL归因）
+    _sp_market = (ml_output.get('single_pick') or {}).get('market', 'AH').upper()
+    _shap_wdl_md = ""
+    if _shap_wdl and _sp_market != 'OU':  # WDL 或 AH 推荐时显示 WDL 归因
+        _dir = _shap_wdl[0].get('direction', _wdl_pick_cn)
+        _shap_wdl_md = f"\n**WDL 市场 Top-3 驱动特征（最强方向：{_dir}）**\n| 排名 | 特征（中文） | 归因值 |\n|---|---|---|\n"
+        for _i, _s in enumerate(_shap_wdl[:3]):
+            _shap_wdl_md += f"| {_i+1} | {_feat_cn.get(_s.get('feature',''), _s.get('feature',''))} | {_s.get('shap_value',0)} |\n"
+    _shap_ou_md = ""
+    if _shap_ou and _sp_market == 'OU':  # 仅 OU 推荐时显示 OU 归因
+        _dir = _shap_ou[0].get('direction', _ou_pick_cn)
+        _shap_ou_md = f"\n**大小球市场 Top-3 驱动特征（最强方向：{_dir}）**\n| 排名 | 特征（中文） | 归因值 |\n|---|---|---|\n"
+        for _i, _s in enumerate(_shap_ou[:3]):
+            _shap_ou_md += f"| {_i+1} | {_feat_cn.get(_s.get('feature',''), _s.get('feature',''))} | {_s.get('shap_value',0)} |\n"
+
+    # SHAP 归因提升为独立 ## 节（不放在 量化概率基准线 内部），
+    # 否则 sync_router.strip_widget_sections() 会把整个 ## 量化概率基准线 段落剥离，
+    # 导致前端 report_narrative 里看不到 SHAP 表格。
+    _shap_section = ""
+    if _shap_wdl_md or _shap_ou_md:
+        _shap_section = f"\n\n## 🔍 核心特征归因（算法决策驱动因素）\n{_shap_wdl_md}{_shap_ou_md}"
+    _full_quant = f"## 🔬 量化概率基准线\n\n{_quant_table}"
+
+    _lines = final_report.split('\n')
+    _start, _end = None, None
+    for _idx, _line in enumerate(_lines):
+        if '量化概率基准线' in _line and _line.strip().startswith('#'):
+            _start = _idx
+        elif _start is not None and _idx > _start and _line.strip().startswith('## ') and '量化概率基准线' not in _line:
+            _end = _idx
+            break
+    if _start is not None:
+        _end = _end or len(_lines)
+        # _shap_section 插在 量化概率基准线 之后、下一个 ## 之前，独立成节
+        final_report = '\n'.join(_lines[:_start]) + '\n' + _full_quant + _shap_section + '\n\n' + '\n'.join(_lines[_end:])
+    final_report = _re.sub(r'\n{3,}', '\n\n', final_report)
+
+    # ── Step 4: 保存研报 ──
+    report_path = os.path.join(REPORTS_DIR, f"report_{report_date}_{mid}.md")
+    with open(report_path, "w", encoding="utf-8") as f:
+        f.write(final_report)
+    log.info(f"  [T] ✅ 研报已保存: report_{report_date}_{mid}.md")
+
+    # ── Step 5a: 写入 report_store（独立连接，线程安全）──
+    # 解析结构化 LLM 输出（4 H2 + json_meta），失败时所有 meta 字段写 NULL，主流程不阻断
+    try:
+        parsed_meta = parse_llm_output(final_report)
+    except Exception as e:
+        log.warning(f"  [T] parse_llm_output 失败 mid={mid}: {e}")
+        parsed_meta = None
+    try:
+        _sync_report_store(mid, m, home_team, away_team, final_report, ml_output,
+                           lineup_data=lineup_data, version=REPORT_VERSION,
+                           parsed_meta=parsed_meta)
+    except Exception as e:
+        log.error(f"  [T] ❌ report_store 同步失败 mid={mid}: {e}")
+
+    # ── Step 5b: 写入 prediction_audit（独立 ReviewEngine）──
+    # CLAUDE.md §16: 透传 picks，让 log_prediction 在同事务内一并写
+    # picked_market/direction/odds/confidence，杜绝 Phase 1/2 间隙。
+    try:
+        _review = ReviewEngine(DB_PATH, model_dir=MODEL_DIR)
+        _review.log_prediction(mid, adapt_for_review(ml_output),
+                               match_date=report_date,
+                               home_name=home_team,
+                               away_name=away_team,
+                               ou_line=_market_line,
+                               ah_pick=_ah_pick_for_audit,
+                               ah_line=_ah_line_for_audit,
+                               picks=job.get('picks'))
+    except Exception as e:
+        # CLAUDE.md §17 防御要点 1：升级为 ERROR + record_failure
+        log.error(f"  [T] ❌ prediction_audit 写入失败 mid={mid}: {e}", exc_info=True)
+        record_failure("run_tonight_reports", match_id=mid, step="log_prediction", error_msg=str(e))
+
+    # ── Step 6: 推送 AWS ──
+    log.info(f"  [T] 📡 推送 AWS: {m['match_name']}...")
+    push_match_payload(mid)
+
+    return {"match": m["match_name"], "match_id": mid, "path": report_path, "ml": ml_output}
+
+
+def _process_match_with_503_retry(job, max_retries=3, sleep_s=65):
+    """--final 模式：遇 503/UNAVAILABLE 休息 65s 重试（最多 3 次）。"""
+    for attempt in range(max_retries):
+        try:
+            return _process_match_llm_phase(job)
+        except Exception as e:
+            msg = str(e)
+            if "503" in msg or "UNAVAILABLE" in msg.upper() or "overloaded" in msg.lower():
+                if attempt < max_retries - 1:
+                    log.warning(
+                        f"  [T] ⚠️ 503/overload on {job.get('mid')} attempt {attempt+1}/{max_retries}, sleep {sleep_s}s"
+                    )
+                    time.sleep(sleep_s)
+                    continue
+            raise
+
+
+def _reconcile_picks_for_today(match_ids: List[str] = None) -> int:
+    """CLAUDE.md §16 兜底闸门：扫描 prediction_audit.picked_market IS NULL 但
+    report_store.inference 已存在的行，用 pick_parser 反解后补写，并写
+    ingest_failure_log。正常情况应一场都不补；一旦补了就触发告警。
+
+    Args:
+        match_ids: 可选，限定本批次的 match_ids；不传则扫描全表近 7 天。
+    Returns:
+        int: 实际补写的行数。
+    """
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    try:
+        # CLAUDE.md §18：补 picks 后立即回算 picked_correct（已完赛场次）
+        from pick_parser import compute_picked_correct
+        base_select = """
+            SELECT pa.match_id, rs.inference, pa.pred_ah_line, pa.pred_ou_line,
+                   d.status, d.home_score, d.away_score
+            FROM prediction_audit pa
+            JOIN report_store rs ON CAST(rs.match_id AS TEXT) = CAST(pa.match_id AS TEXT)
+            LEFT JOIN dim_match d ON CAST(d.Match_ID AS TEXT) = CAST(pa.match_id AS TEXT)
+        """
+        if match_ids:
+            placeholders = ",".join("?" * len(match_ids))
+            rows = conn.execute(base_select + f"""
+                WHERE pa.match_id IN ({placeholders})
+                  AND pa.picked_market IS NULL
+                  AND rs.inference IS NOT NULL
+                  AND TRIM(rs.inference) != ''
+            """, [str(m) for m in match_ids]).fetchall()
+        else:
+            rows = conn.execute(base_select + """
+                WHERE pa.match_date >= date('now', '-7 days')
+                  AND pa.picked_market IS NULL
+                  AND rs.inference IS NOT NULL
+                  AND TRIM(rs.inference) != ''
+            """).fetchall()
+
+        fixed = 0
+        for r in rows:
+            mid = r["match_id"]
+            parsed = parse_inference(r["inference"])
+            if not parsed:
+                log.error(f"[reconcile] 无法解析 inference, mid={mid}: {r['inference'][:80]}")
+                record_failure("run_tonight_reports", match_id=mid,
+                               step="reconcile_parse_failed", error_msg=r["inference"][:500])
+                continue
+            picked_correct = None
+            if r["status"] == "Finish" and r["home_score"] is not None:
+                picked_correct = compute_picked_correct(
+                    parsed["market"], parsed["direction"],
+                    r["home_score"], r["away_score"],
+                    r["pred_ah_line"], r["pred_ou_line"],
+                )
+            conn.execute("""
+                UPDATE prediction_audit SET
+                    picked_market    = ?,
+                    picked_direction = ?,
+                    picked_odds      = ?,
+                    picked_confidence= ?,
+                    picked_correct   = COALESCE(picked_correct, ?)
+                WHERE match_id = ? AND picked_market IS NULL
+            """, (parsed["market"], parsed["direction"], parsed.get("odds"),
+                  parsed.get("confidence"), picked_correct, mid))
+            fixed += 1
+            log.error(f"[reconcile] 补写 picks mid={mid}: {parsed['market']}/{parsed['direction']} correct={picked_correct}")
+            record_failure("run_tonight_reports", match_id=mid,
+                           step="reconcile_backfilled",
+                           error_msg=f"picked_market 缺失，从 inference 反解补写: {parsed['market']}/{parsed['direction']} correct={picked_correct}")
+        conn.commit()
+        return fixed
+    finally:
+        conn.close()
+
+
+def _validate_and_repair_target_coverage(matches: list) -> list:
+    """
+    §19 不变量：白名单联赛当天有比赛日，target_matches.json 不可为 0 场。
+    校验 + 就地补抓（fotmob_scheduler 抓 BIG_FIVE 缺口），结果写回 .json。
+
+    返回（可能已扩充的）matches 列表。
+    """
+    from datetime import datetime, timezone
+    BIG_FIVE = [47, 87, 54, 55, 53]
+
+    # 当前抓取窗口的日期集合（今 + 未来 2 天）
+    now_utc = datetime.now(timezone.utc)
+    window_dates = [(now_utc + pd.Timedelta(days=i)).strftime("%Y-%m-%d") for i in range(3)]
+
+    big_five_count = sum(1 for m in matches if m.get("league_id") in BIG_FIVE)
+    log.info(f"📊 target_matches 覆盖：total={len(matches)}, big_five={big_five_count}")
+
+    # 与历史基线对比：查近 4 周 BIG_FIVE 中位场次（同 weekday）
+    try:
+        conn = sqlite3.connect(DB_PATH, timeout=5)
+        # 最近 28 天 BIG_FIVE 总场次（粗基线）
+        row = conn.execute(
+            f"""SELECT COUNT(*) FROM dim_match
+                WHERE League_ID IN ({','.join('?' * len(BIG_FIVE))})
+                  AND Date >= date(?, '-28 days') AND Date < ?""",
+            (*BIG_FIVE, now_utc.strftime("%Y-%m-%d"), now_utc.strftime("%Y-%m-%d")),
+        ).fetchone()
+        conn.close()
+        baseline_28d = row[0] if row else 0
+    except Exception as e:
+        log.warning(f"baseline 查询失败：{e}")
+        baseline_28d = 0
+
+    # 赛季中（28 天 ≥ 5 场）但本次 BIG_FIVE < 5 → 视为缺口
+    if baseline_28d >= 5 and big_five_count < 5:
+        log.error(f"🚨 target 覆盖缺口：BIG_FIVE 仅 {big_five_count} 场（基线 28 天 {baseline_28d}），尝试就地补抓")
+        try:
+            record_failure(
+                script_name="run_tonight_reports",
+                step="target_coverage_gap",
+                error_msg=f"big_five={big_five_count}, baseline_28d={baseline_28d}, dates={window_dates}",
+            )
+        except Exception:
+            pass
+
+        # 就地补抓：直接 import fotmob_scheduler 的抓取函数
+        repair_failed = False
+        repair_err = None
+        try:
+            from fotmob_scheduler import fetch_fotmob_schedule
+            log.info("▶ 重新调用 fetch_fotmob_schedule() 补抓...")
+            new_matches = fetch_fotmob_schedule()
+            if new_matches and len(new_matches) > len(matches):
+                log.info(f"✅ 补抓后 {len(new_matches)} 场（增加 {len(new_matches) - len(matches)} 场）")
+                return new_matches
+            else:
+                repair_failed = True
+                log.error(f"❌ 补抓未带来更多比赛（{len(new_matches) if new_matches else 0} 场）")
+        except Exception as e:
+            repair_failed = True
+            repair_err = str(e)
+            log.error(f"❌ 补抓异常：{e}")
+
+        # 二次闸门也失败 → Server 酱告警（CLAUDE.md §19 收尾）
+        if repair_failed:
+            try:
+                from notify_utils import notify
+                title = "🚨 BIG_FIVE 赛程缺口未恢复"
+                body = (
+                    f"日期窗口：{window_dates}\n"
+                    f"BIG_FIVE 实抓：{big_five_count}（基线 28 天 {baseline_28d}）\n"
+                    f"二次补抓："
+                    + (f"异常 {repair_err}" if repair_err else "未带来更多比赛")
+                    + "\n\n请人工检查 fotmob API 与 target_matches.json，"
+                      "必要时手动跑 scripts/repair_weekend_2026_04_25.py 模式补抓。"
+                )
+                notify(body, title=title)
+            except Exception as e:
+                log.error(f"Server 酱推送失败: {e}")
+
+    return matches
+
+
+def main():
+    import argparse
+    parser = argparse.ArgumentParser(description="生成今晚研报")
+    parser.add_argument("--match_ids", nargs="+", metavar="MATCH_ID",
+                        help="只处理指定 match_id（覆盖 schedule 文件）")
+    parser.add_argument("--force", action="store_true",
+                        help="强制重新生成，不跳过已过时的场次")
+    parser.add_argument("--single-match", metavar="MATCH_ID",
+                        help="便捷单场模式：等价于 --match_ids <MATCH_ID>")
+    parser.add_argument("--version", choices=["v1", "v2", "v3"], default="v3",
+                        help="研报版本标签：v1=赛程抓到立即 / v2=T-12h / v3=定稿")
+    parser.add_argument("--final", action="store_true",
+                        help="定稿模式：并发限制 2，遇 503 休息 65s 重试 3 次")
+    args = parser.parse_args()
+
+    # 把 CLI --version 同步到模块级常量，供线程函数读取（args 在线程内不在作用域）
+    global REPORT_VERSION
+    REPORT_VERSION = args.version
+
+    # --single-match 是 --match_ids 单值别名
+    if args.single_match and not args.match_ids:
+        args.match_ids = [args.single_match]
+
+    # 加载赛程 + 赔率
+    with open(os.path.join(PROJECT_ROOT, "schedule/target_matches.json"), encoding="utf-8") as f:
+        matches = json.load(f)
+
+    # ── §19 target_matches 覆盖不变量校验（仅全量模式，--match_ids 跳过）──
+    if not args.match_ids:
+        try:
+            matches = _validate_and_repair_target_coverage(matches)
+        except Exception as e:
+            log.error(f"target_coverage 校验异常（不阻断主流程）: {e}")
+
+    # --match_ids 过滤：从 schedule 中只保留指定场次；若不在 schedule 则构造最小 stub
+    if args.match_ids:
+        id_set = set(str(x) for x in args.match_ids)
+        matches = [m for m in matches if str(m.get("match_id", "")) in id_set]
+        if not matches:
+            # schedule 里没有，从 report_store 重建 stub
+            import sqlite3 as _sq
+            _conn = _sq.connect(DB_PATH)
+            _conn.row_factory = _sq.Row
+            for mid in id_set:
+                row = _conn.execute(
+                    "SELECT match_id, home_team, away_team, league, match_time FROM report_store WHERE match_id=?",
+                    (mid,)
+                ).fetchone()
+                if row:
+                    # 解析 home_id / away_id: 优先 dim_match，兜底用队名反查历史记录
+                    dm = _conn.execute(
+                        "SELECT Home_Team_ID, Away_Team_ID FROM dim_match WHERE Match_ID=?",
+                        (int(mid),)
+                    ).fetchone()
+                    h_id = dm["Home_Team_ID"] if dm else 0
+                    a_id = dm["Away_Team_ID"] if dm else 0
+
+                    # 兜底：队名反查（未来比赛不在dim_match时）
+                    if not h_id:
+                        r = _conn.execute(
+                            "SELECT Home_Team_ID FROM dim_match WHERE Home_Team_Name=? AND Home_Team_ID IS NOT NULL ORDER BY Date DESC LIMIT 1",
+                            (row['home_team'],)
+                        ).fetchone()
+                        h_id = r[0] if r else 0
+                    if not a_id:
+                        r = _conn.execute(
+                            "SELECT Away_Team_ID FROM dim_match WHERE Away_Team_Name=? AND Away_Team_ID IS NOT NULL ORDER BY Date DESC LIMIT 1",
+                            (row['away_team'],)
+                        ).fetchone()
+                        a_id = r[0] if r else 0
+
+                    # 获取 league_id（用于 is_cup 特征）
+                    league_str = row["league"] or ""
+                    league_id = 0
+                    if 'Champions' in league_str or 'UCL' in league_str:
+                        league_id = 42
+                    elif 'Europa' in league_str or 'UEL' in league_str:
+                        league_id = 73
+
+                    matches.append({
+                        "match_id":     int(mid),
+                        "match_name":   f"{row['home_team']} vs {row['away_team']}",
+                        "kickoff_time": row["match_time"],
+                        "league":       league_str,
+                        "league_id":    league_id,
+                        "home_id":      h_id,
+                        "away_id":      a_id,
+                    })
+            _conn.close()
+        log.info(f"[--match_ids] 仅处理: {[str(m['match_id']) for m in matches]}")
+
+    try:
+        with open(os.path.join(PROJECT_ROOT, "odds/match_odds_data.json"), encoding="utf-8") as f:
+            odds_raw = json.load(f)
+    except FileNotFoundError:
+        odds_raw = []
+    odds_index = {str(o["fotmob_id"]): o.get("odds", {}) for o in odds_raw}
+
+    model_wdl, model_ou, FEATURES = load_models()
+    calibrators  = load_calibrators()
+    ah_predictor = load_ah_predictor()   # AH 独立预测器（Dixon-Coles + xG）
+    # 初始化 SHAP Explainer（仅加载一次，复用）
+    explainer_wdl = shap.TreeExplainer(model_wdl)
+    explainer_ou  = shap.TreeExplainer(model_ou)
+    review = ReviewEngine(DB_PATH, model_dir=MODEL_DIR)
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    today = date.today()
+
+    report_date = today.strftime("%Y-%m-%d")
+    all_summaries = []
+
+    # ── 联赛优先排序（欧洲 > 亚洲）──────────────────────────────────────────
+    matches.sort(key=lambda x: _league_priority_key(x.get('league', '')))
+    log.info(f"📊 联赛优先排序完成。前5场: {[m.get('league','?') for m in matches[:5]]}")
+
+    # ── 批量预抓取所有场次阵容（仅限未来场次，Chrome 只开关一次）──
+    now_dt = datetime.now()
+    future_matches = []
+    for m in matches:
+        kickoff_str = m.get("kickoff_time", "")
+        if kickoff_str:
+            try:
+                if datetime.strptime(kickoff_str, "%Y-%m-%d %H:%M:%S") > now_dt:
+                    future_matches.append(m)
+            except:
+                pass
+    
+    # --match_ids 模式：直接抓取指定场次的阵容（不需要批量Chrome）
+    if args.match_ids:
+        lineup_cache = {}
+        for m in matches:
+            mid_str = str(m["match_id"])
+            try:
+                from lineup_fetcher import fetch_lineup as _fetch_lineup
+                ld = _fetch_lineup(mid_str)
+                if ld:
+                    lineup_cache[mid_str] = ld
+                    log.info(f"  ✅ 阵容已抓取: {m['match_name']} [{ld.get('status')}]")
+            except Exception as e:
+                log.warning(f"  ⚠️ 阵容抓取失败 {mid_str}: {e}")
+    else:
+        match_ids_for_lineup = [str(m["match_id"]) for m in future_matches]
+        log.info(f"📋 批量抓取 {len(match_ids_for_lineup)} 场未来比赛阵容（Chrome 单次启动）...")
+        try:
+            lineup_cache = fetch_lineups_batch(match_ids_for_lineup)
+            ok_count = sum(1 for v in lineup_cache.values() if v)
+            log.info(f"  阵容缓存完成: {ok_count}/{len(match_ids_for_lineup)} 场有数据")
+        except Exception as e:
+            log.error(f"  ❌ 批量阵容抓取失败: {e}，各场将使用空阵容继续")
+            lineup_cache = {}
+
+    # ── Phase 1: 顺序计算 ML + SHAP + 构建状态，生成 job 列表 ──────────────
+    prepared_jobs = []
+    for m in matches:
+        mid = str(m["match_id"])
+        name_parts = m["match_name"].split(" vs ")
+        home_team = name_parts[0].strip()
+        away_team = name_parts[1].strip() if len(name_parts) > 1 else ""
+        log.info(f"\n{'='*55}")
+        log.info(f"🔢 [Phase-1] ML预测: {m['match_name']}  [{mid}]")
+
+        # ── Step 0: 时间过滤器（仅处理未来场次；--force 跳过此检查） ──
+        kickoff_str = m.get("kickoff_time", "")
+        if kickoff_str and not args.force:
+            try:
+                kickoff_dt = datetime.strptime(kickoff_str, "%Y-%m-%d %H:%M:%S")
+                if kickoff_dt <= datetime.now():
+                    log.info(f"⏭️  跳过已开球或已结束赛事: {m['match_name']} ({kickoff_str})")
+                    continue
+            except Exception as e:
+                log.warning(f"  ⚠️ 时间解析失败: {e}")
+
+        # ── Step 1: ML 预测 ──
+        odds_data = odds_index.get(mid, {})
+        eu = odds_data.get("european_1x2", {}).get("latest", {})
+        eu_h = float(eu.get("home", 0) or 0)
+        eu_d = float(eu.get("draw", 0) or 0)
+        eu_a = float(eu.get("away", 0) or 0)
+
+        h_feat = get_team_features(conn, m["home_id"], today)
+        a_feat = get_team_features(conn, m["away_id"], today)
+
+        CUP_LIDS = {42, 73, 10216, 132, 133, 134, 138, 141, 209}
+        league_id = m.get("league_id", 0)
+        is_cup = 1 if league_id in CUP_LIDS else 0
+        ah     = odds_data.get("asian_handicap", {}).get("latest", {})
+        ah_line = float(ah.get("line", 0) or 0)
+        ah_home = float(ah.get("over_or_home", 0) or 0)
+        ah_away = float(ah.get("under_or_away", 0) or 0)
+        row    = build_feature_row(h_feat, a_feat, eu_h, eu_d, eu_a, is_cup=is_cup,
+                                   ah_line=ah_line, ah_home=ah_home, ah_away=ah_away)
+        X      = pd.DataFrame([row])[FEATURES].fillna(0)
+
+        wdl_arr = model_wdl.predict(X)[0]
+        ou_val  = float(model_ou.predict(X)[0])
+
+        # ── 校准（Isotonic Regression）──────────────────────────────
+        wdl_dict, ou_dict, is_calibrated = apply_calibration(wdl_arr, ou_val, calibrators)
+        if is_calibrated:
+            log.info(f"  ✅ 概率已校准 (Isotonic Regression)")
+        else:
+            log.warning(f"  ⚠️ 使用原始概率（未校准）")
+
+        # ── SHAP 归因（用原始 wdl_arr，SHAP 需要原始预测值）──
+        shap_wdl_top3 = _calc_shap_top3_wdl(explainer_wdl, X, wdl_arr, FEATURES)
+        shap_ou_top3  = _calc_shap_top3_ou(explainer_ou,   X, ou_val,  FEATURES)
+
+        # ── Step 1b: AH 独立预测（Dixon-Coles + xG 混合模型）──────────────
+        ah_pred = None
+        if ah_predictor and ah_line is not None:
+            try:
+                feat_row_ah = {c: (row.get(c, 0) if row.get(c) is not None else 0)
+                               for c in LAMBDA_FEATURES}
+                ah_features = pd.DataFrame([feat_row_ah])
+                # 优先使用 dim_match 的完整队名（与 DC 训练集一致），回退到 match_name 分割
+                _dm_row = conn.execute(
+                    "SELECT Home_Team_Name, Away_Team_Name FROM dim_match WHERE Match_ID=?", (mid,)
+                ).fetchone()
+                if _dm_row:
+                    home_name = _dm_row["Home_Team_Name"]
+                    away_name = _dm_row["Away_Team_Name"]
+                else:
+                    match_parts = m.get("match_name", "").split(" vs ", 1)
+                    home_name = match_parts[0].strip() if len(match_parts) == 2 else ""
+                    away_name = match_parts[1].strip() if len(match_parts) == 2 else ""
+                _h_in_dc = home_name in (getattr(ah_predictor.dc_model, 'attack_params', None) or {})
+                _a_in_dc = away_name in (getattr(ah_predictor.dc_model, 'attack_params', None) or {})
+                if not _h_in_dc or not _a_in_dc:
+                    log.warning(f"  AH DC 球队未知: {home_name}={_h_in_dc}, {away_name}={_a_in_dc} → xG-only 回退")
+                ah_pred = ah_predictor.predict_match(
+                    home_name, away_name, ah_features, ah_line
+                )
+                log.info(
+                    f"  AH({ah_line:+.2f}): cover={ah_pred['ah_cover']:.1%} "
+                    f"push={ah_pred['ah_push']:.1%} away={ah_pred['ah_away_cover']:.1%} "
+                    f"λ=({ah_pred['lambda_home']:.2f},{ah_pred['lambda_away']:.2f})"
+                )
+            except Exception as _e:
+                log.warning(f"  AH 预测失败 ({home_team} vs {away_team}): {type(_e).__name__}: {_e}")
+
+        # ── C3: Bivariate Poisson 联合预测（WDL + OU + AH 同源）──
+        bp_pred = None
+        try:
+            match_parts = m.get("match_name", "").split(" vs ", 1)
+            _hn = match_parts[0].strip() if len(match_parts) == 2 else ""
+            _an = match_parts[1].strip() if len(match_parts) == 2 else ""
+            ou_line_for_bp = float(odds_data.get("over_under", {}).get("latest", {}).get("line", 2.5) or 2.5)
+            ah_line_for_bp = ah_line if ah_line is not None else 0.0
+            bp_pred = _predict_bp(_hn, _an, ou_line=ou_line_for_bp, ah_line=ah_line_for_bp)
+            if bp_pred:
+                log.info(
+                    f"  BP: WDL H={bp_pred['wdl']['home']:.1%}/D={bp_pred['wdl']['draw']:.1%}/"
+                    f"A={bp_pred['wdl']['away']:.1%}  OU>{ou_line_for_bp}={bp_pred['ou']['over']:.1%}  "
+                    f"AH {ah_line_for_bp:+.2f} cover={bp_pred['ah']['cover']:.1%}"
+                )
+        except Exception as _e:
+            log.debug(f"  BP 预测跳过: {_e}")
+
+        single_pick = _select_single_pick(wdl_dict, ou_dict, odds_data, ah_pred=ah_pred,
+                                          league_id=league_id, bp_pred=bp_pred)
+        # 以 single_pick 的置信等级为准（已含 A3 温度校准；仅后端可见）
+        conf = single_pick["confidence"]
+
+        # ── B2: 写入 prediction_audit.picked_* 供复盘分层 ──
+        # _picks 必须在 try 之前构建：若 try 内 ReviewEngine 初始化失败，
+        # 后面 prepared_jobs.append({'picks': _picks, ...}) 仍能透传到 Phase 2，
+        # 由 log_prediction(picks=...) 在同事务内补救（CLAUDE.md §16 双写不变量）。
+        _picks = [{
+            "market":     (single_pick.get("market") or "").lower(),
+            "direction":  single_pick.get("direction"),
+            "odds":       single_pick.get("odds"),
+            "confidence": single_pick.get("confidence"),
+        }]
+        if single_pick.get("secondary"):
+            s = single_pick["secondary"]
+            _picks.append({
+                "market":     (s.get("market") or "").lower(),
+                "direction":  s.get("direction"),
+                "odds":       s.get("odds"),
+                "confidence": s.get("confidence"),
+            })
+        try:
+            _rev = ReviewEngine(DB_PATH)
+            _rev.record_picked(mid, _picks)
+            _rev.close()
+        except Exception as _e:
+            # CLAUDE.md §17 防御要点 1：不再 silent warning，写 ingest_failure_log
+            log.error(f"  ❌ record_picked 失败 mid={mid}: {_e}", exc_info=True)
+            record_failure("run_tonight_reports", match_id=mid, step="record_picked", error_msg=str(_e))
+
+        ml_output = {
+            "match_id":      mid,
+            "wdl":           wdl_dict,
+            "ou":            ou_dict,
+            "ah":            ah_pred,          # AH 独立预测（可能为 None）
+            "bp":            bp_pred,          # Bivariate Poisson 联合预测（可能为 None）
+            "single_pick":   single_pick,
+            "shap_wdl_top3": shap_wdl_top3,
+            "shap_ou_top3":  shap_ou_top3,
+            "attribution":   shap_wdl_top3,   # 向后兼容
+            "confidence":    conf,
+            "is_calibrated": is_calibrated,
+        }
+        cal_tag = "校准✅" if is_calibrated else "原始⚠️"
+        log.info(
+            f"  ML({cal_tag}): H={wdl_dict['home']:.1%} D={wdl_dict['draw']:.1%} A={wdl_dict['away']:.1%}"
+            f"  O2.5={ou_dict['over_25']:.1%}  [{conf}]"
+            f"  → 推荐: [{single_pick['market']}] {single_pick['label']}"
+            f"  p={single_pick['ml_prob']:.1%}  score={single_pick.get('conf_score',0):.2f}  {single_pick['confidence']}"
+        )
+
+        # ── Step 2a: 从缓存读取阵容（已在循环前批量抓取）──
+        lineup_data = lineup_cache.get(mid) or {}
+        if lineup_data:
+            h_status = lineup_data.get("status", "")
+            h_info   = lineup_data.get("home", {})
+            a_info   = lineup_data.get("away", {})
+            log.info(
+                f"  阵容[{h_status}]: 主({h_info.get('formation')} "
+                f"首发{len(h_info.get('starters', []))} 替补{len(h_info.get('bench', []))} 缺{len(h_info.get('missing', []))}) "
+                f"客({a_info.get('formation')} "
+                f"首发{len(a_info.get('starters', []))} 替补{len(a_info.get('bench', []))} 缺{len(a_info.get('missing', []))})"
+            )
+        else:
+            log.warning("  ⚠️ 阵容暂不可用，Agent 3 将以伤停数据缺失模式运行")
+
+        # ── Step 2b: 构建 workflow 状态 ──
+        state = {
+            "match_id":   mid,
+            "match_info": {
+                "home_name": home_team,
+                "away_name": away_team,
+                "league":    m.get("league", ""),
+                "date":      m.get("kickoff_time", "")[:10],
+                "kickoff":   m.get("kickoff_time", ""),
+            },
+            "ml_output":          ml_output,
+            "odds_data":          odds_data,
+            "lineup_data":        lineup_data,
+            "team_stats_summary": {
+                "home_elo":            round(h_feat["elo"], 1),
+                "away_elo":            round(a_feat["elo"], 1),
+                "elo_diff":            round(h_feat["elo"] - a_feat["elo"], 1),
+                "home_rest_days":      h_feat["rest"],
+                "away_rest_days":      a_feat["rest"],
+                "home_npxGD":          round(h_feat["rf"].get("roll_5_npxGD", 0) or 0, 3),
+                "away_npxGD":          round(a_feat["rf"].get("roll_5_npxGD", 0) or 0, 3),
+                "home_ppda":           round(h_feat["rf"].get("roll_5_ppda", 0) or 0, 3),
+                "away_ppda":           round(a_feat["rf"].get("roll_5_ppda", 0) or 0, 3),
+                "home_field_tilt":     round(h_feat["rf"].get("roll_5_field_tilt", 0) or 0, 3),
+                "away_field_tilt":     round(a_feat["rf"].get("roll_5_field_tilt", 0) or 0, 3),
+                "home_xGA_impact_score": 0,
+                "away_xGA_impact_score": 0,
+            },
+            "agent1_output": "",
+            "agent2_output": "",
+            "agent3_output": "",
+            "prebuilt_quant_section": "",
+            "final_report":  "",
+        }
+
+        # ── Step 2c: 生成量化概率基准线（Python精确生成，不依赖LLM）──
+        _wdl = wdl_dict
+        _ou  = ou_dict
+
+        # 取实际市场 OU 线，将 P(>2.5) 转换为 P(>market_line)
+        _ou_raw      = odds_data.get("over_under", {}).get("latest", {})
+        _market_line = float(_ou_raw.get("line", 2.5) or 2.5)
+        _ou_over_raw = _poisson_convert_ou(_ou.get("over_25", 0), _market_line)
+
+        # 联赛 OU 偏置（与 _select_single_pick 保持一致）
+        _ou_calib    = _get_ou_calibration()
+        _lid_info    = _ou_calib.get(league_id, {}) if league_id else {}
+        _ou_bias     = _lid_info.get("bias", _GLOBAL_OU_BIAS)
+        _ou_over_mkt = round(min(0.97, max(0.03, _ou_over_raw + _ou_bias)), 4)
+        _ou_undr_mkt = round(1.0 - _ou_over_mkt, 4)
+
+        # 将市场调整后的概率写回 ou_dict，供 Agent 和 value_edge 使用
+        ou_dict["market_line"]   = _market_line
+        ou_dict["over_market"]   = round(_ou_over_mkt, 4)
+        ou_dict["under_market"]  = round(_ou_undr_mkt, 4)
+
+        # (A) Post-hoc OU bias shift：仅用于 UI/研报展示的“推荐方向”，不覆盖 ou_dict 原始值
+        _p_ou_over_adj = max(0.01, min(0.99, float(_ou_over_mkt) + OU_BIAS_SHIFT))
+        _p_ou_under_adj = round(1.0 - _p_ou_over_adj, 4)
+
+        _h_pct = round(_wdl.get('home', 0) * 100, 1)
+        _d_pct = round(_wdl.get('draw', 0) * 100, 1)
+        _a_pct = round(_wdl.get('away', 0) * 100, 1)
+        _o_pct = round(_p_ou_over_adj * 100, 1)
+        _u_pct = round(_p_ou_under_adj * 100, 1)
+        _wdl_pick_cn = {'home': '主胜', 'draw': '平局', 'away': '客胜'}.get(
+            max(_wdl, key=_wdl.get) if _wdl else '', '—')
+        _ou_pick_cn = f'大球(>{_market_line})' if _p_ou_over_adj > 0.5 else f'小球(≤{_market_line})'
+
+        _quant_table = (
+            f"| 市场 | 主胜 | 平局 | 客胜 | 推荐方向 | 置信度 |\n"
+            f"|------|------|------|------|----------|--------|\n"
+            f"| **胜平负** | {_h_pct}% | {_d_pct}% | {_a_pct}% | {_wdl_pick_cn} | {conf} |\n\n"
+            f"| 市场 | 大球(>{_market_line}) | 小球(≤{_market_line}) | 推荐方向 |\n"
+            f"|------|-----------|-----------|----------|\n"
+            f"| **大小球** | {_o_pct}% | {_u_pct}% | {_ou_pick_cn} |"
+        )
+
+        # ── 亚盘维度（Dixon-Coles + xG AH 模型）──
+        if ah_pred and ah_line is not None:
+            _ah_cover_pct = round(ah_pred['ah_cover'] * 100, 1)
+            _ah_away_pct  = round(ah_pred['ah_away_cover'] * 100, 1)
+            _ah_push_pct  = round(ah_pred['ah_push'] * 100, 1)
+            _ah_lam_h     = round(ah_pred.get('lambda_home', 0), 2)
+            _ah_lam_a     = round(ah_pred.get('lambda_away', 0), 2)
+            # NowGoal 约定：正值 = 主队让分（主让），负值 = 主队受让（主受）
+            if ah_line > 0:
+                _ah_h_label = f"主让{abs(ah_line):.2g}"
+                _ah_a_label = f"客受{abs(ah_line):.2g}"
+            else:
+                _ah_h_label = f"主受{abs(ah_line):.2g}"
+                _ah_a_label = f"客让{abs(ah_line):.2g}"
+            _quant_table += (
+                f"\n\n| 市场 | {_ah_h_label}（主） | {_ah_a_label}（客） | 和局推注 | λ主/客 |\n"
+                f"|------|-----------|-----------|----------|--------|\n"
+                f"| **亚盘({ah_line:+g})** | {_ah_cover_pct}% | {_ah_away_pct}% |"
+                f" {_ah_push_pct}% | {_ah_lam_h}/{_ah_lam_a} |"
+            )
+
+        state["prebuilt_quant_section"] = _quant_table
+
+        # ── Step 2d: 价值差预计算（含 AH）──
+        state["value_edge"] = _compute_value_edge(
+            wdl_dict, ou_dict, odds_data, ah_pred=ah_pred, ah_line=ah_line
+        )
+
+        # ── Step 2e: 持久化 value_edge 到 prediction_audit（Phase 3）──
+        try:
+            _persist_value_edge(conn, mid, state["value_edge"])
+        except Exception as _pe:
+            log.debug(f"  _persist_value_edge 非致命失败: {_pe}")
+
+        # ── Phase-1 完成：打包 job 供 Phase-2 使用 ──
+        _ah_raw_audit = odds_data.get("asian_handicap", {}).get("latest", {})
+        _ah_h_odds    = float(_ah_raw_audit.get("over_or_home") or 0)
+        _ah_a_odds    = float(_ah_raw_audit.get("under_or_away") or 0)
+        _ah_pick_for_audit = ('home' if _ah_h_odds > _ah_a_odds
+                              else ('away' if _ah_a_odds > _ah_h_odds else None))
+        _ah_line_for_audit = ah_line if ah_line != 0 else None
+
+        m_date = m.get('date')
+        if not m_date:
+            log.warning(f"  [skip] match {m.get('id')} 缺失 kickoff date，跳过以避免占位行")
+            continue
+
+        prepared_jobs.append({
+            'm':                  m,
+            'mid':                mid,
+            'home_team':          home_team,
+            'away_team':          away_team,
+            'state':              state,
+            'ml_output':          ml_output,
+            'odds_data':          odds_data,
+            'h_feat':             h_feat,
+            'a_feat':             a_feat,
+            'lineup_data':        lineup_data,
+            # 用比赛的 UTC 开球日期（m['date'] = kickoff_str[:10]，UTC 标准）
+            # 而非 report 生成日的 UTC 日期，避免 19:00 UTC 欧洲场次跨 CST 日导致
+            # prediction_audit.match_date 与 dim_match.Date 差一天。
+            'report_date':        m_date,
+            '_quant_table':       _quant_table,
+            '_market_line':       _market_line,
+            'ah_line':            ah_line,
+            '_ah_line_for_audit': _ah_line_for_audit,
+            '_ah_pick_for_audit': _ah_pick_for_audit,
+            '_wdl_pick_cn':       _wdl_pick_cn,
+            '_ou_pick_cn':        _ou_pick_cn,
+            # CLAUDE.md §16: picks 透传到 Phase 2，让 log_prediction 在同事务内
+            # 把 picked_market/direction/odds/confidence 一并写入 prediction_audit
+            'picks':              _picks,
+            'stagger_idx':        len(prepared_jobs),  # 错峰延迟序号
+        })
+        log.info(f"  ✅ [Phase-1] 预测完成: {m['match_name']}")
+
+    conn.close()
+
+    # ── Phase 2: 双线程 LLM 研报生成（错峰启动，每场间隔 25s）──────────────
+    log.info(f"\n{'='*55}")
+    worker_fn = _process_match_with_503_retry if args.final else _process_match_llm_phase
+    mode_tag = "[--final]" if args.final else ""
+    log.info(f"🔀 Phase-2 启动 {mode_tag} ({len(prepared_jobs)} 场，错峰 25s/场，max_workers=2)...")
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        fs = {executor.submit(worker_fn, job): job['m']['match_name']
+              for job in prepared_jobs}
+        for fut in as_completed(fs):
+            mname = fs[fut]
+            try:
+                result = fut.result()
+                if result:
+                    all_summaries.append(result)
+                    log.info(f"  ✅ 研报完成: {mname}")
+            except Exception as e:
+                log.error(f"  ❌ 研报失败 [{mname}]: {e}")
+
+    log.info(f"\n{'='*55}")
+    log.info(f"🏁 全部完成，共 {len(all_summaries)} 场")
+    for s in all_summaries:
+        log.info(f"  - {s['match']}: {os.path.basename(s['path'])}")
+
+    # ── Reconciliation：保证每场都有 picked_market（CLAUDE.md §16 不变量）──
+    try:
+        batch_mids = [str(s.get("match_id")) for s in all_summaries if s.get("match_id")]
+        n_fixed = _reconcile_picks_for_today(batch_mids if batch_mids else None)
+        if n_fixed > 0:
+            log.error(
+                f"[reconcile] ⚠️ 本批次补写 {n_fixed} 场缺失 picks —— "
+                f"说明 Phase 1 record_picked 与 Phase 2 log_prediction 都失败，"
+                f"请检查 ingest_failure_log（step IN ('record_picked','log_prediction')）"
+            )
+        else:
+            log.info("[reconcile] ✅ 本批次 picks 完整，无需补写")
+    except Exception as _re:
+        log.error(f"[reconcile] 自身失败（不阻塞主流程）: {_re}", exc_info=True)
+
+    # ── Server酱推送 ─────────────────────────────────────────────────────────
+    try:
+        from notify_utils import notify
+        if all_summaries:
+            lines = []
+            for s in all_summaries:
+                ml = s.get("ml", {})
+                sp = ml.get("single_pick", {})
+                if sp:
+                    pick_str = f"{sp.get('label','')} @{sp.get('odds','?')} [{sp.get('confidence','')}]"
+                else:
+                    wdl = ml.get("wdl", {})
+                    pick_str = f"主{wdl.get('home',0):.0%}/平{wdl.get('draw',0):.0%}/客{wdl.get('away',0):.0%}"
+                lines.append(f"⚽ {s['match']}  →  {pick_str}")
+            body = "\n".join(lines)
+            _ok = notify(
+                title=f"喵弟研报 · {len(all_summaries)} 场已就绪",
+                msg=body
+            )
+            if _ok:
+                log.info(f"📱 Server酱通知已发送（{len(all_summaries)} 场）")
+                # 记录本批次推送时间到所有成功研报的 report_store
+                try:
+                    _c = sqlite3.connect(DB_PATH)
+                    _now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    _ids = [s.get('match_id') for s in all_summaries if s.get('match_id')]
+                    if _ids:
+                        _c.executemany(
+                            "UPDATE report_store SET push_sent_at=? WHERE match_id=?",
+                            [(_now, mid_) for mid_ in _ids]
+                        )
+                        _c.commit()
+                    _c.close()
+                except Exception as _e:
+                    log.warning(f"写 push_sent_at 失败: {_e}")
+            else:
+                log.error(f"❌ Server酱通知失败（真实返回非 code=0，见上方日志）")
+        else:
+            log.info("📭 无成功研报，跳过 Server酱通知")
+    except Exception as _e:
+        log.warning(f"Server酱通知异常: {_e}")
+
+
+def _fallback_report(m, ml, odds_data, h_feat, a_feat, lineup_data=None) -> str:
+    """LLM 失败时的增强型降级报告"""
+    eu = odds_data.get("european_1x2", {}).get("latest", {})
+    eu_h = float(eu.get("home", 0) or 0)
+    eu_d = float(eu.get("draw", 0) or 0)
+    eu_a = float(eu.get("away", 0) or 0)
+    ah = odds_data.get("asian_handicap", {}).get("latest", {})
+    ah_line  = ah.get("line", "—")
+    ah_home  = ah.get("over_or_home", "—")
+    ah_away  = ah.get("under_or_away", "—")
+    wdl = ml["wdl"]
+    ou  = ml["ou"]
+    ou_raw  = odds_data.get("over_under", {}).get("latest", {})
+    ou_line = float(ou_raw.get("line", 2.5) or 2.5)
+    # 用市场实际线概率（已存入 ou_dict；若无则实时转换）
+    ou_over_mkt  = ou.get("over_market") or _poisson_convert_ou(ou.get("over_25", 0), ou_line)
+    ou_under_mkt = ou.get("under_market") or round(1.0 - ou_over_mkt, 4)
+    conf = ml["confidence"]
+    
+    lineup_str = "阵容数据暂不可用"
+    if lineup_data:
+        h_lineup = lineup_data.get("home", {})
+        a_lineup = lineup_data.get("away", {})
+        status = lineup_data.get("status", "predicted")
+        lineup_str = f"**状态**: {status}\n\n"
+        lineup_str += f"**主队 ({h_lineup.get('formation', 'N/A')})**: {len(h_lineup.get('starters', []))}人首发, {len(h_lineup.get('missing', []))}人缺阵\n"
+        lineup_str += f"**客队 ({a_lineup.get('formation', 'N/A')})**: {len(a_lineup.get('starters', []))}人首发, {len(a_lineup.get('missing', []))}人缺阵\n"
+        
+        if h_lineup.get("key_absences"):
+            lineup_str += "\n**主队关键缺阵**: " + ", ".join([p['name'] for p in h_lineup['key_absences']])
+        if a_lineup.get("key_absences"):
+            lineup_str += "\n**客队关键缺阵**: " + ", ".join([p['name'] for p in a_lineup['key_absences']])
+
+    sp = ml.get("single_pick", {})
+    if sp:
+        odds_str = f" @{sp['odds']}" if sp.get("odds") else ""
+        # B6：前端不显示置信等级
+        pick_section = (
+            f"**推荐方向**：{sp['label']}（{sp['market']}）{odds_str}\n"
+            f"**ML 概率**：{sp['ml_prob']:.1%}\n"
+            f"**核心依据**：{sp.get('rationale', '')}"
+        )
+        if sp.get("secondary"):
+            s2 = sp["secondary"]
+            o2 = f" @{s2['odds']}" if s2.get("odds") else ""
+            pick_section += (
+                f"\n\n**附加推荐**：{s2['label']}（{s2['market']}）{o2}  "
+                f"ML {s2['ml_prob']:.1%}"
+            )
+    else:
+        pick_section = "**推荐数据暂缺，请参考概率表。**"
+
+    return f"""# {m['match_name']} · 全自动量化研报
+> ⚠️ 本报告由系统自动生成（LLM 叙事模块异常回退）
+
+## 🔬 量化概率基准线
+
+### 胜平负
+| 方向 | 模型概率 | 参考欧赔 |
+|---|---|---|
+| 主胜 | {wdl['home']:.1%} | {eu_h if eu_h else '—'} |
+| 平局 | {wdl['draw']:.1%} | {eu_d if eu_d else '—'} |
+| 客胜 | {wdl['away']:.1%} | {eu_a if eu_a else '—'} |
+
+### 大小球
+| 盘口 | 大球概率 | 小球概率 |
+|---|---|---|
+| >{ou_line} | {ou_over_mkt:.1%} | {ou_under_mkt:.1%} |
+
+### 亚盘让球
+| 盘口 | 主让（主队水位） | 客受（客队水位） |
+|---|---|---|
+| {ah_line} | {ah_home} | {ah_away} |
+
+### 亚盘模型预测（Dixon-Coles + xG）
+{f"| 方向 | 模型覆盖率 |{chr(10)}|---|---|{chr(10)}| 主队覆盖 | {ml.get('ah', {}).get('ah_cover', 0):.1%} |{chr(10)}| 客队覆盖 | {ml.get('ah', {}).get('ah_away_cover', 0):.1%} |" if ml.get("ah") else "暂无亚盘模型数据（盘口为零或模型未就绪）"}
+
+## 📊 关键指标
+* **Elo 战力**: 主 {h_feat['elo']:.0f} vs 客 {a_feat['elo']:.0f}
+* **近期表现 (npxGD)**: 主 {h_feat['rf'].get('roll_5_npxGD', 0) or 0:+.3f} vs 客 {a_feat['rf'].get('roll_5_npxGD', 0) or 0:+.3f}
+* **体能状态**: 主休息 {h_feat['rest']}天, 客休息 {a_feat['rest']}天
+
+## ⚔️ 战力评估 (阵容)
+{lineup_str}
+
+## 🎯 喵弟结论
+{pick_section}
+
+---
+> ⚠️ 免责声明：本研报由 ML 模型自动生成，概率仅供参考，不构成投注建议。
+> 🏷️ 喵弟量化研究所 · {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+"""
+
+
+def parse_llm_output(raw_text: str) -> dict:
+    """
+    Parse the structured LLM output into clean markdown + 4 meta fields.
+
+    Expected format (post 2026-04 prompt restructure):
+      ## 战力演化分析
+      ...
+      ## 阵容影响分析
+      ...
+      ## 战术博弈分析
+      ...
+      ## 综合结论
+      ...
+      ```json_meta
+      { "beginner_summary": ..., "chart_insights": {...},
+        "key_variables": [...], "key_risk": ... }
+      ```
+
+    Returns:
+        {
+          "markdown_content": str   # Markdown body (json_meta block stripped)
+          "beginner_summary": str | None,
+          "chart_insights":   str | None,  # JSON-stringified dict
+          "key_variables":    str | None,  # JSON-stringified list
+          "key_risk":         str | None,
+        }
+
+    Fallback: if json_meta missing or invalid, all 4 meta fields = None and
+    markdown_content is the full raw_text. This keeps old/降级 reports working.
+    """
+    if not raw_text:
+        return {
+            "markdown_content": raw_text or "",
+            "beginner_summary": None,
+            "chart_insights":   None,
+            "key_variables":    None,
+            "key_risk":         None,
+        }
+
+    # Match ```json_meta { ... } ```  (DOTALL for multi-line JSON)
+    m = re.search(r"```json_meta\s*(\{.*?\})\s*```", raw_text, re.DOTALL)
+
+    meta = {}
+    markdown_text = raw_text
+    if m:
+        try:
+            meta = json.loads(m.group(1))
+        except json.JSONDecodeError as e:
+            log.warning(f"[parse_llm_output] json_meta 解析失败: {e}")
+            meta = {}
+        # Strip json_meta block from markdown body regardless of parse result
+        markdown_text = (raw_text[: m.start()] + raw_text[m.end():]).strip()
+
+    chart_insights = meta.get("chart_insights")
+    key_variables  = meta.get("key_variables")
+
+    return {
+        "markdown_content": markdown_text,
+        "beginner_summary": (meta.get("beginner_summary") or None) if meta else None,
+        "chart_insights":   json.dumps(chart_insights, ensure_ascii=False) if isinstance(chart_insights, dict) and chart_insights else None,
+        "key_variables":    json.dumps(key_variables,  ensure_ascii=False) if isinstance(key_variables,  list) and key_variables  else None,
+        "key_risk":         (meta.get("key_risk") or None) if meta else None,
+    }
+
+
+def _sync_report_store(match_id, m, home_team, away_team, content, ml_output=None, lineup_data=None, version: str = "v3", parsed_meta: dict | None = None):
+    """写入本地 report_store 表（云端 UPSERT 由 sync_router 负责）"""
+    conn = sqlite3.connect(DB_PATH)
+    # 禁用 auto-checkpoint：多进程并发时 WAL checkpoint 竞争会导致 D-state 卡死
+    # PASSIVE checkpoint 在 conn.close() 时非阻塞尝试，不等待所有读者释放
+    conn.execute("PRAGMA wal_autocheckpoint=0")
+    conn.execute("PRAGMA busy_timeout=10000")  # 10s lock timeout 替代默认无限等
+    h_id = m.get("home_id", 0)
+    a_id = m.get("away_id", 0)
+    kickoff = m.get("kickoff_time", "")
+    m_time = kickoff  # 保留完整 "YYYY-MM-DD HH:MM:SS"
+    h_icon = f"https://images.fotmob.com/image_resources/logo/teamlogo/{h_id}.png"
+    a_icon = f"https://images.fotmob.com/image_resources/logo/teamlogo/{a_id}.png"
+
+    # 使用 single_pick 作为 inference 摘要（唯一推荐）
+    sp = (ml_output or {}).get("single_pick", {})
+    wdl = (ml_output or {}).get("wdl", {})
+    home_prob = round(wdl.get("home", 0.5) * 100, 1)
+    draw_prob = round(wdl.get("draw", 0.2) * 100, 1)
+    away_prob = round(wdl.get("away", 0.3) * 100, 1)
+
+    # B6：前端 inference 不再携带 【HIGH/MID/LOW/观望】 前缀
+    if sp:
+        odds_str = f" @{sp['odds']}" if sp.get("odds") else ""
+        prob_str = f"{round(sp.get('ml_prob', 0) * 100, 1)}%"
+        inference = f"{sp['label']}{odds_str} {prob_str}  ({home_prob}%/{draw_prob}%/{away_prob}%)"
+        if sp.get("secondary"):
+            s2 = sp["secondary"]
+            o2 = f" @{s2['odds']}" if s2.get("odds") else ""
+            p2 = f"{round(s2.get('ml_prob', 0) * 100, 1)}%"
+            inference += f"  +  {s2['label']}{o2} {p2}"
+    else:
+        inference = f"({home_prob}%/{draw_prob}%/{away_prob}%)"
+
+    # Parsed meta (post 2026-04 prompt restructure); falls back to None for legacy callers.
+    pm = parsed_meta or {}
+    _md_for_db        = pm.get("markdown_content") or content
+    _beginner_summary = pm.get("beginner_summary")
+    _chart_insights   = pm.get("chart_insights")
+    _key_variables    = pm.get("key_variables")
+    _key_risk         = pm.get("key_risk")
+
+    conn.execute("""
+        INSERT OR REPLACE INTO report_store
+            (match_id, title, markdown_content, preview_content,
+             home_team, away_team, home_icon, away_icon,
+             home_prob, away_prob, draw_prob, league, match_time,
+             status, inference, pipeline_status, is_archived, is_public,
+             lineup_data, version,
+             beginner_summary, chart_insights, key_variables, key_risk)
+        VALUES (?,?,?,?, ?,?,?,?, ?,?,?,?,?, ?,?,?, 0, 0, ?, ?,  ?,?,?,?)
+    """, [
+        str(match_id),
+        f"研报: {home_team} vs {away_team}",
+        _md_for_db, _md_for_db[:800],
+        home_team, away_team, h_icon, a_icon,
+        home_prob, away_prob, draw_prob,
+        m.get("league", ""), m_time,
+        "FREE", inference,
+        "PRE_MATCH_READY",
+        json.dumps(lineup_data, ensure_ascii=False) if lineup_data else None,
+        version,
+        _beginner_summary, _chart_insights, _key_variables, _key_risk,
+    ])
+    conn.commit()
+    # PASSIVE：尽力将 WAL 已提交帧写回主库，有读者时立即返回（不阻塞）
+    conn.execute("PRAGMA wal_checkpoint(PASSIVE)")
+    conn.close()
+
+
+if __name__ == "__main__":
+    main()

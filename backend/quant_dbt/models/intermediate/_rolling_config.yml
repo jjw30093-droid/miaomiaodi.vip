@@ -1,0 +1,39 @@
+# Phase A2 optimal rolling window config (generated 2026-04-25)
+# Source: search_results/window_winners.json
+# Format: feature_name: {best: W, second: W2, raw_col: column_in_int_team_match_flattened}
+# Features in dbt (int_team_rolling_features):
+
+feature_windows:
+  npxGD:               {best: 14, second: 20,              raw_col: npxGD,               source: dbt}
+  xGD:                 {best:  5, second: 30,              raw_col: xGD,                 source: dbt}
+  ppda:                {best:  5, second: 20,              raw_col: proxy_ppda,           source: dbt}
+  field_tilt:          {best:  3, second: 50,              raw_col: field_tilt,           source: dbt}
+  box_shot_ratio:      {best:  3, second:  7,              raw_col: box_shot_ratio,       source: dbt}
+  poss_diff:           {best:  5, second: season_to_date,  raw_col: possession_diff,      source: dbt}
+  big_chances_created: {best:  3, second: 20,              raw_col: big_chances_created,  source: dbt}
+  shot_quality_added:  {best:  5, second: season_to_date,  raw_col: shot_quality_added,   source: dbt}
+  open_play_xg_for:    {best:  3, second: 50,              raw_col: xG_open_play_for,     source: dbt}
+  set_play_xg_for:     {best:  5, second: season_to_date,  raw_col: xG_set_play_for,      source: dbt}
+  blocked_shots:       {best: 14, second: 50,              raw_col: blocked_shots,        source: dbt}
+  keeper_saves:        {best:  5, second: 20,              raw_col: keeper_saves,         source: dbt}
+  # Features in int_team_rolling_extended (feature_engineering.py):
+  shot_pace:           {best: 30, second: 50,              raw_col: shot_pace,            source: extended}
+  trailing_xg_ratio:   {best:  3, second: 20,              raw_col: trailing_xg_ratio,    source: extended}
+  level_xg_ratio:      {best:  7, second: 20,              raw_col: level_xg_ratio,       source: extended}
+  opp_adj_npxgd:       {best: 14, second: 30,              raw_col: opp_adj_npxgd,        source: extended}
+  rest_days:           {best:  5, second: 10,              raw_col: rest_days,            source: extended}
+
+# Combo features (from combo_winners.json):
+combo_features:
+  - name: combo_opp_adj_npxgd_minus_npxGD
+    type: pair
+    label_a: opp_adj_npxgd   # uses best window=14 from extended
+    op: "-"
+    label_b: npxGD            # uses best window=14 from dbt
+  - name: triple_combo_opp_adj_npxgd_minus_npxGD_div_ppda
+    type: triple
+    label_a: opp_adj_npxgd
+    op: "-"
+    label_b: npxGD
+    modifier: ppda            # uses best window=5
+    mod_op: "/"
