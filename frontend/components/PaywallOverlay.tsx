@@ -39,6 +39,10 @@ export default function PaywallOverlay({
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
 
+  const [buyLoading, setBuyLoading] = useState(false);
+  const [buyMsg, setBuyMsg] = useState<{ type: string; text: string }>({ type: '', text: '' });
+  const [orderNo, setOrderNo] = useState<string | null>(null);
+
   const trackEvent = (eventName: string, metadata: any = {}) => {
     fetch('/api/v1/track', {
       method: 'POST',
@@ -80,6 +84,54 @@ export default function PaywallOverlay({
       setMessage({ type: 'error', text: err.message || '卡密无效或已被使用' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleBuyMatch = async () => {
+    const apiToken = (session?.user as any)?.apiToken as string | undefined;
+    if (!apiToken) {
+      setBuyMsg({ type: 'error', text: '请先使用微信扫码登录后再购买' });
+      return;
+    }
+    if (!matchId) {
+      setBuyMsg({ type: 'error', text: '无法识别比赛 ID，请刷新后重试' });
+      return;
+    }
+    setBuyLoading(true);
+    setBuyMsg({ type: '', text: '' });
+    try {
+      const productsRes = await apiClient.get<{
+        products: Array<{ id: number; sku: string; price_yuan: number; name: string }>;
+      }>('/products', { params: { type: 'single_match' } });
+      const products = productsRes.products || [];
+      const product =
+        products.find((p) => p.sku === 'single_match_std') || products[0];
+      if (!product) {
+        setBuyMsg({ type: 'error', text: '暂无可购买的产品，请联系客服' });
+        return;
+      }
+      const orderRes = await apiClient.post<{
+        order_no: string;
+        amount_yuan: number;
+        product_name: string;
+      }>(
+        '/orders',
+        { product_id: product.id, match_id: String(matchId) },
+        { token: apiToken }
+      );
+      setOrderNo(orderRes.order_no);
+      setBuyMsg({ type: 'success', text: `订单已创建（¥${orderRes.amount_yuan}），请联系客服完成支付` });
+    } catch (err: any) {
+      const detail: string = err?.message || '购买失败，请稍后重试';
+      if (detail.includes('already have a paid order')) {
+        setBuyMsg({ type: 'error', text: '您已购买本场研报，请刷新页面' });
+      } else if (detail.includes('pending order')) {
+        setBuyMsg({ type: 'error', text: '已有待支付订单，请联系客服完成支付' });
+      } else {
+        setBuyMsg({ type: 'error', text: detail });
+      }
+    } finally {
+      setBuyLoading(false);
     }
   };
 
@@ -175,13 +227,43 @@ export default function PaywallOverlay({
               购买本场单场研报，或开通 VIP 查看全部内容
             </span>
           </h2>
-          <Link
-            href="/center"
-            className="block w-full py-4 font-black rounded-xl text-lg transition-all active:scale-[0.97]"
-            style={{ backgroundColor: LIME, color: '#050610' }}
-          >
-            购买本场 ¥{TEMP_PRICE_CNY}
-          </Link>
+          {orderNo ? (
+            <div
+              className="w-full py-4 rounded-xl text-sm font-bold text-center leading-relaxed"
+              style={{
+                backgroundColor: 'rgba(186,255,0,0.08)',
+                border: '1px solid rgba(186,255,0,0.2)',
+                color: LIME,
+              }}
+            >
+              ✅ 订单 {orderNo} 已创建
+              <br />
+              <span className="text-xs font-normal" style={{ color: 'rgba(250,250,252,0.6)' }}>
+                请联系客服完成支付以解锁研报
+              </span>
+            </div>
+          ) : (
+            <button
+              onClick={handleBuyMatch}
+              disabled={buyLoading}
+              className="block w-full py-4 font-black rounded-xl text-lg transition-all active:scale-[0.97] disabled:opacity-50"
+              style={{ backgroundColor: LIME, color: '#050610' }}
+            >
+              {buyLoading ? '处理中...' : `购买本场 ¥${TEMP_PRICE_CNY}`}
+            </button>
+          )}
+          {buyMsg.text && (
+            <div
+              className="p-3 rounded-xl text-xs font-bold"
+              style={{
+                backgroundColor: buyMsg.type === 'success' ? 'rgba(186,255,0,0.08)' : 'rgba(255,61,84,0.08)',
+                border: `1px solid ${buyMsg.type === 'success' ? 'rgba(186,255,0,0.2)' : 'rgba(255,61,84,0.2)'}`,
+                color: buyMsg.type === 'success' ? LIME : RED,
+              }}
+            >
+              {buyMsg.text}
+            </div>
+          )}
           <div className="flex gap-3">
             <Link
               href="/center"

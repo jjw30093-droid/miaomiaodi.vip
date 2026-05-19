@@ -30,6 +30,7 @@ def run_migrations(db_path: str = DB_PATH) -> None:
         _upgrade_user_unlocks_v2(conn)
         _create_products_table(conn)
         _create_orders_table(conn)
+        _seed_base_products(conn)
         _seed_worldcup_products(conn)
         conn.commit()
         log.info("[Migrations] ✅ All migrations applied successfully.")
@@ -379,6 +380,17 @@ def _create_orders_table(conn: sqlite3.Connection) -> None:
 # Migration 8d: 世界杯套餐 SKU 预填
 # INSERT OR IGNORE：sku 唯一约束冲突时静默跳过，不覆盖已改价格。
 # ─────────────────────────────────────────────────────────────
+
+def _seed_base_products(conn: sqlite3.Connection) -> None:
+    conn.executemany(
+        """INSERT OR IGNORE INTO products (sku, name, type, price_cents, metadata)
+           VALUES (?, ?, ?, ?, ?)""",
+        [
+            ("single_match_std", "单场研报", "single_match", 2990, '{}'),
+        ]
+    )
+    log.info("[Migrations] Base product SKUs seeded (OR IGNORE).")
+
 
 def _seed_worldcup_products(conn: sqlite3.Connection) -> None:
     conn.executemany(
