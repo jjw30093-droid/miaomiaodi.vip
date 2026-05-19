@@ -199,7 +199,6 @@ async function ReportContent({
   // ── Access rules ───────────────────────────────────────────────────────────
   const showCharts    = accessLevel !== 'anonymous';
   const hasFullAccess = accessLevel !== 'anonymous';
-  const isGated       = false;
   const matchStatus: 'upcoming' | 'finished' =
     report.matchStatus === 'finished' ? 'finished' : 'upcoming';
   // 时间兜底：比赛开球 2.5h 后，即便 match_status 尚未被 archiver 更新也视为已结束
@@ -497,7 +496,24 @@ async function ReportContent({
 
         {/* ── 5. 战术深度章节 ─────────────────────────────────────────────── */}
         <section id="tactics" className="flex flex-col gap-5">
-          {(report.markdownSections?.ahAnalysis || report.markdownSections?.ouAnalysis || report.markdownSections?.overallComparison) ? (
+          {report.isGated ? (
+            // 权限截断：显示 preview + PaywallOverlay
+            <>
+              {report.previewContent && (
+                <div className="bg-[var(--panel-bg-strong)] backdrop-blur-xl border border-[var(--panel-border-strong)] rounded-2xl p-5 overflow-hidden shadow-[var(--panel-shadow-strong)]">
+                  <SectionLabel icon={<BarChart2 size={11} />} label="AI 神经分析 · 预览" />
+                  <ReportMarkdown content={report.previewContent} />
+                </div>
+              )}
+              <div className="relative min-h-[320px]">
+                <PaywallOverlay
+                  accessLevel={report.accessLevel}
+                  unlockReason={report.unlockReason}
+                  matchId={report.matchId}
+                />
+              </div>
+            </>
+          ) : (report.markdownSections?.ahAnalysis || report.markdownSections?.ouAnalysis || report.markdownSections?.overallComparison) ? (
             // 新格式（AH/OU 导向研报，2026-04-28+）
             <>
               {report.markdownSections?.ahAnalysis && (
@@ -708,6 +724,8 @@ export default async function ReportPage({
 
   // ── Auth ───────────────────────────────────────────────────────────────────
   // Dev mode: if a fixture file exists for this match, bypass auth entirely.
+  const session = await auth();
+  const _apiToken = (session?.user as any)?.apiToken as string | undefined;
   let accessLevel: AccessLevel;
   if (process.env.NODE_ENV === 'development') {
     const { existsSync } = await import('fs');
@@ -716,19 +734,26 @@ export default async function ReportPage({
     if (existsSync(fixturePath)) {
       accessLevel = 'vip';
     } else {
-      const session = await auth();
-      accessLevel = !session?.user ? 'anonymous' : 'vip';
+      const role = (session?.user as any)?.role ?? 'registered';
+      accessLevel = !session?.user
+        ? 'anonymous'
+        : (role === 'vip' || role === 'super_admin') ? 'vip' : 'registered';
     }
   } else {
-    const session = await auth();
-    accessLevel = !session?.user ? 'anonymous' : 'vip';
+    const role = (session?.user as any)?.role ?? 'registered';
+    accessLevel = !session?.user
+      ? 'anonymous'
+      : (role === 'vip' || role === 'super_admin') ? 'vip' : 'registered';
   }
 
   // ── Daily free match ───────────────────────────────────────────────────────
   let isFreeMatch = false;
   try {
     const API_BASE = process.env.FASTAPI_URL || 'http://localhost:8000';
-    const res = await fetch(`${API_BASE}/api/v1/reports/daily_free_id`, { cache: 'no-store' });
+    const res = await fetch(`${API_BASE}/api/v1/reports/daily_free_id`, {
+      cache: 'no-store',
+      headers: _apiToken ? { Authorization: `Bearer ${_apiToken}` } : undefined,
+    });
     if (res.ok) {
       const data = await res.json();
       isFreeMatch = String(data.free_match_id) === String(matchId);

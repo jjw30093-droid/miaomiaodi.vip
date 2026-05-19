@@ -128,6 +128,9 @@ export interface CloudReportPayload {
   draw_prob?:        number;
   inference?:        string;
   is_gated?:         boolean;
+  access_level?:     'guest' | 'registered' | 'unlocked' | 'vip';
+  unlock_reason?:    'free_match' | 'vip' | 'single_unlock' | null;
+  preview_content?:  string | null;
   is_free?:          boolean;
   match_status?:       string;
   post_match_review?:  string | null;
@@ -265,7 +268,10 @@ export interface ReportData {
   postMatchReview?:  string | null;
   postMatchShots?:   PostMatchShots | null;
   /** true = 后端已有研报但权限不足（非"数据未同步"） */
-  isGated?:          boolean;
+  isGated:           boolean;
+  accessLevel:       'guest' | 'registered' | 'unlocked' | 'vip';
+  unlockReason:      'free_match' | 'vip' | 'single_unlock' | null;
+  previewContent:    string | null;
   /** 首发阵容确认状态（来自爬虫） */
   lineupStatus?:     'confirmed' | 'predicted' | 'unavailable';
   lineupConfirmedAt?: string | null;

@@ -11,10 +11,25 @@ const RED    = '#ff3d54';
 const BG     = 'rgba(5, 6, 16, 0.82)';
 const BORDER = 'rgba(255,255,255,0.08)';
 
+const TEMP_PRICE_CNY = 29.9; // TODO Day 2: 接入 report_store.price_cny 字段
+
 const _enableCdk    = process.env.NEXT_PUBLIC_ENABLE_CDK === 'true';
 const _enableWechat = process.env.NEXT_PUBLIC_ENABLE_WECHAT_LOGIN === 'true';
 
-export default function PaywallOverlay() {
+type PaywallAccessLevel = 'guest' | 'registered' | 'unlocked' | 'vip';
+type PaywallUnlockReason = 'free_match' | 'vip' | 'single_unlock' | null;
+
+interface PaywallOverlayProps {
+  accessLevel?: PaywallAccessLevel;
+  unlockReason?: PaywallUnlockReason;
+  matchId?: string | number;
+}
+
+export default function PaywallOverlay({
+  accessLevel,
+  unlockReason,
+  matchId,
+}: PaywallOverlayProps = {}) {
   const pathname = usePathname();
   const router = useRouter();
   const { data: session } = useSession();
@@ -68,11 +83,11 @@ export default function PaywallOverlay() {
     }
   };
 
-  /* ── 未登录 Paywall ── */
-  if (!session) {
+  /* ── guest Paywall：未登录 ── */
+  if (accessLevel === 'guest' || (!accessLevel && !session)) {
+    const redirectTarget = matchId ? `/report/${matchId}` : pathname;
     return (
       <div className="absolute inset-x-0 bottom-0 h-[80%] flex flex-col items-center justify-end pb-20 z-20">
-        {/* 渐变遮罩：从深蓝黑渐变透明 */}
         <div
           className="absolute inset-0"
           style={{
@@ -99,23 +114,31 @@ export default function PaywallOverlay() {
             >
               🔒
             </div>
-            <h3 className="text-2xl font-black mb-3" style={{ color: '#ffffff' }}>登录后解锁分析</h3>
+            <h3 className="text-2xl font-black mb-3" style={{ color: '#ffffff' }}>登录后查看完整研报</h3>
             <p className="mb-8 text-sm leading-relaxed" style={{ color: 'rgba(250,250,252,0.5)' }}>
-              实验室成员可查看完整{' '}
-              <span style={{ color: '#ffffff', fontWeight: 700 }}>xG 分布图</span>{' '}
-              与{' '}
-              <span style={{ color: '#ffffff', fontWeight: 700 }}>深度盘口结论</span>。
+              注册账号即可解锁研报预览，购买后查看完整内容
             </p>
             <Link
-              href={`/login?callbackUrl=${encodeURIComponent(pathname)}`}
-              className="w-full py-4 font-black rounded-xl text-base transition-all active:scale-[0.98]"
+              href={`/login?redirect=${encodeURIComponent(redirectTarget)}`}
+              className="w-full py-4 font-black rounded-xl text-base transition-all active:scale-[0.98] mb-3"
               style={{
                 backgroundColor: LIME,
                 color: '#050610',
                 boxShadow: `0 0 24px rgba(186,255,0,0.35)`,
               }}
             >
-              登 录 激 活
+              立 即 登 录
+            </Link>
+            <Link
+              href="/register"
+              className="w-full py-3 font-black rounded-xl text-sm transition-all active:scale-[0.98]"
+              style={{
+                background: 'rgba(255,255,255,0.06)',
+                border: `1px solid ${BORDER}`,
+                color: 'rgba(250,250,252,0.7)',
+              }}
+            >
+              注册新账号
             </Link>
           </div>
         </div>
@@ -123,7 +146,75 @@ export default function PaywallOverlay() {
     );
   }
 
-  /* ── 已登录但配额耗尽 Paywall（CDK 关闭时不显示）── */
+  /* ── registered Paywall：已登录但无 VIP / unlock ── */
+  if (accessLevel === 'registered') {
+    return (
+      <div className="absolute inset-x-0 bottom-0 h-[85%] flex flex-col items-center justify-center z-40">
+        <div
+          className="absolute inset-0"
+          style={{
+            background: 'linear-gradient(to top, #050610 15%, rgba(5,6,16,0.9) 50%, rgba(5,6,16,0.6) 100%)',
+            backdropFilter: 'blur(16px)',
+          }}
+        />
+        <div className="relative z-50 text-center space-y-5 max-w-md px-6 w-full">
+          <span
+            className="inline-block px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest"
+            style={{
+              backgroundColor: 'rgba(255,61,84,0.1)',
+              border: `1px solid ${RED}`,
+              color: RED,
+            }}
+          >
+            PREMIUM CONTENT
+          </span>
+          <h2 className="text-3xl font-black leading-tight" style={{ color: '#ffffff' }}>
+            解锁完整研报
+            <br />
+            <span style={{ color: 'rgba(250,250,252,0.6)', fontWeight: 500, fontSize: '1.1rem' }}>
+              购买本场单场研报，或开通 VIP 查看全部内容
+            </span>
+          </h2>
+          <Link
+            href="/center"
+            className="block w-full py-4 font-black rounded-xl text-lg transition-all active:scale-[0.97]"
+            style={{ backgroundColor: LIME, color: '#050610' }}
+          >
+            购买本场 ¥{TEMP_PRICE_CNY}
+          </Link>
+          <div className="flex gap-3">
+            <Link
+              href="/center"
+              className="flex-1 py-3 font-black rounded-xl text-sm transition-all active:scale-[0.97]"
+              style={{
+                background: 'rgba(255,255,255,0.06)',
+                border: `1px solid ${BORDER}`,
+                color: 'rgba(250,250,252,0.8)',
+              }}
+            >
+              开通 VIP
+            </Link>
+            <Link
+              href="/center?tab=cdk"
+              className="flex-1 py-3 font-black rounded-xl text-sm transition-all active:scale-[0.97]"
+              style={{
+                background: 'rgba(255,255,255,0.06)',
+                border: `1px solid ${BORDER}`,
+                color: 'rgba(250,250,252,0.8)',
+              }}
+            >
+              使用兑换码
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── 兜底（unlocked/vip 理论上不应出现在 isGated=true 路径）── */
+  if (accessLevel === 'unlocked' || accessLevel === 'vip') return null;
+
+  /* ── 旧路径兼容：已登录但配额耗尽 Paywall（CDK 关闭时不显示）── */
   if (!_enableCdk) return null;
 
   return (
