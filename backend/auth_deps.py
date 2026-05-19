@@ -74,9 +74,7 @@ class CurrentUser:
 
     @property
     def is_vip(self) -> bool:
-        if os.environ.get("ENABLE_VIP_GATING", "0") == "1":
-            return self.tier == UserTier.VIP
-        return self.tier >= UserTier.REGISTERED
+        return self.tier == UserTier.VIP
 
     @property
     def is_registered(self) -> bool:
@@ -294,7 +292,7 @@ def get_optional_user(request: Request) -> CurrentUser:
         nickname   = payload.get("nickname")
         avatar_url = payload.get("avatar_url")
         jti        = payload.get("jti")
-        is_vip     = role == "vip"
+        is_vip     = role in ("vip", "super_admin")
 
         # 检查 VIP 是否真的仍在有效期内
         vip_expires_at = payload.get("vip_expires_at")

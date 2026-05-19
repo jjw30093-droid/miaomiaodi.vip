@@ -451,7 +451,7 @@ async def sync_match_payload(payload: MatchPayload):
 async def get_match_payload(
     match_id: str,
     request: Request,
-    user: CurrentUser = Depends(get_current_user),
+    user: CurrentUser = Depends(get_optional_user),
 ):
     """
     读取研报复合 Payload（前端图表消费用）。
@@ -523,7 +523,7 @@ async def get_match_payload(
                       match_time, league, status, inference,
                       home_prob, away_prob, draw_prob,
                       match_status, post_match_review, post_match_shots,
-                      pipeline_status,
+                      pipeline_status, preview_content,
                       beginner_summary, chart_insights, key_variables, key_risk,
                       CASE WHEN status='FREE' THEN 1 ELSE is_free END AS is_free
                FROM report_store WHERE match_id = ?""",
@@ -570,19 +570,46 @@ async def get_match_payload(
 
         # ── 权限截断 ────────────────────────────────────────────────────────────
         is_free_match = bool(meta["is_free"]) if meta else False
-        is_gated      = False   # 标记给前端：此字段被权限截断，非"暂无数据"
-
-        # GUEST：概率与 AI 推荐不下发（前端首页已锁，此处补后端物理截断）
         _hide_probs = user.is_guest
+        _allow_postmatch = user.is_vip
+
         _meta_inference = (meta["inference"] if meta else "") if not _hide_probs else ""
         _home_prob = (meta["home_prob"] if meta else None) if not _hide_probs else None
         _away_prob = (meta["away_prob"] if meta else None) if not _hide_probs else None
         _draw_prob = (meta["draw_prob"] if meta else None) if not _hide_probs else None
 
         # 非 VIP：赛后复盘数据不下发
-        _allow_postmatch = user.is_vip
         _post_review = (meta["post_match_review"] if meta else None) if _allow_postmatch else None
         _post_shots_raw = (meta["post_match_shots"] if meta else None) if _allow_postmatch else None
+
+        # 默认拦截，按身份逐级判断放行
+        is_gated = True
+        unlock_reason = None
+
+        if user.is_guest:
+            access_level = "guest"
+        elif user.is_vip:
+            access_level = "vip"
+        else:
+            access_level = "registered"
+
+        if is_free_match:
+            is_gated = False
+            unlock_reason = "free_match"
+        elif user.is_vip:
+            is_gated = False
+            unlock_reason = "vip"
+        elif not user.is_guest and user.user_id:
+            unlock_row = conn.execute("""
+                SELECT 1 FROM user_unlocks u
+                JOIN users us ON us.username = u.username
+                WHERE us.id = ? AND u.match_id = ?
+                LIMIT 1
+            """, [user.user_id, str(match_id)]).fetchone()
+            if unlock_row:
+                is_gated = False
+                unlock_reason = "single_unlock"
+                access_level = "unlocked"
 
         # ── 4. 球员 & 球队统计（从 fact 表实时拼入）──────────────────
         player_stats    = None
@@ -722,10 +749,13 @@ async def get_match_payload(
 
         payload = {
             "match_id":        match_id,
-            "report_markdown": report_narrative if not is_gated else None,   # stripped 版本
-            "report_narrative": report_narrative if not is_gated else None,  # 新字段（同值）
-            "lineup_brief":    lineup_brief,  # 公开：首发/伤停简报（不受权限截断）
+            "report_markdown": report_narrative if not is_gated else None,
+            "report_narrative": report_narrative if not is_gated else None,
+            "lineup_brief":    lineup_brief,
             "is_gated":        is_gated,
+            "access_level":    access_level,
+            "unlock_reason":   unlock_reason,
+            "preview_content": meta["preview_content"] if meta else None,
             "is_free":         is_free_match,
             "npxg_trend":      npxg_trend,
             "shot_map_data":   shot_map_data,
