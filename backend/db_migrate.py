@@ -26,6 +26,11 @@ def run_migrations(db_path: str = DB_PATH) -> None:
         _add_user_account_fields(conn)
         _create_user_sessions_table(conn)
         _migrate_wechat_users_to_users(conn)
+        # ── Phase 4: 商业化基础表（Day 2）────────────────────────────────────
+        _upgrade_user_unlocks_v2(conn)
+        _create_products_table(conn)
+        _create_orders_table(conn)
+        _seed_worldcup_products(conn)
         conn.commit()
         log.info("[Migrations] ✅ All migrations applied successfully.")
     finally:
@@ -241,3 +246,152 @@ def _migrate_wechat_users_to_users(conn: sqlite3.Connection) -> None:
         log.info("[Migrations] wechat_users → users sync complete.")
     except Exception as e:
         log.warning(f"[Migrations] wechat_users sync skipped: {e}")
+
+
+# ─────────────────────────────────────────────────────────────
+# Migration 8a: user_unlocks v2（user_id 列迁移 + 补全字段）
+#
+# 旧表（生产可能存在）至少有 username + match_id 两列。
+# 升级路径：
+#   1. 表不存在 → 直接建 v2 完整结构
+#   2. 表存在但缺 user_id 列 → ALTER TABLE 添加，通过 JOIN users 回填
+#   3. 无论哪条路径，幂等补全 unlock_source / source_ref / expires_at + 索引
+# ─────────────────────────────────────────────────────────────
+
+def _upgrade_user_unlocks_v2(conn: sqlite3.Connection) -> None:
+    table_exists = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='user_unlocks'"
+    ).fetchone() is not None
+
+    if not table_exists:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS user_unlocks (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id         INTEGER NOT NULL,
+                match_id        TEXT NOT NULL,
+                unlock_source   TEXT NOT NULL DEFAULT 'unknown',
+                source_ref      TEXT,
+                unlocked_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at      TIMESTAMP,
+                UNIQUE(user_id, match_id),
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            )
+        """)
+        log.info("[Migrations] Created table: user_unlocks (v2, fresh)")
+    else:
+        # 幂等补全各列
+        for col, defn in [
+            ("user_id",       "INTEGER"),
+            ("unlock_source", "TEXT NOT NULL DEFAULT 'unknown'"),
+            ("source_ref",    "TEXT"),
+            ("expires_at",    "TIMESTAMP"),
+        ]:
+            try:
+                conn.execute(f"ALTER TABLE user_unlocks ADD COLUMN {col} {defn}")
+                log.info(f"[Migrations] Added column: user_unlocks.{col}")
+            except sqlite3.OperationalError:
+                pass  # 列已存在
+
+        # 若旧表含 username 列，通过 JOIN users 回填 user_id
+        existing_cols = {row[1] for row in conn.execute("PRAGMA table_info(user_unlocks)")}
+        if "username" in existing_cols:
+            try:
+                conn.execute("""
+                    UPDATE user_unlocks
+                       SET user_id = (
+                           SELECT id FROM users
+                            WHERE users.username = user_unlocks.username
+                       )
+                     WHERE user_id IS NULL
+                """)
+                log.info("[Migrations] user_unlocks.user_id backfilled via users.username")
+            except Exception as e:
+                log.warning(f"[Migrations] user_unlocks.user_id backfill skipped: {e}")
+
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_unlocks_user_match
+          ON user_unlocks(user_id, match_id)
+    """)
+    log.info("[Migrations] user_unlocks v2 ensured.")
+
+
+# ─────────────────────────────────────────────────────────────
+# Migration 8b: products（套餐 SKU 表）
+# ─────────────────────────────────────────────────────────────
+
+def _create_products_table(conn: sqlite3.Connection) -> None:
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS products (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            sku             TEXT NOT NULL UNIQUE,
+            name            TEXT NOT NULL,
+            type            TEXT NOT NULL,
+            price_cents     INTEGER NOT NULL,
+            currency        TEXT DEFAULT 'CNY',
+            metadata        TEXT DEFAULT '{}',
+            is_active       INTEGER DEFAULT 1,
+            created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_products_sku    ON products(sku)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_products_active ON products(is_active)")
+    log.info("[Migrations] products table ensured.")
+
+
+# ─────────────────────────────────────────────────────────────
+# Migration 8c: orders（订单流水表，依赖 products 先建好）
+# ─────────────────────────────────────────────────────────────
+
+def _create_orders_table(conn: sqlite3.Connection) -> None:
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS orders (
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_no            TEXT NOT NULL UNIQUE,
+            user_id             INTEGER NOT NULL,
+            product_id          INTEGER NOT NULL,
+            sku_snapshot        TEXT NOT NULL,
+            name_snapshot       TEXT NOT NULL,
+            price_cents         INTEGER NOT NULL,
+            currency            TEXT DEFAULT 'CNY',
+            payment_provider    TEXT NOT NULL,
+            provider_order_id   TEXT,
+            status              TEXT NOT NULL,
+            paid_at             TIMESTAMP,
+            refunded_at         TIMESTAMP,
+            expires_at          TIMESTAMP,
+            match_id            TEXT,
+            metadata            TEXT DEFAULT '{}',
+            created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(user_id)    REFERENCES users(id),
+            FOREIGN KEY(product_id) REFERENCES products(id)
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_orders_user        ON orders(user_id)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_orders_status      ON orders(status)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_orders_order_no    ON orders(order_no)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_orders_provider_id ON orders(provider_order_id)")
+    log.info("[Migrations] orders table ensured.")
+
+
+# ─────────────────────────────────────────────────────────────
+# Migration 8d: 世界杯套餐 SKU 预填
+# INSERT OR IGNORE：sku 唯一约束冲突时静默跳过，不覆盖已改价格。
+# ─────────────────────────────────────────────────────────────
+
+def _seed_worldcup_products(conn: sqlite3.Connection) -> None:
+    conn.executemany(
+        """INSERT OR IGNORE INTO products (sku, name, type, price_cents, metadata)
+           VALUES (?, ?, ?, ?, ?)""",
+        [
+            ("wc_single_group", "世界杯单场研报(小组赛)", "single_match",  1990, '{"stage":"group"}'),
+            ("wc_single_ko",    "世界杯单场研报(淘汰赛)", "single_match",  2990, '{"stage":"knockout"}'),
+            ("wc_single_final", "世界杯单场研报(决赛圈)", "single_match",  4990, '{"stage":"final"}'),
+            ("wc_group_pack",   "世界杯小组赛全包(48场)", "package",      19900, '{"scope":"group_stage","match_count":48}'),
+            ("wc_ko_pack",      "世界杯淘汰赛通票(16场)", "package",      29900, '{"scope":"knockout","match_count":16}'),
+            ("wc_full_pack_1",  "世界杯全包-上半段",      "package",      29900, '{"scope":"full_half_1"}'),
+            ("wc_full_pack_2",  "世界杯全包-下半段",      "package",      19900, '{"scope":"full_half_2"}'),
+        ]
+    )
+    log.info("[Migrations] World Cup product SKUs seeded (OR IGNORE).")
