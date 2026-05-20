@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useSession, signIn } from 'next-auth/react';
@@ -42,6 +42,64 @@ export default function PaywallOverlay({
   const [buyLoading, setBuyLoading] = useState(false);
   const [buyMsg, setBuyMsg] = useState<{ type: string; text: string }>({ type: '', text: '' });
   const [orderNo, setOrderNo] = useState<string | null>(null);
+
+  // Bug 4: 拉取当前用户在当前 match 的 pending 订单（若存在），用于显示"我已支付，刷新状态"卡片
+  const [pendingOrder, setPendingOrder] = useState<{
+    order_no: string;
+    product_name: string;
+    amount_yuan: number;
+    expires_at: string;
+    seconds_left: number;
+  } | null>(null);
+  const [secondsLeft, setSecondsLeft] = useState<number>(0);
+
+  // mount 后 + accessLevel 变化时拉一次 pending order（仅 registered 用户）
+  useEffect(() => {
+    if (accessLevel !== 'registered' || !matchId) return;
+    const apiToken = (session?.user as any)?.apiToken as string | undefined;
+    if (!apiToken) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await apiClient.get<{
+          pending_order: {
+            order_no: string;
+            product_name: string;
+            amount_yuan: number;
+            expires_at: string;
+            seconds_left: number;
+          } | null;
+        }>('/orders/pending', {
+          params: { match_id: String(matchId) },
+          token: apiToken,
+        });
+        if (!cancelled && res.pending_order) {
+          setPendingOrder(res.pending_order);
+          setSecondsLeft(res.pending_order.seconds_left);
+        }
+      } catch {
+        // 静默忽略：拉取失败不影响购买按钮渲染
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [accessLevel, matchId, session]);
+
+  // 客户端倒计时：每秒递减，到 0 自动清掉 pendingOrder（回到原购买按钮）
+  useEffect(() => {
+    if (!pendingOrder || secondsLeft <= 0) return;
+    const id = setInterval(() => {
+      setSecondsLeft((s) => {
+        if (s <= 1) {
+          setPendingOrder(null);
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [pendingOrder, secondsLeft]);
 
   const trackEvent = (eventName: string, metadata: any = {}) => {
     fetch('/api/v1/track', {
@@ -227,7 +285,34 @@ export default function PaywallOverlay({
               购买本场单场研报，或开通 VIP 查看全部内容
             </span>
           </h2>
-          {orderNo ? (
+          {pendingOrder ? (
+            // 优先级 1：检测到历史 pending 订单 → 显示订单号 + 金额 + 倒计时 + 刷新按钮
+            <div
+              className="w-full py-4 px-4 rounded-xl text-sm font-bold text-center leading-relaxed"
+              style={{
+                backgroundColor: 'rgba(186,255,0,0.08)',
+                border: '1px solid rgba(186,255,0,0.2)',
+                color: LIME,
+              }}
+            >
+              <div className="mb-1">⏳ 待支付订单 {pendingOrder.order_no}</div>
+              <div className="text-xs font-normal mb-3" style={{ color: 'rgba(250,250,252,0.7)' }}>
+                ¥{pendingOrder.amount_yuan} · 剩 {Math.floor(secondsLeft / 60)}分{secondsLeft % 60}秒过期
+              </div>
+              <button
+                onClick={() => router.refresh()}
+                className="w-full py-2 font-black rounded-lg text-xs transition-all active:scale-[0.97]"
+                style={{
+                  background: 'rgba(186,255,0,0.15)',
+                  border: '1px solid rgba(186,255,0,0.35)',
+                  color: LIME,
+                }}
+              >
+                我已支付，刷新状态
+              </button>
+            </div>
+          ) : orderNo ? (
+            // 优先级 2：用户刚下单成功 → 显示订单号 + 联系客服文案（保留原行为）
             <div
               className="w-full py-4 rounded-xl text-sm font-bold text-center leading-relaxed"
               style={{
@@ -243,6 +328,7 @@ export default function PaywallOverlay({
               </span>
             </div>
           ) : (
+            // 优先级 3：无待支付订单 → 显示购买按钮
             <button
               onClick={handleBuyMatch}
               disabled={buyLoading}
