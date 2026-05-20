@@ -571,7 +571,7 @@ async function ReportContent({
                 <Lock size={24} className="text-yellow-400/60" />
                 <p className="text-sm font-black text-slate-900 dark:text-white">赛后量化复盘 · 仅 VIP 可见</p>
                 <p className="text-xs text-slate-600 dark:text-white font-mono">包含模型回测、实际期望进球对比、AI 审计报告</p>
-                <Link href="/center" className="mt-1 px-4 py-2 rounded-full bg-yellow-400/10 border border-yellow-400/30 text-yellow-700 dark:text-yellow-400 text-xs font-black tracking-widest hover:bg-yellow-400/20 transition-all">
+                <Link href="/pricing" className="mt-1 px-4 py-2 rounded-full bg-yellow-400/10 border border-yellow-400/30 text-yellow-700 dark:text-yellow-400 text-xs font-black tracking-widest hover:bg-yellow-400/20 transition-all">
                   升级 VIP →
                 </Link>
               </div>

@@ -352,7 +352,7 @@ export default function PaywallOverlay({
           )}
           <div className="flex gap-3">
             <Link
-              href="/center"
+              href="/pricing"
               className="flex-1 py-3 font-black rounded-xl text-sm transition-all active:scale-[0.97]"
               style={{
                 background: 'rgba(255,255,255,0.06)',
