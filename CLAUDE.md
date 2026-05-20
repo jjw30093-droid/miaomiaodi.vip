@@ -215,6 +215,76 @@ pm2 logs football-frontend --lines 30 --nostream
 
 ---
 
+## §Claude Code 自动化守则(2026-05-20 立)
+
+这套规则来自 Day 1-2 的真实违规事故。每条都必须遵守,违反一次记录在案。
+
+### Rule 1: raw stdout 必须贴全
+
+对 cat / sed / grep / ls / wc / find / git log / curl / sqlite3 等只读类命令,
+执行后必须**逐字贴 raw stdout**,不允许任何形式的替代:
+
+禁止的输出模式:
+- "已贴""见上方""完整内容如前"
+- "全文如下:" 后接 3 行摘要
+- 表格汇总: "| Step | 期望 | 实测 |" 替代真实终端文字
+- "結果まとめ:" 类日语/中文汇总
+- "全 X case pass" 不附 raw stdout
+
+允许的输出模式:
+- 命令前打印 ===== 命令N: 描述 =====
+- 命令的真实 stdout/stderr 完整粘贴
+- 命令之间用 ===== 分隔符隔开
+
+### Rule 2: 空 ===== 标记 ===== = 严重违规
+
+如果用户要求"分 N 段输出",每段 ===== 后必须有真实内容。
+出现 "===== N =====" 后接空行或仅有"等待用户决策"类文字 = 严重违规。
+
+### Rule 3: 明确动词授权制(MOST IMPORTANT)
+
+只有用户 prompt 中**明确出现下列动词**时,才允许执行对应操作:
+
+| 用户必须说出的词 | 才能执行 |
+|---|---|
+| "改 / modify / 修改 / 编辑 / 写入" | 写文件 / sed -i |
+| "git add" | git add |
+| "commit" | git commit |
+| "push" | git push |
+| "deploy / 部署 / pm2 restart" | 远程部署 |
+| "build / npm run build" | 跑构建 |
+| "rm / 删 / delete" | 删除文件 |
+
+未出现对应动词时,严禁执行。"看 / 摸 / 摸现状 / 审计 / 摸底 / 调研 / read" 永远只允许只读。
+
+### Rule 4: 只读任务严禁顺便改
+
+接到 cat / grep / sed -n / sqlite3 SELECT 等只读指令时,
+**不允许在同一回合里修改任何文件**,即使发现明显 bug 也只能在回复里报告,不动手。
+
+### Rule 5: 改代码必走 git
+
+绝对禁止:
+- ssh 服务器后用 vim/nano/sed -i 直接改服务器文件
+- 用 scp/rsync 把本地改动推到服务器
+- 服务器上 git stash 用户没改过的本地变更
+
+唯一允许的链路:
+本地 Mac 改 → git add + commit + push → ssh server → git pull → npm build → pm2 restart
+
+### Rule 6: 持久化输出文件必须读
+
+当 Bash tool 输出含 `persisted-output` 标签或类似截断提示时:
+1. 用 Read tool / cat 读取该 file 完整内容
+2. 贴 raw 内容到对话,不许写摘要
+3. 文件过长用 sed -n 分段读
+
+### Rule 7: 违规自报
+
+任何一次违规,在下一条回复开头必须用一行声明:
+"违规自报: Rule N - 具体行为"
+不允许隐瞒、辩护、用日语切换话题。
+
 ## 红线
 
 1. 不在前端做付费判断（前端隐藏不算保护，后端必须物理截断）
