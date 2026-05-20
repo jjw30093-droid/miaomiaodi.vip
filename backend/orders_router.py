@@ -192,3 +192,66 @@ async def list_orders(
         for r in rows
     ]
     return {"orders": orders}
+
+
+# ─────────────────────────────────────────────────────────────
+# GET /orders/pending — 查当前用户的 pending 订单
+#   ?match_id=xxx  → 返回 {"pending_order": {...} | null}
+#   不传 match_id  → 返回 {"pending_orders": [...]}
+#
+# 用途：PaywallOverlay 检测到 registered 用户访问付费 match 时，
+# 调本端点判断是否有未过期 pending 订单 → 渲染"我已支付，刷新状态"卡片。
+# ─────────────────────────────────────────────────────────────
+
+@router.get("/orders/pending")
+async def get_pending_order(
+    match_id: Optional[str] = None,
+    user: CurrentUser = Depends(get_current_user),
+):
+    conn = _get_conn()
+    try:
+        if match_id:
+            rows = conn.execute(
+                """SELECT o.order_no, p.name AS product_name,
+                          o.price_cents, o.match_id,
+                          o.created_at, o.expires_at,
+                          CAST((julianday(o.expires_at) - julianday('now')) * 86400 AS INTEGER) AS seconds_left
+                     FROM orders o
+                     JOIN products p ON p.id = o.product_id
+                    WHERE o.user_id=? AND o.match_id=? AND o.status='pending'
+                      AND datetime(o.expires_at) > datetime('now')
+                    ORDER BY o.created_at DESC LIMIT 1""",
+                (user.user_id, str(match_id))
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                """SELECT o.order_no, p.name AS product_name,
+                          o.price_cents, o.match_id,
+                          o.created_at, o.expires_at,
+                          CAST((julianday(o.expires_at) - julianday('now')) * 86400 AS INTEGER) AS seconds_left
+                     FROM orders o
+                     JOIN products p ON p.id = o.product_id
+                    WHERE o.user_id=? AND o.status='pending'
+                      AND datetime(o.expires_at) > datetime('now')
+                    ORDER BY o.created_at DESC LIMIT 50""",
+                (user.user_id,)
+            ).fetchall()
+    finally:
+        conn.close()
+
+    items = [
+        {
+            "order_no":     r["order_no"],
+            "product_name": r["product_name"],
+            "amount_yuan":  round(r["price_cents"] / 100, 2),
+            "match_id":     r["match_id"],
+            "created_at":   r["created_at"],
+            "expires_at":   r["expires_at"],
+            "seconds_left": max(0, int(r["seconds_left"] or 0)),
+        }
+        for r in rows
+    ]
+
+    if match_id:
+        return {"pending_order": items[0] if items else None}
+    return {"pending_orders": items}
