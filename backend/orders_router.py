@@ -16,6 +16,7 @@ from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel
 
 from auth_deps import get_current_user, CurrentUser
+from cc_client import report_exists as _cc_report_exists, CCBackendUnavailable
 
 router = APIRouter(tags=["Orders"])
 
@@ -63,11 +64,16 @@ async def create_order(
         if product["type"] == "single_match":
             if not body.match_id:
                 raise HTTPException(status_code=400, detail="match_id is required for single_match products")
-            match_row = conn.execute(
-                "SELECT match_id FROM report_store WHERE match_id=?",
-                (str(body.match_id),)
-            ).fetchone()
-            if not match_row:
+            # Phase 2: 校验比赛存在性走 cc 内部 API（vip 本地 report_store 已冻结在 5/18）
+            try:
+                cc_check = _cc_report_exists(str(body.match_id))
+            except CCBackendUnavailable as e:
+                # cc 不可达 → 拒绝下单，避免脏数据触发悬空订单
+                raise HTTPException(
+                    status_code=503,
+                    detail="match service temporarily unavailable, please retry"
+                )
+            if not cc_check.get("exists"):
                 raise HTTPException(status_code=404, detail="Match not found")
             # 防重复购买：同 user + match_id 已有 paid 或未过期 pending 订单
             dup = conn.execute(
