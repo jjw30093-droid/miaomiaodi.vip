@@ -50,7 +50,7 @@ export default function MarketVsModelCard({
   const hasMarket = marketHome != null && marketAway != null;
   if (!hasModel || !hasMarket) return null;
 
-  // AH/OU 分析时无市场对比数据 → 不渲染此卡片（后端补充 AH/OU 市场概率后再开放）
+  // AH/OU 推荐时无市场对比数据 → 不渲染此卡片（后端补充 AH/OU 市场概率后再开放）
   const recDir = classifyDirection(recommended);
   if (recDir !== null && _AHOY_DIRS.has(recDir)) return null;
 

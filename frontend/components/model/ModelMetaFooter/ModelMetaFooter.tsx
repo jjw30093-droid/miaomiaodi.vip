@@ -36,7 +36,7 @@ export default function ModelMetaFooter({ meta, drift }: Props) {
         {samples != null && <span>样本 {samples.toLocaleString()} 场</span>}
         {featuresN != null && <span>{featuresN} 维特征</span>}
         <span>
-          WDL {versions.wdl ?? 'v4'} · OU {versions.ou ?? 'v4'} · AH {versions.ah ?? 'v1'}
+          WDL {versions.wdl ?? 'v4'} · Goals {versions.ou ?? 'v4'} · Spread {versions.ah ?? 'v1'}
         </span>
       </div>
 

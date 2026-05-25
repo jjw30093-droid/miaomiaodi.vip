@@ -73,10 +73,9 @@ export default function SinglePickHero({ snap }: Props) {
     ? single_pick.best_equity_curve
     : (single_pick?.equity_curve ?? []);
 
+  const endVal = curve.at(-1)?.value ?? 0;
   const hitRatePct = hitRate != null ? (hitRate * 100).toFixed(1) : '—';
-  const brierScore = (source as unknown as Record<string, unknown>).brier as number | undefined;
-  const brierDisplay = brierScore != null ? brierScore.toFixed(3) : '—';
-  const brierIsGood = brierScore != null && brierScore < 0.25;
+  const brierScore = snap.training_meta?.brier ?? null;
 
   // ── 配色策略 ──
   const COLOR = {
@@ -107,7 +106,7 @@ export default function SinglePickHero({ snap }: Props) {
           className="font-bold uppercase tracking-wider"
           style={{ fontSize: 12, color: COLOR.label }}
         >
-          模型精度 · {titleSuffix}
+          预测精度 · {titleSuffix}
         </p>
         <span
           className="font-semibold tabular-nums"
@@ -120,27 +119,27 @@ export default function SinglePickHero({ snap }: Props) {
       {/* 📊 精度概览卡 */}
       <div
         className="rounded-xl p-4 border-2"
-        style={{ background: isHitRateGood ? COLOR.successBg : COLOR.neutralBg, borderColor: isHitRateGood ? COLOR.successBorder : COLOR.neutralBorder }}
+        style={{ background: hitRateBg, borderColor: hitRateBorder }}
       >
         <p className="font-semibold mb-2" style={{ fontSize: 12, color: COLOR.label }}>
-          📊 近 {windowDays} 天预测精度摘要
+          📊 近 {windowDays} 天预测精度
         </p>
         <div className="flex items-baseline gap-2 flex-wrap">
           <span
             className="font-black tabular-nums"
             style={{
-              fontSize: 32,
-              color: isHitRateGood ? COLOR.success : COLOR.label,
+              fontSize: 38,
+              color: hitRateColor,
               fontFamily: "'Plus Jakarta Sans', sans-serif",
               lineHeight: 1.05,
+              letterSpacing: '-0.02em',
             }}
           >
             {hitRatePct}%
           </span>
-          <span style={{ fontSize: 14, color: COLOR.label, fontWeight: 700 }}>命中率</span>
         </div>
-        <p className="font-medium mt-2" style={{ fontSize: 12, color: COLOR.label }}>
-          {n} 场已结算，Brier Score：{brierDisplay}
+        <p className="font-medium mt-2 tabular-nums" style={{ fontSize: 12, color: COLOR.label }}>
+          {n} 场已结算，命中 {hits} 场
         </p>
       </div>
 
@@ -161,17 +160,17 @@ export default function SinglePickHero({ snap }: Props) {
           </span>
         </div>
         <div
-          className="rounded-xl p-3 border-2 flex flex-col items-center gap-1"
-          style={{ borderColor: brierIsGood ? COLOR.successBorder : COLOR.neutralBorder, background: brierIsGood ? COLOR.successBg : COLOR.neutralBg }}
+          className="rounded-xl p-3 border flex flex-col items-center gap-1"
+          style={{ borderColor: COLOR.neutralBorder, background: COLOR.neutralBg }}
         >
-          <span className="font-bold uppercase tracking-wider" style={{ fontSize: 12, color: brierIsGood ? COLOR.success : COLOR.label }}>
+          <span className="font-bold uppercase tracking-wider" style={{ fontSize: 12, color: COLOR.label }}>
             Brier
           </span>
           <span
             className="font-black tabular-nums"
-            style={{ fontSize: 24, color: brierIsGood ? COLOR.success : COLOR.label, lineHeight: 1.05, fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+            style={{ fontSize: 24, color: COLOR.label, lineHeight: 1.05, fontFamily: "'Plus Jakarta Sans', sans-serif" }}
           >
-            {brierDisplay}
+            {brierScore != null ? brierScore.toFixed(3) : '—'}
           </span>
         </div>
         <div

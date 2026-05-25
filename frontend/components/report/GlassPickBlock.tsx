@@ -105,7 +105,7 @@ export default function GlassPickBlock({ inference }: { inference: string }) {
         </div>
         <div className="flex items-center justify-between px-3 py-2.5">
           <span className="text-sm text-slate-700 dark:text-white/70 font-semibold">
-            {pickType === 'AH' ? 'Spread 覆盖率' : pickType === 'OU' ? '大球/小球概率' : '胜/平/负概率'}
+            {pickType === 'AH' ? '亚盘覆盖率' : pickType === 'OU' ? '大球/小球概率' : '胜/平/负概率'}
           </span>
           <span className="text-sm font-black tabular-nums">
             <span className="text-[#005faf] dark:text-[#00F0FF]">{wdl[0]}%</span>

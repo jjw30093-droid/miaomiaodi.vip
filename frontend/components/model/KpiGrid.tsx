@@ -120,7 +120,7 @@ export default function KpiGrid({ rolling, equity, training }: Props) {
       {/* AH + Training row */}
       <div className="grid grid-cols-2 gap-3">
         <div className="glass-panel rounded-2xl border border-white/5 p-4 flex flex-col gap-1.5">
-          <span className="text-xs font-black tracking-[0.25em] uppercase text-white/30">AH 亚盘准确率</span>
+          <span className="text-xs font-black tracking-[0.25em] uppercase text-white/30">Spread 准确率</span>
           {ahAcc != null ? (
             <span className="text-xl font-black font-mono tabular-nums text-emerald-400">
               <CountUp target={ahAcc} decimals={1} suffix="%" />
@@ -195,7 +195,7 @@ function SnapshotWindowCard({ window: w, adjustingDays = 0 }: SnapshotWindowCard
           className="text-sm font-semibold font-mono tabular-nums"
           style={{ color: roiColor }}
         >
-          ROI {roiStr}
+          净值 {roiStr}
         </span>
       </div>
     </div>

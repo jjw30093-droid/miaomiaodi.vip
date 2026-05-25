@@ -131,7 +131,7 @@ export default function ModelDashboard() {
       <div className="glass-panel rounded-2xl border border-white/5 p-5">
         <p className="text-xs font-black tracking-[0.3em] uppercase text-white/30 mb-3">滚动准确率</p>
         <div className="flex gap-4">
-          {[{ k: 'WDL', v: data.rolling.wdl_accuracy }, { k: 'OU', v: data.rolling.ou_accuracy }, { k: 'AH', v: data.rolling.ah_accuracy }].map(({ k, v }) => (
+          {[{ k: 'WDL', v: data.rolling.wdl_accuracy }, { k: 'Goals', v: data.rolling.ou_accuracy }, { k: 'Spread', v: data.rolling.ah_accuracy }].map(({ k, v }) => (
             <div key={k} className="flex flex-col gap-1">
               <span className="text-xs text-white/30 font-mono">{k}</span>
               <span className="text-base font-black font-mono text-white">{v != null ? `${(v * 100).toFixed(1)}%` : '—'}</span>

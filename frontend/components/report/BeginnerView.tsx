@@ -38,7 +38,7 @@ function parseInference(inf?: string): {
   confidence: 'HIGH' | 'MEDIUM' | 'LOW' | null;
   direction:  string;
   odds:       string;
-  pickProb:   number | null;   // 分析方向的模型概率（非 WDL 三分布）
+  pickProb:   number | null;   // 推荐方向的模型概率（非 WDL 三分布）
 } {
   if (!inf) return { confidence: null, direction: '', odds: '', pickProb: null };
   const confMatch = inf.match(/【(HIGH|MEDIUM|LOW)】/i);
@@ -58,7 +58,7 @@ function parseInference(inf?: string): {
 }
 const STARS_FROM_CONF: Record<'HIGH' | 'MEDIUM' | 'LOW', number> = { HIGH: 5, MEDIUM: 3, LOW: 2 };
 
-// AH/OU 分析类型判断（与 GlassPickBlock.getPickType 保持同步）
+// AH/OU 推荐类型判断（与 GlassPickBlock.getPickType 保持同步）
 function getPickType(text: string | null | undefined): 'AH' | 'OU' | 'WDL' {
   if (!text) return 'WDL';
   const r = text.toLowerCase();

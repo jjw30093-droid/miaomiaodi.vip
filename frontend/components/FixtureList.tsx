@@ -51,7 +51,7 @@ const MatchCard = ({ match, isFree = false }: { match: Match; isFree?: boolean }
             </div>
           </div>
           <div className="flex justify-center gap-6 mt-8">
-            <span className="text-xs font-black uppercase tracking-[0.2em] px-4 py-1.5 rounded-xl border border-foreground/5 bg-foreground/5 text-foreground/40">实时指数: {match.handicap}</span>
+            <span className="text-xs font-black uppercase tracking-[0.2em] px-4 py-1.5 rounded-xl border border-foreground/5 bg-foreground/5 text-foreground/40">实时数据</span>
             <span className="text-xs font-black uppercase tracking-[0.2em] px-4 py-1.5 rounded-xl border border-foreground/5 bg-foreground/5 text-foreground/40">SA 分布极低</span>
           </div>
         </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useSession, signIn } from 'next-auth/react';
@@ -11,25 +11,10 @@ const RED    = '#ff3d54';
 const BG     = 'rgba(5, 6, 16, 0.82)';
 const BORDER = 'rgba(255,255,255,0.08)';
 
-const TEMP_PRICE_CNY = 29.9; // TODO Day 2: 接入 report_store.price_cny 字段
-
 const _enableCdk    = process.env.NEXT_PUBLIC_ENABLE_CDK === 'true';
 const _enableWechat = process.env.NEXT_PUBLIC_ENABLE_WECHAT_LOGIN === 'true';
 
-type PaywallAccessLevel = 'guest' | 'registered' | 'unlocked' | 'vip';
-type PaywallUnlockReason = 'free_match' | 'vip' | 'single_unlock' | null;
-
-interface PaywallOverlayProps {
-  accessLevel?: PaywallAccessLevel;
-  unlockReason?: PaywallUnlockReason;
-  matchId?: string | number;
-}
-
-export default function PaywallOverlay({
-  accessLevel,
-  unlockReason,
-  matchId,
-}: PaywallOverlayProps = {}) {
+export default function PaywallOverlay() {
   const pathname = usePathname();
   const router = useRouter();
   const { data: session } = useSession();
@@ -38,68 +23,6 @@ export default function PaywallOverlay({
   const [cdkCode, setCdkCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
-
-  const [buyLoading, setBuyLoading] = useState(false);
-  const [buyMsg, setBuyMsg] = useState<{ type: string; text: string }>({ type: '', text: '' });
-  const [orderNo, setOrderNo] = useState<string | null>(null);
-
-  // Bug 4: 拉取当前用户在当前 match 的 pending 订单（若存在），用于显示"我已支付，刷新状态"卡片
-  const [pendingOrder, setPendingOrder] = useState<{
-    order_no: string;
-    product_name: string;
-    amount_yuan: number;
-    expires_at: string;
-    seconds_left: number;
-  } | null>(null);
-  const [secondsLeft, setSecondsLeft] = useState<number>(0);
-
-  // mount 后 + accessLevel 变化时拉一次 pending order（仅 registered 用户）
-  useEffect(() => {
-    if (accessLevel !== 'registered' || !matchId) return;
-    const apiToken = (session?.user as any)?.apiToken as string | undefined;
-    if (!apiToken) return;
-
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await apiClient.get<{
-          pending_order: {
-            order_no: string;
-            product_name: string;
-            amount_yuan: number;
-            expires_at: string;
-            seconds_left: number;
-          } | null;
-        }>('/orders/pending', {
-          params: { match_id: String(matchId) },
-          token: apiToken,
-        });
-        if (!cancelled && res.pending_order) {
-          setPendingOrder(res.pending_order);
-          setSecondsLeft(res.pending_order.seconds_left);
-        }
-      } catch {
-        // 静默忽略：拉取失败不影响购买按钮渲染
-      }
-    })();
-
-    return () => { cancelled = true; };
-  }, [accessLevel, matchId, session]);
-
-  // 客户端倒计时：每秒递减，到 0 自动清掉 pendingOrder（回到原购买按钮）
-  useEffect(() => {
-    if (!pendingOrder || secondsLeft <= 0) return;
-    const id = setInterval(() => {
-      setSecondsLeft((s) => {
-        if (s <= 1) {
-          setPendingOrder(null);
-          return 0;
-        }
-        return s - 1;
-      });
-    }, 1000);
-    return () => clearInterval(id);
-  }, [pendingOrder, secondsLeft]);
 
   const trackEvent = (eventName: string, metadata: any = {}) => {
     fetch('/api/v1/track', {
@@ -145,59 +68,11 @@ export default function PaywallOverlay({
     }
   };
 
-  const handleBuyMatch = async () => {
-    const apiToken = (session?.user as any)?.apiToken as string | undefined;
-    if (!apiToken) {
-      setBuyMsg({ type: 'error', text: '请先使用微信扫码登录后再购买' });
-      return;
-    }
-    if (!matchId) {
-      setBuyMsg({ type: 'error', text: '无法识别比赛 ID，请刷新后重试' });
-      return;
-    }
-    setBuyLoading(true);
-    setBuyMsg({ type: '', text: '' });
-    try {
-      const productsRes = await apiClient.get<{
-        products: Array<{ id: number; sku: string; price_yuan: number; name: string }>;
-      }>('/products', { params: { type: 'single_match' } });
-      const products = productsRes.products || [];
-      const product =
-        products.find((p) => p.sku === 'single_match_std') || products[0];
-      if (!product) {
-        setBuyMsg({ type: 'error', text: '暂无可购买的产品，请联系客服' });
-        return;
-      }
-      const orderRes = await apiClient.post<{
-        order_no: string;
-        amount_yuan: number;
-        product_name: string;
-      }>(
-        '/orders',
-        { product_id: product.id, match_id: String(matchId) },
-        { token: apiToken }
-      );
-      setOrderNo(orderRes.order_no);
-      setBuyMsg({ type: 'success', text: `订单已创建（¥${orderRes.amount_yuan}），请联系客服完成支付` });
-    } catch (err: any) {
-      const detail: string = err?.message || '购买失败，请稍后重试';
-      if (detail.includes('already have a paid order')) {
-        setBuyMsg({ type: 'error', text: '您已购买本场研报，请刷新页面' });
-      } else if (detail.includes('pending order')) {
-        setBuyMsg({ type: 'error', text: '已有待支付订单，请联系客服完成支付' });
-      } else {
-        setBuyMsg({ type: 'error', text: detail });
-      }
-    } finally {
-      setBuyLoading(false);
-    }
-  };
-
-  /* ── guest Paywall：未登录 ── */
-  if (accessLevel === 'guest' || (!accessLevel && !session)) {
-    const redirectTarget = matchId ? `/report/${matchId}` : pathname;
+  /* ── 未登录 Paywall ── */
+  if (!session) {
     return (
       <div className="absolute inset-x-0 bottom-0 h-[80%] flex flex-col items-center justify-end pb-20 z-20">
+        {/* 渐变遮罩：从深蓝黑渐变透明 */}
         <div
           className="absolute inset-0"
           style={{
@@ -224,31 +99,23 @@ export default function PaywallOverlay({
             >
               🔒
             </div>
-            <h3 className="text-2xl font-black mb-3" style={{ color: '#ffffff' }}>登录后查看完整研报</h3>
+            <h3 className="text-2xl font-black mb-3" style={{ color: '#ffffff' }}>登录后解锁分析</h3>
             <p className="mb-8 text-sm leading-relaxed" style={{ color: 'rgba(250,250,252,0.5)' }}>
-              注册账号即可解锁研报预览，购买后查看完整内容
+              实验室成员可查看完整{' '}
+              <span style={{ color: '#ffffff', fontWeight: 700 }}>xG 分布图</span>{' '}
+              与{' '}
+              <span style={{ color: '#ffffff', fontWeight: 700 }}>深度数据分析</span>。
             </p>
             <Link
-              href={`/login?redirect=${encodeURIComponent(redirectTarget)}`}
-              className="w-full py-4 font-black rounded-xl text-base transition-all active:scale-[0.98] mb-3"
+              href={`/login?callbackUrl=${encodeURIComponent(pathname)}`}
+              className="w-full py-4 font-black rounded-xl text-base transition-all active:scale-[0.98]"
               style={{
                 backgroundColor: LIME,
                 color: '#050610',
                 boxShadow: `0 0 24px rgba(186,255,0,0.35)`,
               }}
             >
-              立 即 登 录
-            </Link>
-            <Link
-              href="/register"
-              className="w-full py-3 font-black rounded-xl text-sm transition-all active:scale-[0.98]"
-              style={{
-                background: 'rgba(255,255,255,0.06)',
-                border: `1px solid ${BORDER}`,
-                color: 'rgba(250,250,252,0.7)',
-              }}
-            >
-              注册新账号
+              登 录 激 活
             </Link>
           </div>
         </div>
@@ -256,133 +123,7 @@ export default function PaywallOverlay({
     );
   }
 
-  /* ── registered Paywall：已登录但无 VIP / unlock ── */
-  if (accessLevel === 'registered') {
-    return (
-      <div className="absolute inset-x-0 bottom-0 h-[85%] flex flex-col items-center justify-center z-40">
-        <div
-          className="absolute inset-0"
-          style={{
-            background: 'linear-gradient(to top, #050610 15%, rgba(5,6,16,0.9) 50%, rgba(5,6,16,0.6) 100%)',
-            backdropFilter: 'blur(16px)',
-          }}
-        />
-        <div className="relative z-50 text-center space-y-5 max-w-md px-6 w-full">
-          <span
-            className="inline-block px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest"
-            style={{
-              backgroundColor: 'rgba(255,61,84,0.1)',
-              border: `1px solid ${RED}`,
-              color: RED,
-            }}
-          >
-            PREMIUM CONTENT
-          </span>
-          <h2 className="text-3xl font-black leading-tight" style={{ color: '#ffffff' }}>
-            解锁完整研报
-            <br />
-            <span style={{ color: 'rgba(250,250,252,0.6)', fontWeight: 500, fontSize: '1.1rem' }}>
-              购买本场单场研报，或开通 VIP 查看全部内容
-            </span>
-          </h2>
-          {pendingOrder ? (
-            // 优先级 1：检测到历史 pending 订单 → 显示订单号 + 金额 + 倒计时 + 刷新按钮
-            <div
-              className="w-full py-4 px-4 rounded-xl text-sm font-bold text-center leading-relaxed"
-              style={{
-                backgroundColor: 'rgba(186,255,0,0.08)',
-                border: '1px solid rgba(186,255,0,0.2)',
-                color: LIME,
-              }}
-            >
-              <div className="mb-1">⏳ 待支付订单 {pendingOrder.order_no}</div>
-              <div className="text-xs font-normal mb-3" style={{ color: 'rgba(250,250,252,0.7)' }}>
-                ¥{pendingOrder.amount_yuan} · 剩 {Math.floor(secondsLeft / 60)}分{secondsLeft % 60}秒过期
-              </div>
-              <button
-                onClick={() => router.refresh()}
-                className="w-full py-2 font-black rounded-lg text-xs transition-all active:scale-[0.97]"
-                style={{
-                  background: 'rgba(186,255,0,0.15)',
-                  border: '1px solid rgba(186,255,0,0.35)',
-                  color: LIME,
-                }}
-              >
-                我已支付，刷新状态
-              </button>
-            </div>
-          ) : orderNo ? (
-            // 优先级 2：用户刚下单成功 → 显示订单号 + 联系客服文案（保留原行为）
-            <div
-              className="w-full py-4 rounded-xl text-sm font-bold text-center leading-relaxed"
-              style={{
-                backgroundColor: 'rgba(186,255,0,0.08)',
-                border: '1px solid rgba(186,255,0,0.2)',
-                color: LIME,
-              }}
-            >
-              ✅ 订单 {orderNo} 已创建
-              <br />
-              <span className="text-xs font-normal" style={{ color: 'rgba(250,250,252,0.6)' }}>
-                请联系客服完成支付以解锁研报
-              </span>
-            </div>
-          ) : (
-            // 优先级 3：无待支付订单 → 显示购买按钮
-            <button
-              onClick={handleBuyMatch}
-              disabled={buyLoading}
-              className="block w-full py-4 font-black rounded-xl text-lg transition-all active:scale-[0.97] disabled:opacity-50"
-              style={{ backgroundColor: LIME, color: '#050610' }}
-            >
-              {buyLoading ? '处理中...' : `购买本场 ¥${TEMP_PRICE_CNY}`}
-            </button>
-          )}
-          {buyMsg.text && (
-            <div
-              className="p-3 rounded-xl text-xs font-bold"
-              style={{
-                backgroundColor: buyMsg.type === 'success' ? 'rgba(186,255,0,0.08)' : 'rgba(255,61,84,0.08)',
-                border: `1px solid ${buyMsg.type === 'success' ? 'rgba(186,255,0,0.2)' : 'rgba(255,61,84,0.2)'}`,
-                color: buyMsg.type === 'success' ? LIME : RED,
-              }}
-            >
-              {buyMsg.text}
-            </div>
-          )}
-          <div className="flex gap-3">
-            <Link
-              href="/pricing"
-              className="flex-1 py-3 font-black rounded-xl text-sm transition-all active:scale-[0.97]"
-              style={{
-                background: 'rgba(255,255,255,0.06)',
-                border: `1px solid ${BORDER}`,
-                color: 'rgba(250,250,252,0.8)',
-              }}
-            >
-              开通 VIP
-            </Link>
-            <Link
-              href="/center?tab=cdk"
-              className="flex-1 py-3 font-black rounded-xl text-sm transition-all active:scale-[0.97]"
-              style={{
-                background: 'rgba(255,255,255,0.06)',
-                border: `1px solid ${BORDER}`,
-                color: 'rgba(250,250,252,0.8)',
-              }}
-            >
-              使用兑换码
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  /* ── 兜底（unlocked/vip 理论上不应出现在 isGated=true 路径）── */
-  if (accessLevel === 'unlocked' || accessLevel === 'vip') return null;
-
-  /* ── 旧路径兼容：已登录但配额耗尽 Paywall（CDK 关闭时不显示）── */
+  /* ── 已登录但配额耗尽 Paywall（CDK 关闭时不显示）── */
   if (!_enableCdk) return null;
 
   return (

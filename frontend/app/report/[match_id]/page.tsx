@@ -199,6 +199,7 @@ async function ReportContent({
   // ── Access rules ───────────────────────────────────────────────────────────
   const showCharts    = accessLevel !== 'anonymous';
   const hasFullAccess = accessLevel !== 'anonymous';
+  const isGated       = false;
   const matchStatus: 'upcoming' | 'finished' =
     report.matchStatus === 'finished' ? 'finished' : 'upcoming';
   // 时间兜底：比赛开球 2.5h 后，即便 match_status 尚未被 archiver 更新也视为已结束
@@ -227,7 +228,7 @@ async function ReportContent({
       : 'CONTESTED MATCH'
       : 'AWAITING DATA';
 
-  // Derive 系统预判 display text from inference when available (consistent with 核心结论)
+  // Derive 系统预判 display text from inference when available (consistent with 核心推荐)
   const verdictDisplay = (() => {
     if (report.inference) {
       const rest = report.inference.replace(/【[^】]+】/, '').trim();
@@ -284,7 +285,7 @@ async function ReportContent({
       {/* ── 单列漏斗容器 ─────────────────────────────────────────────────── */}
       <div className="px-4 py-5 max-w-2xl mx-auto flex flex-col gap-5 pb-28 overflow-x-hidden">
 
-        {/* ── 2. 赛事头部（概率 + AI 分析） ──────────────────────────────── */}
+        {/* ── 2. 赛事头部（概率 + AI 推荐） ──────────────────────────────── */}
         <section className="space-y-4">
 
           {/* ① 队名卡：浅色独立白卡 / 深色融入面板 */}
@@ -313,7 +314,7 @@ async function ReportContent({
             </p>
           </div>
 
-          {/* ② 核心结论 GlassPickBlock（原 ③ 上移；WDL 三列大数字已删除，被市场对比卡吞并） */}
+          {/* ② 核心推荐 GlassPickBlock（原 ③ 上移；WDL 三列大数字已删除，被市场对比卡吞并） */}
           {report.inference && (
             hasFullAccess ? (
               <GlassPickBlock inference={report.inference} />
@@ -354,7 +355,7 @@ async function ReportContent({
               verdictSummary={report.verdictSummary}
               keyVariables={report.keyVariables}
               keyRisk={report.keyRisk}
-              /* finalPick 三参数留 null：避免与上面 GlassPickBlock 重复展示结论 */
+              /* finalPick 三参数留 null：避免与上面 GlassPickBlock 重复展示推荐 */
               pickDirection={null}
               pickOdds={null}
               confidenceStars={null}
@@ -496,24 +497,7 @@ async function ReportContent({
 
         {/* ── 5. 战术深度章节 ─────────────────────────────────────────────── */}
         <section id="tactics" className="flex flex-col gap-5">
-          {report.isGated ? (
-            // 权限截断：显示 preview + PaywallOverlay
-            <>
-              {report.previewContent && (
-                <div className="bg-[var(--panel-bg-strong)] backdrop-blur-xl border border-[var(--panel-border-strong)] rounded-2xl p-5 overflow-hidden shadow-[var(--panel-shadow-strong)]">
-                  <SectionLabel icon={<BarChart2 size={11} />} label="AI 神经分析 · 预览" />
-                  <ReportMarkdown content={report.previewContent} />
-                </div>
-              )}
-              <div className="relative min-h-[320px]">
-                <PaywallOverlay
-                  accessLevel={report.accessLevel}
-                  unlockReason={report.unlockReason}
-                  matchId={report.matchId}
-                />
-              </div>
-            </>
-          ) : (report.markdownSections?.ahAnalysis || report.markdownSections?.ouAnalysis || report.markdownSections?.overallComparison) ? (
+          {(report.markdownSections?.ahAnalysis || report.markdownSections?.ouAnalysis || report.markdownSections?.overallComparison) ? (
             // 新格式（AH/OU 导向研报，2026-04-28+）
             <>
               {report.markdownSections?.ahAnalysis && (
@@ -724,8 +708,6 @@ export default async function ReportPage({
 
   // ── Auth ───────────────────────────────────────────────────────────────────
   // Dev mode: if a fixture file exists for this match, bypass auth entirely.
-  const session = await auth();
-  const _apiToken = (session?.user as any)?.apiToken as string | undefined;
   let accessLevel: AccessLevel;
   if (process.env.NODE_ENV === 'development') {
     const { existsSync } = await import('fs');
@@ -734,26 +716,19 @@ export default async function ReportPage({
     if (existsSync(fixturePath)) {
       accessLevel = 'vip';
     } else {
-      const role = (session?.user as any)?.role ?? 'registered';
-      accessLevel = !session?.user
-        ? 'anonymous'
-        : (role === 'vip' || role === 'super_admin') ? 'vip' : 'registered';
+      const session = await auth();
+      accessLevel = !session?.user ? 'anonymous' : 'vip';
     }
   } else {
-    const role = (session?.user as any)?.role ?? 'registered';
-    accessLevel = !session?.user
-      ? 'anonymous'
-      : (role === 'vip' || role === 'super_admin') ? 'vip' : 'registered';
+    const session = await auth();
+    accessLevel = !session?.user ? 'anonymous' : 'vip';
   }
 
   // ── Daily free match ───────────────────────────────────────────────────────
   let isFreeMatch = false;
   try {
     const API_BASE = process.env.FASTAPI_URL || 'http://localhost:8000';
-    const res = await fetch(`${API_BASE}/api/v1/reports/daily_free_id`, {
-      cache: 'no-store',
-      headers: _apiToken ? { Authorization: `Bearer ${_apiToken}` } : undefined,
-    });
+    const res = await fetch(`${API_BASE}/api/v1/reports/daily_free_id`, { cache: 'no-store' });
     if (res.ok) {
       const data = await res.json();
       isFreeMatch = String(data.free_match_id) === String(matchId);
@@ -833,7 +808,7 @@ export default async function ReportPage({
         </div>
 
         <footer className="mt-12 pt-8 border-t border-slate-200 dark:border-white/5 w-full max-w-2xl mx-auto px-4 flex justify-between items-center text-xs font-bold text-slate-600 dark:text-white uppercase tracking-[0.3em]">
-          <span>足球数研所 :: SYSTEM CORE v6.2.0</span>
+          <span>喵弟量化实验室 :: SYSTEM CORE v6.2.0</span>
           <span>STITCH PROTOCOL SECURED</span>
         </footer>
         <Footer />

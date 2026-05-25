@@ -254,7 +254,7 @@ export default function RecentSinglePicksTable({ picks }: Props) {
         className="rounded-2xl border p-6 text-center font-semibold"
         style={{ ...cardStyle, fontSize: 14, color: palette.label }}
       >
-        暂无近期分析记录
+        暂无近期预测记录
       </div>
     );
   }
@@ -266,7 +266,7 @@ export default function RecentSinglePicksTable({ picks }: Props) {
           className="font-bold uppercase tracking-wider"
           style={{ fontSize: 12, color: palette.label }}
         >
-          近期分析结论
+          近期预测
         </p>
         {settled.length > 0 && (
           <span className="font-semibold tabular-nums" style={{ fontSize: 12, color: palette.label }}>
