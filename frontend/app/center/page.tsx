@@ -158,7 +158,7 @@ function CenterContent() {
           </button>
           <Image
             src="/logo_meow.jpg"
-            alt="喵弟数据研究室 Logo"
+            alt="足球数研所 Logo"
             width={36}
             height={36}
             className="rounded-full object-contain flex-shrink-0"
@@ -167,11 +167,11 @@ function CenterContent() {
           <div className="flex flex-col leading-none">
             <h1 className="font-black text-[15px] tracking-tight"
               style={{ color: isDark ? '#fff' : '#191c1d', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-              喵弟数据研究室
+              足球数研所
             </h1>
             <p className="text-[13px] font-bold tracking-widest"
               style={{ color: isDark ? 'rgba(255,255,255,0.4)' : '#5b3f43' }}>
-              miaomiaodi.cc
+              miaomiaodi.vip
             </p>
           </div>
         </div>
@@ -243,8 +243,8 @@ function CenterContent() {
             <MenuRow label="帮助中心" isDark={isDark} onClick={() => router.push('/help')} />
             <MenuRow label="意见反馈" isDark={isDark}
               right={<span className="text-[13px] font-bold" style={{ color: isDark ? 'rgba(255,255,255,0.35)' : '#5b3f43' }}>邮件 ›</span>}
-              onClick={() => window.open('mailto:support@miaomiaodi.cc')} />
-            <MenuRow label="关于喵弟" isDark={isDark}
+              onClick={() => window.open('mailto:support@miaomiaodi.vip')} />
+            <MenuRow label="关于我们" isDark={isDark}
               right={<span className="text-[13px] font-bold font-mono" style={{ color: isDark ? 'rgba(255,255,255,0.35)' : '#5b3f43' }}>v1.0 © 2026</span>}
               noBorder={true} />
           </div>
@@ -256,7 +256,7 @@ function CenterContent() {
         {/* Footer */}
         <p className="text-center text-[13px] font-bold pb-4"
           style={{ color: isDark ? 'rgba(255,255,255,0.2)' : '#5b3f43' }}>
-          喵弟数据研究室 · miaomiaodi.cc · v1.0
+          足球数研所 · miaomiaodi.vip · v1.0
         </p>
       </div>
 

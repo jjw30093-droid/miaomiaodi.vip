@@ -10,7 +10,7 @@ const plusJakartaSans = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--fon
 const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope", weight: ["400","500","600","700"] });
 
 export const metadata: Metadata = {
-  title: "喵弟数据实验室",
+  title: "足球数研所",
   description: "专业足球赛事深度量化分析与研报生成引擎",
 };
 

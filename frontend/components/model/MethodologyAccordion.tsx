@@ -10,11 +10,11 @@ interface Section {
 const SECTIONS: Section[] = [
   {
     title: '回测假设',
-    content: 'Fixed Stake：每场下注 1 单位，不计复利。Kelly-Half：Kelly 公式计算理论最优仓位，取一半下注，抑制方差。两条曲线均基于 B365 开盘赔率，未考虑滑点与佣金。',
+    content: 'Fixed Stake：每场固定 1 单位仓位，不计复利。Kelly-Half：Kelly 公式计算理论最优仓位，取一半，抑制方差。两条曲线均基于 B365 开盘市场价格，未考虑滑点与佣金。',
   },
   {
     title: '特征工程',
-    content: 'V4 模型使用 52 维特征，涵盖滚动 xG 压迫差值、Elo 评级、场地调整 npxGD、大球赔率隐含概率、休息天数差等。LightGBM 多分类，WDL + OU 双模型独立训练。',
+    content: 'V4 模型使用 52 维特征，涵盖滚动 xG 压迫差值、Elo 评级、场地调整 npxGD、大球市场隐含概率、休息天数差等。LightGBM 多分类，WDL + OU 双模型独立训练。',
   },
   {
     title: '免责声明',

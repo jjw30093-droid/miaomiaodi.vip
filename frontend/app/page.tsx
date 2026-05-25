@@ -450,7 +450,7 @@ export default function FootballLabPage() {
           <div className="flex items-center gap-3">
             <Image
               src="/logo_meow.jpg"
-              alt="喵弟数据研究室 Logo"
+              alt="足球数研所 Logo"
               width={36}
               height={36}
               className="rounded-full object-contain flex-shrink-0"
@@ -458,9 +458,9 @@ export default function FootballLabPage() {
             />
             <div className="flex flex-col leading-none">
               <h1 className="font-black text-base tracking-tight text-slate-900" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-                喵弟数据研究室
+                足球数研所
               </h1>
-              <p className="text-xs font-black text-slate-500 tracking-widest">miaomiaodi.cc</p>
+              <p className="text-xs font-black text-slate-500 tracking-widest">miaomiaodi.vip</p>
             </div>
           </div>
           <ThemeToggleButton />
@@ -476,7 +476,7 @@ export default function FootballLabPage() {
                 <div className="relative w-14 h-14 flex-shrink-0">
                   <Image
                     src="/logo_meow.jpg"
-                    alt="喵弟数据研究室 Logo"
+                    alt="足球数研所 Logo"
                     width={56}
                     height={56}
                     className="w-full h-full object-contain relative z-10 rounded-full"
@@ -485,9 +485,9 @@ export default function FootballLabPage() {
                 </div>
                 <div className="flex flex-col">
                   <h1 className="font-black text-2xl tracking-tight text-zinc-50" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-                    喵弟数据研究室
+                    足球数研所
                   </h1>
-                  <p className="text-xs font-black text-zinc-400 w-full [text-align-last:justify]">miaomiaodi.cc</p>
+                  <p className="text-xs font-black text-zinc-400 w-full [text-align-last:justify]">miaomiaodi.vip</p>
                 </div>
               </div>
               <ThemeToggleButton />

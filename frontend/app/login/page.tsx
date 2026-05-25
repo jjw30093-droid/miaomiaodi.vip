@@ -92,7 +92,7 @@ export default function LoginPage() {
               <ArrowLeft size={18} className="text-[#191c1d]" />
             </Link>
             <h1 className="text-lg font-black text-[#b7004d] tracking-tighter" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-              喵弟数据研究室
+              足球数研所
             </h1>
           </div>
           <ThemeToggleButton />
@@ -167,7 +167,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <footer className="py-6 text-center text-[#5b3f43] text-xs">
-          <p>© 2024 喵弟数据研究室</p>
+          <p>© 2024 足球数研所</p>
         </footer>
       </div>
     );
@@ -211,7 +211,7 @@ export default function LoginPage() {
           >
             欢迎回来
           </h1>
-          <p className="text-sm text-zinc-400">欢迎回到喵弟数据研究室</p>
+          <p className="text-sm text-zinc-400">欢迎回到足球数研所</p>
         </div>
 
         {/* Form Card */}

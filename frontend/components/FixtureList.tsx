@@ -138,7 +138,7 @@ export default function FixtureList() {
                </button>
             </div>
          </div>
-         <p className="text-xs text-foreground/40 font-bold uppercase tracking-widest opacity-60">实时监控盘口走势，捕捉动态高价值模型</p>
+         <p className="text-xs text-foreground/40 font-bold uppercase tracking-widest opacity-60">实时监控市场走势，捕捉高精度模型信号</p>
       </div>
 
       {/* 筛选 Tabs */}

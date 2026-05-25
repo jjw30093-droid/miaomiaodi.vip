@@ -47,7 +47,7 @@ export const HomeHeader = () => {
              </div>
         </div>
         <h1 className="text-editorial text-4xl font-black italic uppercase tracking-tighter text-foreground text-center">
-          喵弟数据研究室
+          足球数研所
         </h1>
 
       </div>

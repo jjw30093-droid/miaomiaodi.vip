@@ -32,8 +32,8 @@ function classifyDirection(rec?: string | null): string | null {
   if (rec.includes('大球') || r.includes('over')) return 'over';
   if (rec.includes('小球') || r.includes('under')) return 'under';
   // WDL fallback
-  if (rec.includes('主胜') || rec.startsWith('让球主胜')) return 'home';
-  if (rec.includes('客胜') || rec.startsWith('让球客胜')) return 'away';
+  if (rec.includes('主胜')) return 'home';
+  if (rec.includes('客胜')) return 'away';
   if (rec === '平' || rec === '平局') return 'draw';
   return null;
 }
@@ -50,7 +50,7 @@ export default function MarketVsModelCard({
   const hasMarket = marketHome != null && marketAway != null;
   if (!hasModel || !hasMarket) return null;
 
-  // AH/OU 推荐时无市场对比数据 → 不渲染此卡片（后端补充 AH/OU 市场概率后再开放）
+  // AH/OU 分析时无市场对比数据 → 不渲染此卡片（后端补充 AH/OU 市场概率后再开放）
   const recDir = classifyDirection(recommended);
   if (recDir !== null && _AHOY_DIRS.has(recDir)) return null;
 
@@ -69,12 +69,12 @@ export default function MarketVsModelCard({
 
   const footerText = recRow
     ? recEdge >= 5
-        ? `💡 模型认为市场低估了${LABEL[recRow]}约 ${recEdge.toFixed(1)} 个百分点。这是本场推荐${LABEL[recRow]}的核心理由。`
+        ? `💡 模型认为市场低估了${LABEL[recRow]}约 ${recEdge.toFixed(1)} 个百分点。这是本场分析${LABEL[recRow]}的核心依据。`
       : recEdge >= 2
         ? `💡 模型对${LABEL[recRow]}相对市场存在 ${recEdge.toFixed(1)}pp 的小幅价值，整体估值较为合理。`
       : recEdge >= 0
         ? `💡 模型与市场对${LABEL[recRow]}估值基本一致（仅差 ${recEdge.toFixed(1)}pp），价值有限。`
-      : `💡 模型概率低于市场隐含 ${Math.abs(recEdge).toFixed(1)}pp — 推荐主要基于其他维度信号。`
+      : `💡 模型概率低于市场隐含 ${Math.abs(recEdge).toFixed(1)}pp — 分析结论主要基于其他维度信号。`
     : null;
 
   return (
@@ -93,7 +93,7 @@ export default function MarketVsModelCard({
       <div className="grid grid-cols-[60px_1fr_1fr_1fr] gap-2 text-xs font-bold tracking-wider uppercase
                       text-slate-500 dark:text-white/40 mb-2 px-1">
         <span></span>
-        <span className="text-right">市场赔率</span>
+        <span className="text-right">市场价格</span>
         <span className="text-right">模型预测</span>
         <span className="text-right">价值差</span>
       </div>

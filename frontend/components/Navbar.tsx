@@ -47,7 +47,7 @@ export default function Navbar() {
           <Link href="/" className="flex items-center gap-2 tracking-tight">
             <span className="text-2xl">⚽</span>
             <span className="hidden sm:block">
-              <span className="text-white font-black text-xl tracking-tight">喵弟</span>
+              <span className="text-white font-black text-xl tracking-tight">足球数研所</span>
               <span
                 className="ml-1.5 text-lg font-medium"
                 style={{ color: TEAL, textShadow: '0 0 10px rgba(0,255,195,0.3)' }}

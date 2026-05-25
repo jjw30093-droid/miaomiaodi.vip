@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import PricingBuyButton from './PricingBuyButton';
 
 export const metadata: Metadata = {
-  title: '套餐价格 · 喵弟数据研究室',
-  description: '世界杯 2026 量化研报套餐：小组赛全包、淘汰赛通票、半段全包，AI 驱动赛前预测与赛后复盘。',
+  title: '套餐价格 · 足球数研所',
+  description: '世界杯 2026 量化分析研报套餐：小组赛全包、淘汰赛通票、半段全包，AI 驱动赛前数据分析与赛后精度审计。',
 };
 
 // ISR：products 价格变动频率低，60 秒重新验证
@@ -102,7 +102,7 @@ export default async function PricingPage() {
               className="text-base md:text-lg max-w-2xl mx-auto leading-relaxed"
               style={{ color: 'rgba(250,250,252,0.6)' }}
             >
-              全场次量化预测 + 赛后复盘审计 · 单场 ¥29.9 起 · 套餐更划算
+              全场次量化分析报告 + 赛后精度审计 · 单场 ¥29.9 起 · 套餐更划算
             </p>
           </header>
 
@@ -158,10 +158,13 @@ export default async function PricingPage() {
           )}
 
           <footer
-            className="mt-16 text-center text-xs"
+            className="mt-16 text-center text-xs space-y-2"
             style={{ color: 'rgba(250,250,252,0.4)' }}
           >
-            * 当前为内测期，支付暂通过客服联系完成；后续接入虎皮椒 + Stripe 自助支付
+            <p>* 当前为内测期，支付暂通过客服联系完成；后续接入虎皮椒 + Stripe 自助支付</p>
+            <p className="max-w-xl mx-auto leading-relaxed">
+              本平台为足球数据研究订阅服务（SaaS），所有分析报告仅供学术参考，不构成任何形式的投注建议，我们不对任何投注结果承担责任。
+            </p>
           </footer>
         </div>
       </main>

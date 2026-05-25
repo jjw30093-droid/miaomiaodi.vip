@@ -247,7 +247,7 @@ const HorizontalFullPitchShotMap: React.FC<HorizontalFullPitchShotMapProps> = ({
       <div className="absolute bottom-6 left-10 right-10 flex justify-between items-end z-20 pointer-events-none opacity-40">
         <div className="flex flex-col gap-1">
           <span className="text-xs text-primary-container font-headline font-bold tracking-widest uppercase">已集成 Opta 映射系统 (Integrated)</span>
-          <span className="text-xs text-zinc-500 font-headline font-bold tracking-[0.4em]">喵弟量化实验室 :: 空间定位系统 v6.2</span>
+          <span className="text-xs text-zinc-500 font-headline font-bold tracking-[0.4em]">足球数研所 :: 空间定位系统 v6.2</span>
         </div>
         <div className="text-xs text-zinc-500 font-headline font-bold tracking-widest uppercase">
           [ 物理规格 105 x 68 ] :: 已校准

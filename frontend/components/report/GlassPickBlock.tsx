@@ -60,7 +60,7 @@ export default function GlassPickBlock({ inference }: { inference: string }) {
                          bg-[#005faf] text-white
                          dark:bg-[#00F0FF] dark:text-[#06080C] dark:border-0
                          dark:shadow-[0_0_12px_rgba(0,240,255,0.5)]">
-          核心推荐
+          核心结论
         </span>
         <div className="flex gap-0.5">
           {[...Array(5)].map((_, i) => (
@@ -105,7 +105,7 @@ export default function GlassPickBlock({ inference }: { inference: string }) {
         </div>
         <div className="flex items-center justify-between px-3 py-2.5">
           <span className="text-sm text-slate-700 dark:text-white/70 font-semibold">
-            {pickType === 'AH' ? '亚盘覆盖率' : pickType === 'OU' ? '大球/小球概率' : '胜/平/负概率'}
+            {pickType === 'AH' ? 'Spread 覆盖率' : pickType === 'OU' ? '大球/小球概率' : '胜/平/负概率'}
           </span>
           <span className="text-sm font-black tabular-nums">
             <span className="text-[#005faf] dark:text-[#00F0FF]">{wdl[0]}%</span>

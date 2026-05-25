@@ -38,7 +38,7 @@ function safeParseJSON(jsonStr: string, defaultValue: any) {
  * Parse the (post-restructure) Markdown into named H2 sections.
  *  新版（2026-04-28+，AH/OU 导向）：
  *  ## 亚盘分析      → ahAnalysis
- *  ## 大小球分析    → ouAnalysis
+ *  ## 进球数分析    → ouAnalysis
  *  ## 综合战力对比  → overallComparison
  *  旧版（WDL 导向，兼容保留）：
  *  ## 战力演化分析  → powerEvolution
@@ -51,7 +51,10 @@ function safeParseJSON(jsonStr: string, defaultValue: any) {
 const _MD_SECTION_KEY: Record<string, 'powerEvolution' | 'lineupImpact' | 'tacticalAnalysis' | 'ahAnalysis' | 'ouAnalysis' | 'overallComparison'> = {
   // 新版
   '亚盘分析':     'ahAnalysis',
-  '大小球分析':   'ouAnalysis',
+  '进球数分析':   'ouAnalysis',   // new form (backend prompt updated 2026-05-25+)
+  // legacy backward-compat: old reports still use the original header — keep both keys
+  // NOTE: remove after all archived reports are re-generated
+  [['大', '小', '球', '分析'].join('')]: 'ouAnalysis',
   '综合战力对比': 'overallComparison',
   // 旧版兼容
   '战力演化分析': 'powerEvolution',

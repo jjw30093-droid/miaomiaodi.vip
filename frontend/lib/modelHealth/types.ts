@@ -78,7 +78,7 @@ export interface BestShowcaseWindow {
   hit_rate: number | null;
   roi: number | null;
   market: string;        // 'all' | 'ou' | 'ah' | 'ou_ah'
-  market_label: string;  // '全部' | '大小球' | '让球' | '大小球+让球'
+  market_label: string;  // '全部' | '进球数' | 'Spread' | '进球数+Spread'
 }
 
 export interface ModelSnapshotV2 {

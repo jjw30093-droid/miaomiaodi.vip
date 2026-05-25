@@ -38,7 +38,7 @@ function parseInference(inf?: string): {
   confidence: 'HIGH' | 'MEDIUM' | 'LOW' | null;
   direction:  string;
   odds:       string;
-  pickProb:   number | null;   // 推荐方向的模型概率（非 WDL 三分布）
+  pickProb:   number | null;   // 分析方向的模型概率（非 WDL 三分布）
 } {
   if (!inf) return { confidence: null, direction: '', odds: '', pickProb: null };
   const confMatch = inf.match(/【(HIGH|MEDIUM|LOW)】/i);
@@ -58,7 +58,7 @@ function parseInference(inf?: string): {
 }
 const STARS_FROM_CONF: Record<'HIGH' | 'MEDIUM' | 'LOW', number> = { HIGH: 5, MEDIUM: 3, LOW: 2 };
 
-// AH/OU 推荐类型判断（与 GlassPickBlock.getPickType 保持同步）
+// AH/OU 分析类型判断（与 GlassPickBlock.getPickType 保持同步）
 function getPickType(text: string | null | undefined): 'AH' | 'OU' | 'WDL' {
   if (!text) return 'WDL';
   const r = text.toLowerCase();
@@ -100,8 +100,8 @@ export default function BeginnerView({
   const oneLiner = beginnerSummary?.trim()
     ? beginnerSummary
     : (parsed.direction
-        ? `本场推荐 ${parsed.direction}${parsed.odds ? `，赔率 @${parsed.odds}` : ''}${stars ? `，信心 ${stars}星` : ''}。`
-        : '本场推荐数据准备中…');
+        ? `本场预测方向：${parsed.direction}${parsed.odds ? `，市场价格 @${parsed.odds}` : ''}${stars ? `，信心 ${stars}星` : ''}。`
+        : '本场分析数据准备中…');
 
   return (
     <div className="px-4 pt-4 pb-10 max-w-2xl mx-auto flex flex-col gap-4 overflow-x-hidden">
@@ -145,7 +145,7 @@ export default function BeginnerView({
         ) : null}
       </section>
 
-      {/* ─── ② 🎯 推荐卡（首屏视觉重心）────────────────────────────── */}
+      {/* ─── ② 🎯 分析卡（首屏视觉重心）────────────────────────────── */}
       {parsed.direction ? (
         <section className="relative overflow-hidden rounded-3xl p-6
           bg-gradient-to-br from-[#E91E63]/8 via-white to-white
@@ -157,11 +157,11 @@ export default function BeginnerView({
           <div className="relative flex items-center justify-between gap-2 mb-3">
             <div className="flex items-center gap-2">
               <span className="text-xs font-black tracking-[0.25em] uppercase
-                               text-[#E91E63] dark:text-[#00F0FF]">🎯 模型推荐</span>
+                               text-[#E91E63] dark:text-[#00F0FF]">🎯 模型分析</span>
               <span className="text-xs font-bold px-1.5 py-0.5 rounded-full
                                bg-[#E91E63]/10 text-[#E91E63] dark:bg-[#00F0FF]/10 dark:text-[#00F0FF]
                                border border-[#E91E63]/20 dark:border-[#00F0FF]/20">
-                {pickType === 'AH' ? '亚盘' : pickType === 'OU' ? '大小球' : '赛果'}
+                {pickType === 'AH' ? 'Spread' : pickType === 'OU' ? '进球数' : '赛果'}
               </span>
             </div>
             {pipelineStatus === 'FINAL_REPORT_READY' && (
@@ -182,7 +182,7 @@ export default function BeginnerView({
               </div>
               {parsed.odds && (
                 <div className="flex items-baseline gap-1.5 mt-2.5">
-                  <span className="text-xs font-bold text-slate-500 dark:text-white/50 uppercase tracking-widest">推荐赔率</span>
+                  <span className="text-xs font-bold text-slate-500 dark:text-white/50 uppercase tracking-widest">参考市场价格</span>
                   <span className="text-[18px] font-black text-[#E91E63] dark:text-[#00F0FF]">
                     @{parsed.odds}
                   </span>
@@ -213,7 +213,7 @@ export default function BeginnerView({
         <section className="rounded-3xl p-6 text-center
                             bg-white/60 dark:bg-white/[0.03]
                             border border-slate-200 dark:border-white/10">
-          <p className="text-sm font-bold text-slate-600 dark:text-white/60">模型推荐数据准备中…</p>
+          <p className="text-sm font-bold text-slate-600 dark:text-white/60">模型分析数据准备中…</p>
         </section>
       )}
 
@@ -223,7 +223,7 @@ export default function BeginnerView({
                             border border-slate-900/10 dark:border-[var(--panel-border-strong)]
                             rounded-2xl p-5">
           <p className="text-xs font-black tracking-[0.25em] uppercase text-slate-700 dark:text-white/80 mb-4">
-            {pickType === 'AH' ? '📊 亚盘覆盖概率' : pickType === 'OU' ? '📊 大小球概率' : '📊 三种结果概率'}
+            {pickType === 'AH' ? '📊 Spread 覆盖概率' : pickType === 'OU' ? '📊 进球数概率' : '📊 三种结果概率'}
           </p>
           <div className="space-y-3">
             {pickType === 'OU' ? (
@@ -253,7 +253,7 @@ export default function BeginnerView({
                 <ProbBar label="主胜" value={homeProb as number}
                   activeClass="bg-[#005faf] dark:bg-[#00F0FF]"
                   activeText="text-[#005faf] dark:text-[#00F0FF]"
-                  highlight={parsed.direction === '主胜' || parsed.direction.startsWith('让球主胜')} />
+                  highlight={parsed.direction.includes('主胜')} />
                 <ProbBar label="平局" value={dProb as number}
                   activeClass="bg-slate-500 dark:bg-white/50"
                   activeText="text-slate-700 dark:text-white"
@@ -261,7 +261,7 @@ export default function BeginnerView({
                 <ProbBar label="客胜" value={awayProb as number}
                   activeClass="bg-[#b7004d] dark:bg-[#FF00E5]"
                   activeText="text-[#b7004d] dark:text-[#FF00E5]"
-                  highlight={parsed.direction === '客胜' || parsed.direction.startsWith('让球客胜')} />
+                  highlight={parsed.direction.includes('客胜')} />
               </>
             )}
           </div>
@@ -279,7 +279,7 @@ export default function BeginnerView({
         </div>
       </section>
 
-      {/* ─── ⑤ 📊 近期战绩卡（亚盘/大小球择优）─────────────────── */}
+      {/* ─── ⑤ 📊 近期战绩卡（Spread/进球数择优）─────────────────── */}
       <RecentStatCard stat={bestRecentStat} />
 
       {/* ─── ⑥ → 切换到专业版 CTA ───────────────────────────────── */}
@@ -335,7 +335,7 @@ function ProbBar({
           {highlight && (
             <span className="ml-2 text-xs font-black tracking-widest px-1.5 py-0.5 rounded-full
                              bg-[#E91E63]/15 text-[#E91E63] dark:bg-[#00F0FF]/15 dark:text-[#00F0FF] uppercase">
-              推荐
+              最优
             </span>
           )}
         </span>

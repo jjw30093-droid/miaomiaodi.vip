@@ -11,7 +11,7 @@ interface Props {
  *
  * 渲染规则：
  *   - stat == null  → 整个组件返回 null（页面这块直接消失）
- *   - 标题：📊 近{N}场{label}推荐表现
+ *   - 标题：📊 近{N}场{label}精度表现
  *   - 数据行：{wins} 中 {total - wins} 负 · 命中率 {hitRate}%
  *   - emoji 序列：✅ 命中 / ❌ 未中（最近的在左）
  *   - 合规小字：模型历史，不代表未来
@@ -27,7 +27,7 @@ export default function RecentStatCard({ stat }: Props) {
                         rounded-2xl p-5">
       {/* 标题 */}
       <p className="text-xs font-black tracking-[0.25em] uppercase text-slate-700 dark:text-white/80 mb-3">
-        📊 近{stat.total}场{stat.label}推荐表现
+        📊 近{stat.total}场{stat.label}精度表现
       </p>
 
       {/* 数据行 */}

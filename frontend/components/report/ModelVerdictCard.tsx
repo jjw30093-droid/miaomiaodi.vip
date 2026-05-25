@@ -20,7 +20,7 @@ interface Props {
 }
 
 /**
- * Pro 版收口卡 — 整个研报最后的"为什么这样推荐"四段式总结。
+ * Pro 版收口卡 — 整个研报最后的"为什么这样分析"四段式总结。
  * 每段独立 graceful degrade：缺数据则不渲染该段，但其他段保留。
  * 全部缺失 → 整张卡返回 null。
  */
@@ -104,13 +104,13 @@ export default function ModelVerdictCard({
         </div>
       )}
 
-      {/* ─── ③ 最终推荐 ─── */}
+      {/* ─── ③ 最终结论 ─── */}
       {hasPick && (
         <div className="px-5 py-4 border-t border-slate-200/60 dark:border-white/5
                         bg-gradient-to-br from-[#E91E63]/8 via-transparent to-transparent
                         dark:from-[#00F0FF]/6">
           <p className="text-xs font-black tracking-[0.25em] uppercase text-slate-700 dark:text-white/80 mb-2">
-            🎯 最终推荐
+            🎯 最终结论
           </p>
           <div className="flex items-baseline justify-between gap-3">
             <div className="flex items-baseline gap-2">

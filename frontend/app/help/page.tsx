@@ -46,18 +46,18 @@ const FAQ_SECTIONS: FAQSection[] = [
     accentDark: '#10B981',
     items: [
       {
-        q: '喵弟数据研究室是做什么的？',
-        a: '我们用机器学习模型对每天的足球比赛做出概率预测，并把"模型认为最有价值的一注"（单推）展示给你。所有结果都会在赛后核对入账，按"近 7 / 14 / 30 天"的滚动窗口公开命中率与 ROI，业绩透明可追溯。',
-        highlight: '业绩透明可追溯',
+        q: '足球数研所是做什么的？',
+        a: '我们用机器学习模型对每天的足球比赛做出概率预测，并生成包含 xG / SHAP 归因 / 市场价格对比的量化分析研报。所有预测结果都会在赛后公开核对，按"近 7 / 14 / 30 天"的滚动窗口展示命中率与 Brier Score，数据透明可追溯。',
+        highlight: '数据透明可追溯',
       },
       {
         q: '我打开 App，第一眼应该看哪个数字？',
-        a: '看「单推业绩 · 近 30 天」卡片里的 ROI 和"跟投 10 万本金 30 天后赚多少"两个数字。ROI 直接告诉你模型每押 1 元能多赚几分，绿色的"赚 ¥XXX"则把抽象百分比换成你能感受的真实金额。',
-        highlight: 'ROI / 跟投回报',
+        a: '看「模型精度 · 近 30 天」卡片里的命中率和 Brier Score。命中率告诉你模型方向判断的准确率，Brier Score（越低越好）衡量概率校准质量 — 两个指标稳定才代表模型可信。',
+        highlight: 'Brier Score',
       },
       {
-        q: '如何跟着推荐下注？',
-        a: '我们只提供分析报告，不代客投注。你可以根据研报里给出的方向、赔率门槛、置信度自行判断是否参考。所有付费会员功能都仅是更详细的分析数据，不存在任何"代下"或"包赢"承诺。',
+        q: '研报数据可以如何参考使用？',
+        a: '我们只提供数据分析报告，不提供投注建议，不代客投注。所有付费订阅功能都是辅助研究的详细数据（战术归因、球员评分、阵容实时推送），不存在任何"包赢"或"保本"承诺。',
       },
     ],
   },
@@ -69,9 +69,9 @@ const FAQ_SECTIONS: FAQSection[] = [
     accentDark: '#60A5FA',
     items: [
       {
-        q: '命中率和 ROI 哪个更重要？',
-        a: '两个一起看。\n• 命中率 ≥ 50% 说明模型方向判断对得多于错得；但如果你只押 1.10 倍的小赔率，命中再高也不赚钱。\n• ROI = (总收益 ÷ 总本金) × 100%，是衡量"模型是否真的能让你赚钱"的最终指标。\nROI 为正 = 长期跟投赚钱，命中率高低不重要。',
-        highlight: 'ROI 为正',
+        q: '命中率和 Brier Score 哪个更重要？',
+        a: '两个一起看。\n• 命中率 ≥ 50% 说明模型方向判断对得多于错得；\n• Brier Score 衡量概率校准质量：如果模型说"主胜 60%"，实际命中率也应接近 60%，误差大说明概率虚标。\n两个指标同时良好，才说明模型的预测是诚实且有参考价值的。',
+        highlight: 'Brier Score',
       },
       {
         q: '净值曲线 ×1.138 是什么意思？',
@@ -84,11 +84,11 @@ const FAQ_SECTIONS: FAQSection[] = [
       },
       {
         q: 'WDL / O/U / AH 是什么意思？',
-        a: '• WDL（胜平负）— 主胜 / 平局 / 客胜三选一\n• O/U（大小球）— 全场总进球数大于或小于某个盘口（如 2.5 球）\n• AH（亚盘）— 让球盘，让胜方一定球数后再判输赢，可选半球、一球等\n模型对三个市场分别预测，"单推"会从三个里选最高价值的那一注。',
+        a: '• WDL（胜平负）— 主胜 / 平局 / 客胜三选一\n• O/U（进球数预测）— 全场总进球数高于或低于某条预测线（如 2.5 球）\n• AH（Spread Line 预测）— 基于点差线的泊松模型输出，消除主客场优势偏差\n三套模型各自独立建模，系统输出置信度最高的一条预测结论。',
       },
       {
-        q: '为什么有的研报没有推荐？',
-        a: '当模型在三个市场都找不到「赔率隐含概率 < 模型预测概率」的价值边际，或近期校准失准时，我们会主动放弃推荐。"没有推荐"比"硬推一个"更负责。',
+        q: '为什么有的研报没有分析结论？',
+        a: '当三套模型的置信度都低于系统阈值，或近期校准误差偏大时，系统会自动标注"低置信度 / 建议观察"，不强制输出结论。诚实的不确定性比虚假的确定性更有研究价值。',
       },
     ],
   },
@@ -101,7 +101,7 @@ const FAQ_SECTIONS: FAQSection[] = [
     items: [
       {
         q: 'VIP 会员能看到什么？',
-        a: '• 完整研报 Markdown（包含 LLM 战术分析、关键变量、风险提示）\n• 球员级攻防贡献评分（22 名首发逐人评分）\n• 历史推荐复盘与净值明细\n• 阵容确认实时推送\n非 VIP 也能看到「模型推荐方向 + 命中率 + ROI」核心三件套，付费部分主要是辅助决策的细节数据。',
+        a: '• 完整研报 Markdown（包含 LLM 战术分析、关键变量、风险提示）\n• 球员级攻防贡献评分（22 名首发逐人评分）\n• 历史预测复盘与精度明细\n• 阵容确认实时推送\n非 VIP 也能看到「模型预测方向 + 命中率 + Brier Score」核心三件套，付费订阅部分主要是辅助研究的细节数据。',
         highlight: '完整研报 / 球员评分 / 实时推送',
       },
       {
@@ -157,7 +157,7 @@ const FAQ_SECTIONS: FAQSection[] = [
       },
       {
         q: '反馈 / 投诉 / 建议？',
-        a: '邮件 support@miaomiaodi.cc，或公众号【足球喵喵弟】留言。我们承诺工作日 24 小时内回复。',
+        a: '邮件 support@miaomiaodi.vip，或公众号【足球喵喵弟】留言。我们承诺工作日 24 小时内回复。',
       },
     ],
   },
@@ -400,7 +400,7 @@ export default function HelpCenterPage() {
                 className="font-mono"
                 style={{ fontSize: 12, color: isDark ? 'rgba(255,255,255,0.35)' : '#5b3f43' }}
               >
-                miaomiaodi.cc
+                miaomiaodi.vip
               </span>
             </div>
           </div>
@@ -452,7 +452,7 @@ export default function HelpCenterPage() {
                   lineHeight: 1.5,
                 }}
               >
-                看「<span style={{ color: isDark ? '#34D399' : '#0F766E', fontWeight: 800 }}>近 30 天 ROI</span>」就够了。
+                看「<span style={{ color: isDark ? '#34D399' : '#0F766E', fontWeight: 800 }}>近 30 天命中率 &amp; Brier Score</span>」就够了。
                 <br />
                 以下是用户最关心的 17 个问题。
               </p>
@@ -589,7 +589,7 @@ export default function HelpCenterPage() {
                 className="font-semibold"
                 style={{ fontSize: 12, color: isDark ? 'rgba(255,255,255,0.7)' : '#475569', lineHeight: 1.5 }}
               >
-                · 每日推荐自动推送<br />
+                · 每日研报自动推送<br />
                 · 兑换 VIP / 反馈建议<br />
                 · 24h 内人工回复
               </p>
@@ -598,7 +598,7 @@ export default function HelpCenterPage() {
 
           {/* 备用邮件 */}
           <a
-            href="mailto:support@miaomiaodi.cc"
+            href="mailto:support@miaomiaodi.vip"
             className="flex items-center justify-center gap-2 rounded-full py-2.5 active:scale-95 transition-transform border"
             style={{
               background: 'transparent',
@@ -608,7 +608,7 @@ export default function HelpCenterPage() {
           >
             <Mail size={14} />
             <span className="font-bold" style={{ fontSize: 12 }}>
-              备用邮箱 support@miaomiaodi.cc
+              备用邮箱 support@miaomiaodi.vip
             </span>
           </a>
         </div>
@@ -618,7 +618,7 @@ export default function HelpCenterPage() {
           className="text-center font-bold pb-4 mt-2"
           style={{ fontSize: 12, color: isDark ? 'rgba(255,255,255,0.2)' : '#94A3B8' }}
         >
-          喵弟数据研究室 · v1.0 · © 2026
+          足球数研所 · v1.0 · © 2026
         </p>
       </main>
     </div>

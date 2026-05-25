@@ -17,8 +17,8 @@ function getCSSVar(name: string, fallback: string): string {
 type SeriesKey = 'wdl' | 'ou' | 'ah';
 const LABEL_MAP: Record<SeriesKey, { short: string; full: string }> = {
   wdl: { short: 'WDL', full: '胜平负' },
-  ou:  { short: 'O/U', full: '大小球' },
-  ah:  { short: 'AH',  full: '亚盘' },
+  ou:  { short: 'O/U', full: '进球数' },
+  ah:  { short: 'AH',  full: 'Spread' },
 };
 const KEYS: SeriesKey[] = ['wdl', 'ou', 'ah'];
 
@@ -262,7 +262,7 @@ export default function RollingAccuracyChart({ data, currentHidden }: Props) {
           </span>
         </div>
         <p className="text-sm font-semibold" style={{ color: 'var(--v2-text-secondary)' }}>
-          胜平负 · 大小球 · 亚盘 三市场滚动命中率
+          胜平负 · 进球数 · Spread 三市场滚动命中率
         </p>
       </div>
 

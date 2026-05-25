@@ -107,7 +107,7 @@ export default function MarkdownRenderer({ content, homeTeamName, awayTeamName, 
                   <div className="absolute bottom-5 right-5 glass-panel !rounded-full px-4 py-1.5 flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-primary-container animate-pulse" />
                     <span className="text-xs text-slate-700 dark:text-white font-headline font-black italic tracking-[0.2em] uppercase">
-                      喵弟量化实验室 MIAODI QUANT
+                      足球数研所 MIAODI QUANT
                     </span>
                   </div>
                 </div>

@@ -38,7 +38,7 @@ export default function ModelTabContent() {
   // ── Fallback data ──────────────────────────────────────────────────────────
   const fallbackMetrics = [
     { label: '综合收益率',   value: '+470.7%', icon: 'arrow_upward', color: '#b7004d', borderCls: 'border-[#b7004d]' },
-    { label: '大小球胜率',   value: '65.4%',   icon: 'check_circle', color: '#005faf', borderCls: 'border-[#005faf]' },
+    { label: '进球数精度',   value: '65.4%',   icon: 'check_circle', color: '#005faf', borderCls: 'border-[#005faf]' },
     { label: '欧赔 RPS',    value: '0.128',   icon: 'analytics',    color: '#924700', borderCls: 'border-[#924700]' },
     { label: '验证期投注数', value: '1,620',   icon: 'receipt_long', color: '#5b3f43', borderCls: 'border-[#5b3f43]' },
   ];
@@ -51,7 +51,7 @@ export default function ModelTabContent() {
 
   const fallbackAccuracyBars = [
     { label: '欧赔（胜平负）', pct: 43.4, textColor: 'text-[#b7004d]', barColor: 'bg-[#b7004d]' },
-    { label: '大小球',         pct: 65.4, textColor: 'text-[#005faf]', barColor: 'bg-[#005faf]' },
+    { label: '进球数',         pct: 65.4, textColor: 'text-[#005faf]', barColor: 'bg-[#005faf]' },
     { label: '高置信度策略',   pct: 54.7, textColor: 'text-[#924700]', barColor: 'bg-[#924700]' },
   ];
   const fallbackAccuracyBarsDark = [

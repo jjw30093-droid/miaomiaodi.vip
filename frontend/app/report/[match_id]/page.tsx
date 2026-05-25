@@ -227,7 +227,7 @@ async function ReportContent({
       : 'CONTESTED MATCH'
       : 'AWAITING DATA';
 
-  // Derive 系统预判 display text from inference when available (consistent with 核心推荐)
+  // Derive 系统预判 display text from inference when available (consistent with 核心结论)
   const verdictDisplay = (() => {
     if (report.inference) {
       const rest = report.inference.replace(/【[^】]+】/, '').trim();
@@ -284,7 +284,7 @@ async function ReportContent({
       {/* ── 单列漏斗容器 ─────────────────────────────────────────────────── */}
       <div className="px-4 py-5 max-w-2xl mx-auto flex flex-col gap-5 pb-28 overflow-x-hidden">
 
-        {/* ── 2. 赛事头部（概率 + AI 推荐） ──────────────────────────────── */}
+        {/* ── 2. 赛事头部（概率 + AI 分析） ──────────────────────────────── */}
         <section className="space-y-4">
 
           {/* ① 队名卡：浅色独立白卡 / 深色融入面板 */}
@@ -313,7 +313,7 @@ async function ReportContent({
             </p>
           </div>
 
-          {/* ② 核心推荐 GlassPickBlock（原 ③ 上移；WDL 三列大数字已删除，被市场对比卡吞并） */}
+          {/* ② 核心结论 GlassPickBlock（原 ③ 上移；WDL 三列大数字已删除，被市场对比卡吞并） */}
           {report.inference && (
             hasFullAccess ? (
               <GlassPickBlock inference={report.inference} />
@@ -354,7 +354,7 @@ async function ReportContent({
               verdictSummary={report.verdictSummary}
               keyVariables={report.keyVariables}
               keyRisk={report.keyRisk}
-              /* finalPick 三参数留 null：避免与上面 GlassPickBlock 重复展示推荐 */
+              /* finalPick 三参数留 null：避免与上面 GlassPickBlock 重复展示结论 */
               pickDirection={null}
               pickOdds={null}
               confidenceStars={null}
@@ -524,7 +524,7 @@ async function ReportContent({
               )}
               {report.markdownSections?.ouAnalysis && (
                 <div className="bg-[var(--panel-bg-strong)] backdrop-blur-xl border border-[var(--panel-border-strong)] rounded-2xl p-5 relative overflow-hidden shadow-[var(--panel-shadow-strong)]">
-                  <SectionLabel icon={<BarChart2 size={11} />} label="大小球深度分析 · AI" />
+                  <SectionLabel icon={<BarChart2 size={11} />} label="进球数深度分析 · AI" />
                   <ReportMarkdown content={report.markdownSections.ouAnalysis} />
                 </div>
               )}
@@ -824,7 +824,7 @@ export default async function ReportPage({
         <div className="mt-8 mb-4 mx-auto w-full max-w-2xl px-4">
           <div className="px-4 py-3 border border-slate-300 dark:border-white/10 rounded-lg bg-slate-50/50 dark:bg-white/[0.02]">
             <p className="text-xs text-slate-600 dark:text-white/60 leading-relaxed">
-              ⚠️ 免责声明：本页面所有内容（包括但不限于 AI 推荐、概率预测、赔率分析）均基于历史数据和统计模型生成，
+              ⚠️ 免责声明：本页面所有内容（包括但不限于 AI 分析、概率预测、市场价格分析）均基于历史数据和统计模型生成，
               仅供数据分析参考，<span className="font-bold">绝不构成任何形式的投注、博彩或理财建议</span>。模型存在固有误差，过往表现不代表未来结果。
               使用本站内容所产生的任何后果由用户自行承担。
               <Link href="/terms#disclaimer" className="text-[#005faf] dark:text-primary-neon hover:underline ml-1">完整条款 →</Link>
@@ -833,7 +833,7 @@ export default async function ReportPage({
         </div>
 
         <footer className="mt-12 pt-8 border-t border-slate-200 dark:border-white/5 w-full max-w-2xl mx-auto px-4 flex justify-between items-center text-xs font-bold text-slate-600 dark:text-white uppercase tracking-[0.3em]">
-          <span>喵弟量化实验室 :: SYSTEM CORE v6.2.0</span>
+          <span>足球数研所 :: SYSTEM CORE v6.2.0</span>
           <span>STITCH PROTOCOL SECURED</span>
         </footer>
         <Footer />

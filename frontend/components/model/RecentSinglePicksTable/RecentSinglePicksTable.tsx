@@ -254,7 +254,7 @@ export default function RecentSinglePicksTable({ picks }: Props) {
         className="rounded-2xl border p-6 text-center font-semibold"
         style={{ ...cardStyle, fontSize: 14, color: palette.label }}
       >
-        暂无近期推荐记录
+        暂无近期分析记录
       </div>
     );
   }
@@ -266,7 +266,7 @@ export default function RecentSinglePicksTable({ picks }: Props) {
           className="font-bold uppercase tracking-wider"
           style={{ fontSize: 12, color: palette.label }}
         >
-          近期推荐
+          近期分析结论
         </p>
         {settled.length > 0 && (
           <span className="font-semibold tabular-nums" style={{ fontSize: 12, color: palette.label }}>
@@ -294,7 +294,7 @@ export default function RecentSinglePicksTable({ picks }: Props) {
         <table className="w-full text-left">
           <thead>
             <tr className="border-b" style={{ borderColor: palette.cardBorder }}>
-              {['日期', '对阵', '方向', '赔率', '结果', 'PnL'].map(h => (
+              {['日期', '对阵', '方向', '市场价格', '结果', 'PnL'].map(h => (
                 <th
                   key={h}
                   className="pb-3 font-bold uppercase tracking-wider"

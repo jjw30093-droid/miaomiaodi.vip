@@ -2,7 +2,7 @@
  * MatchCardGated — 未登录访客（GUEST 档）专用比赛卡片
  *
  * 仅显示：联赛 + 时间（顶部） + 队徽 + 队名 + VS（主体）
- * 不显示：概率、推荐摘要、UPCOMING/ARCHIVE 标签、置顶/免费角标
+ * 不显示：概率、分析摘要、UPCOMING/ARCHIVE 标签、置顶/免费角标
  * 点击行为：跳转 /login?next=/report/<matchId>
  *
  * 渲染条件：后端返回 display_category === 'GATED' 时

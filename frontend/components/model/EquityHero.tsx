@@ -133,7 +133,7 @@ function buildOption(curve: EquityCurvePoint[], isUp: boolean, isDark: boolean) 
     },
     series: [
       {
-        name: '单推净值',
+        name: '预测净值',
         type: 'line' as const,
         data: values,
         smooth: 0.3,
@@ -242,7 +242,7 @@ export default function EquityHero(props: Props) {
           className="font-bold uppercase tracking-wider ml-auto"
           style={{ fontSize: 12, color: labelColor }}
         >
-          单推累计盈亏
+          累计预测盈亏
         </span>
       </div>
       <div className="h-48">
