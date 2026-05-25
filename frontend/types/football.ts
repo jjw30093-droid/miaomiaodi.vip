@@ -5,8 +5,8 @@
 
 export interface MarketData {
   match_id: string;
-  handicap: string;      // 盘口 (e.g., -0.5)
-  odds: number;          // 赔率
+  handicap: string;      // spread line (e.g., -0.5)
+  odds: number;          // decimal odds
   oi_flow?: number;      // 资金流向 (可选)
   roi?: number[];        // 历史收益走势 (用于 Dashboard)
 }

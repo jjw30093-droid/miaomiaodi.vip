@@ -11,7 +11,7 @@ const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope", weight
 
 export const metadata: Metadata = {
   title: "足球数研所",
-  description: "专业足球赛事深度量化分析与研报生成引擎",
+  description: "SaaS platform for AI-powered football match analysis reports using Dixon-Coles, LightGBM and SHAP explainability. 专业足球数据研究订阅服务。",
 };
 
 export default function RootLayout({
@@ -24,6 +24,8 @@ export default function RootLayout({
       <head>
         {/* 同步设置 dark class，防止浅色闪屏（FOUC）*/}
         <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem('theme');document.documentElement.classList.add(t==='light'?'light':'dark');}catch(e){document.documentElement.classList.add('dark');}})();` }} />
+        <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large" />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: `{"@context":"https://schema.org","@graph":[{"@type":"SoftwareApplication","name":"足球数研所","url":"https://miaomiaodi.vip","applicationCategory":"SportsApplication","operatingSystem":"Web","description":"SaaS platform for AI-powered football match analysis reports using Dixon-Coles, LightGBM and SHAP explainability.","offers":{"@type":"Offer","priceCurrency":"CNY","price":"0","description":"Free tier available; paid subscription for full access"}},{"@type":"Dataset","name":"Football Match Analysis Dataset","description":"Statistical football match data covering 10+ leagues, including Dixon-Coles probability estimates, LightGBM predictions, and SHAP feature attributions.","url":"https://miaomiaodi.vip","creator":{"@type":"Organization","name":"足球数研所"},"license":"https://miaomiaodi.vip/terms"}]}` }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet" />

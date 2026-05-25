@@ -128,9 +128,6 @@ export interface CloudReportPayload {
   draw_prob?:        number;
   inference?:        string;
   is_gated?:         boolean;
-  access_level?:     'guest' | 'registered' | 'unlocked' | 'vip';
-  unlock_reason?:    'free_match' | 'vip' | 'single_unlock' | null;
-  preview_content?:  string | null;
   is_free?:          boolean;
   match_status?:       string;
   post_match_review?:  string | null;
@@ -141,7 +138,7 @@ export interface CloudReportPayload {
   lineup_confirmed_at?: string | null;
   /** 新手版战绩卡：4 窗口 × 2 类型择优后的最佳组合（None 时前端隐藏整张卡） */
   best_recent_stat?: {
-    label:          string;       // "亚盘" | "大小球"
+    label:          string;       // "Spread" | "Goals"
     window:         number;       // 5 | 10 | 15 | 20
     wins:           number;
     total:          number;
@@ -153,7 +150,7 @@ export interface CloudReportPayload {
   chart_insights?:   { npxgd?: string; shotmap?: string; lineup_compare?: string; injuries?: string; player_contribution?: string } | null;
   key_variables?:    string[] | null;
   key_risk?:         string | null;
-  /** P0：市场赔率反推的隐含概率（vig 已归一化），单位 % */
+  /** P0：市场隐含概率（vig 已归一化），单位 % */
   market_implied_prob?: { home?: number; draw?: number; away?: number } | null;
   /** P0：综合判断卡 — LLM 综合结论段解析后的结构化字段 */
   verdict_summary?: {
@@ -168,7 +165,7 @@ export interface CloudReportPayload {
 // 新手版战绩卡：从 4 窗口 × 2 类型 = 8 候选中选最优组合
 // ─────────────────────────────────────────────────────────────
 export interface BestRecentStat {
-  label:         string;     // "亚盘" | "大小球"
+  label:         string;     // "Spread" | "Goals"
   window:        number;     // 5 | 10 | 15 | 20
   wins:          number;
   total:         number;
@@ -268,18 +265,15 @@ export interface ReportData {
   postMatchReview?:  string | null;
   postMatchShots?:   PostMatchShots | null;
   /** true = 后端已有研报但权限不足（非"数据未同步"） */
-  isGated:           boolean;
-  accessLevel:       'guest' | 'registered' | 'unlocked' | 'vip';
-  unlockReason:      'free_match' | 'vip' | 'single_unlock' | null;
-  previewContent:    string | null;
+  isGated?:          boolean;
   /** 首发阵容确认状态（来自爬虫） */
   lineupStatus?:     'confirmed' | 'predicted' | 'unavailable';
   lineupConfirmedAt?: string | null;
   homeIcon?: string | null;
   awayIcon?: string | null;
-  /** 新手版战绩卡（亚盘/大小球择优）— null 时前端隐藏整张卡 */
+  /** 新手版战绩卡（Spread/Goals 择优）— null 时前端隐藏整张卡 */
   bestRecentStat?: BestRecentStat | null;
-  /** P0：市场隐含概率（赔率反推） */
+  /** P0：市场隐含概率（vig 归一化） */
   marketImpliedProb?: { home?: number; draw?: number; away?: number } | null;
   /** P0：综合判断卡数据 */
   verdictSummary?: VerdictSummary | null;
@@ -295,7 +289,7 @@ export interface ReportData {
   markdownSections?: {
     // 新版（AH/OU 导向，2026-04-28+）
     ahAnalysis?:        string;   // 亚盘分析
-    ouAnalysis?:        string;   // 大小球分析
+    ouAnalysis?:        string;   // Goals 进球数分析
     overallComparison?: string;   // 综合战力对比
     // 旧版（WDL 导向，兼容保留）
     powerEvolution?:    string;   // 战力演化分析

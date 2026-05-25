@@ -228,7 +228,7 @@ async function ReportContent({
       : 'CONTESTED MATCH'
       : 'AWAITING DATA';
 
-  // Derive 系统预判 display text from inference when available (consistent with 核心推荐)
+  // Derive 系统预判 display text from inference when available (consistent with 核心结论)
   const verdictDisplay = (() => {
     if (report.inference) {
       const rest = report.inference.replace(/【[^】]+】/, '').trim();
@@ -285,7 +285,7 @@ async function ReportContent({
       {/* ── 单列漏斗容器 ─────────────────────────────────────────────────── */}
       <div className="px-4 py-5 max-w-2xl mx-auto flex flex-col gap-5 pb-28 overflow-x-hidden">
 
-        {/* ── 2. 赛事头部（概率 + AI 推荐） ──────────────────────────────── */}
+        {/* ── 2. 赛事头部（概率 + AI 分析） ──────────────────────────────── */}
         <section className="space-y-4">
 
           {/* ① 队名卡：浅色独立白卡 / 深色融入面板 */}
@@ -314,7 +314,7 @@ async function ReportContent({
             </p>
           </div>
 
-          {/* ② 核心推荐 GlassPickBlock（原 ③ 上移；WDL 三列大数字已删除，被市场对比卡吞并） */}
+          {/* ② 核心结论 GlassPickBlock（原 ③ 上移；WDL 三列大数字已删除，被市场对比卡吞并） */}
           {report.inference && (
             hasFullAccess ? (
               <GlassPickBlock inference={report.inference} />
@@ -355,7 +355,7 @@ async function ReportContent({
               verdictSummary={report.verdictSummary}
               keyVariables={report.keyVariables}
               keyRisk={report.keyRisk}
-              /* finalPick 三参数留 null：避免与上面 GlassPickBlock 重复展示推荐 */
+              /* finalPick 三参数留 null：避免与上面 GlassPickBlock 重复展示分析结论 */
               pickDirection={null}
               pickOdds={null}
               confidenceStars={null}

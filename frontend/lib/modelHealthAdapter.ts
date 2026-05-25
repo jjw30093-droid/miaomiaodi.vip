@@ -112,7 +112,7 @@ export function adaptModelHealth(data: ModelHealthResponse, isDark: boolean): Ad
       borderCls: isDark ? 'border-[#E91E63]' : 'border-[#b7004d]',
     },
     {
-      label: '进球数精度',
+      label: 'Goals 胜率',
       value: ou_accuracy != null ? `${(ou_accuracy * 100).toFixed(1)}%` : '—',
       icon: 'check_circle',
       color: isDark ? '#00F0FF' : '#005faf',
@@ -146,7 +146,7 @@ export function adaptModelHealth(data: ModelHealthResponse, isDark: boolean): Ad
       barColor: isDark ? '#E91E63' : 'bg-[#b7004d]',
     },
     {
-      label: '进球数',
+      label: 'Goals',
       pct: ou_accuracy != null ? parseFloat((ou_accuracy * 100).toFixed(1)) : 65.4,
       textColor: isDark ? 'text-[#00F0FF]' : 'text-[#005faf]',
       barColor: isDark ? '#00F0FF' : 'bg-[#005faf]',

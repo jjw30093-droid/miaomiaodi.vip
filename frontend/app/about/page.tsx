@@ -3,8 +3,9 @@ import Link from 'next/link';
 import Image from 'next/image';
 
 export const metadata: Metadata = {
-  title: '关于我们 | 喵弟数据研究室',
-  description: '喵弟数据研究室 · 一个专注于足球高阶数据（xG/xA/亚盘）与 AI 量化研报的独立科研平台。',
+  title: '关于我们 | 足球数研所',
+  description: '足球数研所 · AI-powered football match analysis platform using Dixon-Coles, LightGBM and SHAP. 专业足球数据研究。',
+  keywords: ['football analytics', 'Dixon-Coles', 'LightGBM', 'SHAP', 'Brier Score', 'football prediction', '足球数据分析', '足球研报'],
 };
 
 export default function AboutPage() {
@@ -190,6 +191,51 @@ export default function AboutPage() {
           <section>
             <h2 className="text-base font-black text-white mb-3 flex items-center gap-2">
               <span className="text-[#b388ff] font-mono text-sm">07</span>
+              方法论文献
+            </h2>
+            <div className="space-y-3 pl-6 border-l border-white/5">
+              <p className="text-sm leading-7 text-slate-400">
+                以下文献是本平台核心算法的学术基础，欢迎研究者参考：
+              </p>
+              <ul className="space-y-3">
+                <li className="flex items-start gap-3">
+                  <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#b388ff]/60 flex-shrink-0" />
+                  <p className="text-sm leading-7 text-slate-400">
+                    Dixon, M. J., &amp; Coles, S. G. (1997). Modelling association football scores and inefficiencies in the football betting market. <em>Journal of the Royal Statistical Society: Series C</em>, 46(2), 265–280.{' '}
+                    <a href="https://doi.org/10.1111/1467-9876.00065" target="_blank" rel="noopener noreferrer" className="text-[#b388ff]/80 hover:text-[#b388ff] transition-colors">
+                      DOI: 10.1111/1467-9876.00065 ↗
+                    </a>
+                  </p>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#b388ff]/60 flex-shrink-0" />
+                  <p className="text-sm leading-7 text-slate-400">
+                    Karlis, D., &amp; Ntzoufras, I. (2003). Analysis of sports data by using bivariate Poisson models. <em>Journal of the Royal Statistical Society: Series D</em>, 52(3), 381–393.{' '}
+                    <a href="https://doi.org/10.1111/1467-9884.00366" target="_blank" rel="noopener noreferrer" className="text-[#b388ff]/80 hover:text-[#b388ff] transition-colors">
+                      DOI: 10.1111/1467-9884.00366 ↗
+                    </a>
+                  </p>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#b388ff]/60 flex-shrink-0" />
+                  <p className="text-sm leading-7 text-slate-400">
+                    Lundberg, S. M., &amp; Lee, S. I. (2017). A unified approach to interpreting model predictions. <em>Advances in Neural Information Processing Systems</em>, 30 (NeurIPS 2017).
+                  </p>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#b388ff]/60 flex-shrink-0" />
+                  <p className="text-sm leading-7 text-slate-400">
+                    Brier, G. W. (1950). Verification of forecasts expressed in terms of probability. <em>Monthly Weather Review</em>, 78(1), 1–3.
+                  </p>
+                </li>
+              </ul>
+            </div>
+          </section>
+
+          {/* 08 */}
+          <section>
+            <h2 className="text-base font-black text-white mb-3 flex items-center gap-2">
+              <span className="text-[#b388ff] font-mono text-sm">08</span>
               联系我们
             </h2>
             <div className="space-y-4 pl-6 border-l border-white/5">

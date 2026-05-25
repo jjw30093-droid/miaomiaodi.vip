@@ -1,0 +1,21 @@
+# 足球数研所 (miaomiaodi.vip)
+> SaaS platform for football data research and AI-powered match analysis.
+
+## What this site does
+- Provides pre-match analysis reports using statistical models (Dixon-Coles, Bivariate Poisson, LightGBM)
+- Covers 10+ football leagues worldwide
+- Uses SHAP for model explainability
+- Tracks prediction accuracy with Brier Score and calibration metrics
+
+## What this site does NOT do
+- Does not provide betting advice or recommendations
+- Does not accept wagers or process gambling transactions
+- Does not guarantee outcomes
+
+## Subscription
+- Free tier: limited access to match analysis
+- Paid tier: full access to all reports and model dashboard
+
+## Contact
+- Email: support@miaomiaodi.vip
+- Website: https://miaomiaodi.vip

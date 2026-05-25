@@ -51,10 +51,7 @@ function safeParseJSON(jsonStr: string, defaultValue: any) {
 const _MD_SECTION_KEY: Record<string, 'powerEvolution' | 'lineupImpact' | 'tacticalAnalysis' | 'ahAnalysis' | 'ouAnalysis' | 'overallComparison'> = {
   // 新版
   '亚盘分析':     'ahAnalysis',
-  '进球数分析':   'ouAnalysis',   // new form (backend prompt updated 2026-05-25+)
-  // legacy backward-compat: old reports still use the original header — keep both keys
-  // NOTE: remove after all archived reports are re-generated
-  [['大', '小', '球', '分析'].join('')]: 'ouAnalysis',
+  '大小球分析':   'ouAnalysis',
   '综合战力对比': 'overallComparison',
   // 旧版兼容
   '战力演化分析': 'powerEvolution',
@@ -246,9 +243,6 @@ function adaptCloudPayload(payload: CloudReportPayload): ReportData {
     generatedAt:    payload.updated_at || new Date().toISOString(),
     matchStatus:    payload.match_status   || 'upcoming',
     isGated:        payload.is_gated ?? false,
-    accessLevel:    payload.access_level ?? 'guest',
-    unlockReason:   payload.unlock_reason ?? null,
-    previewContent: payload.preview_content ?? null,
     lineupStatus:   (payload.lineup_status as ReportData['lineupStatus']) ?? 'predicted',
     lineupConfirmedAt: payload.lineup_confirmed_at ?? null,
     homeIcon: payload.home_icon ?? null,
