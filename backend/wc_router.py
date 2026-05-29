@@ -189,9 +189,13 @@ def _build_payload(
             }
 
     # 概率字段（GUEST 清空）
-    home_prob = report.get("home_prob") if not _hide_probs else None
-    draw_prob = report.get("draw_prob") if not _hide_probs else None
-    away_prob = report.get("away_prob") if not _hide_probs else None
+    # DB 存储为小数（0-1），adaptCloudPayload 期望百分制（0-100），乘以 100 对齐联赛格式
+    _hp = report.get("home_prob")
+    _dp = report.get("draw_prob")
+    _ap = report.get("away_prob")
+    home_prob = round(_hp * 100, 1) if (_hp is not None and not _hide_probs) else None
+    draw_prob = round(_dp * 100, 1) if (_dp is not None and not _hide_probs) else None
+    away_prob = round(_ap * 100, 1) if (_ap is not None and not _hide_probs) else None
     inference = (report.get("inference") or "") if not _hide_probs else ""
 
     # 赛后复盘（仅 VIP）
