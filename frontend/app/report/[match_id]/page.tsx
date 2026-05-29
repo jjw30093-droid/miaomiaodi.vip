@@ -18,6 +18,9 @@ import InsightLine from '@/components/report/InsightLine';
 import CollapsibleSection from '@/components/common/CollapsibleSection';
 import { BackgroundEffects } from '@/components/BackgroundEffects';
 import Footer from '@/components/layout/Footer';
+// WC-only components（仅在 tournamentType==='wc' 时渲染，联赛路径零影响）
+import WcAttackTable from '@/components/report/WcAttackTable';
+import WcAhInfoCard from '@/components/report/WcAhInfoCard';
 import {
   ChevronLeft, Lock, BarChart2, Crosshair, TrendingUp, Star, Activity, FileText,
 } from 'lucide-react';
@@ -195,6 +198,9 @@ async function ReportContent({
     const m = report.markdownContent.match(/# (.*) vs (.*)/i);
     if (m) { homeTeam = m[1].trim(); awayTeam = m[2].trim(); }
   }
+
+  // ── Tournament type ────────────────────────────────────────────────────────
+  const isWc = report.tournamentType === 'wc';
 
   // ── Access rules ───────────────────────────────────────────────────────────
   const showCharts    = accessLevel !== 'anonymous';
@@ -401,35 +407,68 @@ async function ReportContent({
               )}
             </div>
 
-            {/* Block B · 赛前射门分布图 + 解读 */}
-            <div className="bg-[var(--panel-bg-strong)] backdrop-blur-xl border border-[var(--panel-border-strong)] rounded-2xl p-5 overflow-hidden shadow-[var(--panel-shadow-strong)]">
-              <SectionLabel
-                icon={<Crosshair size={11} />}
-                label="射门渗透分析 · 近5场"
-                accentClass="bg-primary-neon shadow-[0_0_6px_#00F0FF]"
-              />
-              {report.shotHistory ? (
-                <div className="w-full overflow-x-hidden">
-                  <InteractiveShotMapClient
-                    homeTeam={report.shotHistory.homeTeam}
-                    awayTeam={report.shotHistory.awayTeam}
-                    homeTeamName={homeTeam}
-                    awayTeamName={awayTeam}
-                  />
-                </div>
-              ) : (
-                <div className="py-12 flex flex-col items-center justify-center text-slate-600 dark:text-white">
-                  <Crosshair size={28} className="mb-2" />
-                  <p className="text-xs tracking-widest uppercase">射门数据尚未同步</p>
-                </div>
-              )}
-              <InsightLine text={report.chartInsights?.shotmap} />
-            </div>
+            {/* Block B · 射门渗透（联赛）或 WC 攻防统计表 */}
+            {!isWc && (
+              <div className="bg-[var(--panel-bg-strong)] backdrop-blur-xl border border-[var(--panel-border-strong)] rounded-2xl p-5 overflow-hidden shadow-[var(--panel-shadow-strong)]">
+                <SectionLabel
+                  icon={<Crosshair size={11} />}
+                  label="射门渗透分析 · 近5场"
+                  accentClass="bg-primary-neon shadow-[0_0_6px_#00F0FF]"
+                />
+                {report.shotHistory ? (
+                  <div className="w-full overflow-x-hidden">
+                    <InteractiveShotMapClient
+                      homeTeam={report.shotHistory.homeTeam}
+                      awayTeam={report.shotHistory.awayTeam}
+                      homeTeamName={homeTeam}
+                      awayTeamName={awayTeam}
+                    />
+                  </div>
+                ) : (
+                  <div className="py-12 flex flex-col items-center justify-center text-slate-600 dark:text-white">
+                    <Crosshair size={28} className="mb-2" />
+                    <p className="text-xs tracking-widest uppercase">射门数据尚未同步</p>
+                  </div>
+                )}
+                <InsightLine text={report.chartInsights?.shotmap} />
+              </div>
+            )}
+
+            {/* Block B-WC · 世界杯攻防对比表（无 xG/射门坐标，仅队伍统计） */}
+            {isWc && (() => {
+              // 从 payload 透传的 wc_team_stats（可能在 chartInsights 中无，需后端打进 payload）
+              // Phase 1: 用 null 兜底，组件内部渲染 "—"
+              const wcHome = (report as any).wcTeamStats?.home ?? {};
+              const wcAway = (report as any).wcTeamStats?.away ?? {};
+              return (
+                <WcAttackTable
+                  homeTeamName={homeTeam}
+                  awayTeamName={awayTeam}
+                  homeStats={wcHome}
+                  awayStats={wcAway}
+                />
+              );
+            })()}
+
+            {/* Block B-WC-AH · 亚盘让球信息卡（仅幅度，无胜率）*/}
+            {isWc && (() => {
+              const ahData = (report as any).ahImplied;
+              if (!ahData || ahData.magnitude == null) return null;
+              return (
+                <WcAhInfoCard
+                  homeTeamName={homeTeam}
+                  awayTeamName={awayTeam}
+                  line={ahData.line}
+                  magnitude={ahData.magnitude}
+                  nBooks={ahData.n_books ?? 0}
+                />
+              );
+            })()}
           </section>
         )}
 
-        {/* ── 4. 阵容章节（注册用户）────────────────────────────────────── */}
-        {showCharts && report.lineupImpact && (
+        {/* ── 4. 阵容章节（注册用户，联赛专用；WC 无球员级数据）──────────── */}
+        {showCharts && report.lineupImpact && !isWc && (
           <section id="lineup" className="flex flex-col gap-5">
             {/* Block E · 阵容攻防贡献表（LineupImpactTable 是唯一入口） */}
             <div className="bg-[var(--panel-bg-strong)] border border-[var(--panel-border-strong)] rounded-2xl overflow-hidden shadow-[var(--panel-shadow-strong)]">

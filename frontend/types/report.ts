@@ -106,6 +106,8 @@ export interface CloudReportPayload {
   match_id: string;
   report_markdown: string;
   lineup_brief?: string | null;   // 预计首发+伤停简报（Markdown 格式，公开区）
+  /** 赛事类型门控：'wc' = 世界杯专用渲染路径；'league' 或 undefined = 联赛 */
+  tournament_type?: 'league' | 'wc';
   npxg_trend: string;       // JSON stringified
   shot_map_data: string;    // JSON stringified
   player_stats?: {
@@ -152,6 +154,10 @@ export interface CloudReportPayload {
   key_risk?:         string | null;
   /** P0：市场隐含概率（vig 已归一化），单位 % */
   market_implied_prob?: { home?: number; draw?: number; away?: number } | null;
+  /** WC-only：AH 隐含让球幅度（来自 payload_json.market_implied.ah）*/
+  ah_implied?: { line: number; magnitude: number; n_books: number } | null;
+  /** WC-only：队伍统计（来自 wc_workflow Agent1 output） */
+  wc_team_stats?: { home: Record<string, number | null>; away: Record<string, number | null> } | null;
   /** P0：综合判断卡 — LLM 综合结论段解析后的结构化字段 */
   verdict_summary?: {
     attack_rating?:  { home: number; away: number } | null;
@@ -221,6 +227,8 @@ export interface ReportData {
   markdownContent: string;
   createdAt: string;
   homeTeamName: string;
+  /** 赛事类型门控：'wc' = 世界杯专用渲染；'league' 或 undefined = 联赛（向下兼容）*/
+  tournamentType?: 'league' | 'wc';
   awayTeamName: string;
   homeScore?: number;
   awayScore?: number;
@@ -285,6 +293,10 @@ export interface ReportData {
   chartInsights?: { npxgd?: string; shotmap?: string; lineupCompare?: string; injuries?: string; playerContribution?: string } | null;
   /** 后续 P0：新手版大白话 */
   beginnerSummary?: string | null;
+  /** WC-only：AH 隐含让球幅度（仅信息，无胜率；联赛为 null）*/
+  ahImplied?: { line: number; magnitude: number; n_books: number } | null;
+  /** WC-only：队伍统计（仅 WC；联赛为 null）*/
+  wcTeamStats?: { home: Record<string, number | null>; away: Record<string, number | null> } | null;
   /** P1：长文按 H2 拆段后的 sections — 旧研报无字段时为空 dict */
   markdownSections?: {
     // 新版（AH/OU 导向，2026-04-28+）

@@ -212,6 +212,7 @@ function adaptCloudPayload(payload: CloudReportPayload): ReportData {
   return {
     matchId:       payload.match_id,
     title:         `QUANT ANALYSIS :: ${payload.home_team} vs ${payload.away_team}`,
+    tournamentType: payload.tournament_type === 'wc' ? 'wc' : 'league',
     markdownContent: payload.report_markdown || '',
     createdAt:     new Date().toISOString(),
     homeTeamName:  payload.home_team || 'HOME TEAM',
@@ -273,6 +274,8 @@ function adaptCloudPayload(payload: CloudReportPayload): ReportData {
       playerContribution: payload.chart_insights.player_contribution,
     } : null,
     markdownSections: parseStructuredMarkdown(payload.report_markdown),
+    ahImplied:   payload.ah_implied    ?? null,
+    wcTeamStats: payload.wc_team_stats ?? null,
     postMatchReview: payload.post_match_review ?? null,
     postMatchShots: (() => {
       const raw = payload.post_match_shots;
@@ -321,7 +324,11 @@ export async function getMatchReport(matchId: string): Promise<ReportData | null
   }
   // ─────────────────────────────────────────────────────────────────────────
 
-  const url = `${AWS_API_BASE}/api/v1/sync/match_payload/${matchId}`;
+  // WC 专用端点（硬隔离：wc_ 前缀走 /wc/ 路径，联赛走原 /sync/ 路径）
+  const isWc = matchId.startsWith('wc_');
+  const url = isWc
+    ? `${AWS_API_BASE}/api/v1/wc/match_payload/${matchId}`
+    : `${AWS_API_BASE}/api/v1/sync/match_payload/${matchId}`;
 
   // 读取 NextAuth session，取出存储的 FastAPI JWT（微信登录后写入）
   // 如果没有 apiToken（普通用户/匿名），FastAPI 按 GUEST 返回受限数据，

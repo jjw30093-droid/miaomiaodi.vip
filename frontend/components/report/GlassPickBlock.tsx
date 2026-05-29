@@ -29,7 +29,10 @@ function parseInference(inf: string): ParsedInference {
 }
 
 const STARS_FOR_CONF: Record<string, number> = {
+  // 联赛中文标签
   '高把握': 5, '中高把握': 4, '中把握': 3, '低把握': 2,
+  // WC 英文标签（加性，联赛渲染不受影响）
+  'HIGH': 5, 'MID': 3, 'LOW': 2, 'SKIP': 1,
 };
 
 function getPickType(inf: string): 'AH' | 'OU' | 'WDL' {
