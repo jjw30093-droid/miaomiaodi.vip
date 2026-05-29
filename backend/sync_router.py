@@ -27,7 +27,6 @@ from typing import Any
 from fastapi import APIRouter, Header, HTTPException, Depends, Request
 from pydantic import BaseModel, field_validator
 from auth_deps import get_optional_user, get_current_user, CurrentUser, UserTier
-from cc_client import get_match_payload as _cc_get_match_payload, CCBackendUnavailable
 
 # ──────────────────────────────────────────
 # 🧹 Markdown 去重工具函数
@@ -452,69 +451,103 @@ async def sync_match_payload(payload: MatchPayload):
 async def get_match_payload(
     match_id: str,
     request: Request,
-    user: CurrentUser = Depends(get_optional_user),
+    user: CurrentUser = Depends(get_current_user),
 ):
     """
     读取研报复合 Payload（前端图表消费用）。
 
-    数据流（Phase 2 / 方案 B）：
-      - 研报内容 + 元数据 + 赛后统计 + 阵容确认 + player/team stats 全部由 cc 内部 API 提供
-        （cc_client.get_match_payload，返回扁平 dict）
-      - 市场隐含概率（silver_match_odds）+ 战绩卡（prediction_audit）+ gating（user_unlocks）
-        仍由 vip 本地查询
-      - cc 不可达 → 503
+    设计原则：
+      - report_markdown 始终优先从本地 .md 文件读取（保证内容最新）
+      - npxg_trend / shot_map_data 从 match_payloads 表读取（图表数据）
+      - 元数据（队名、图标等）从 report_store 读取
 
-    权限层：
-      - GUEST → 200，但 report_markdown / inference / 概率字段物理清空
-      - REGISTERED + 付费场 → 200，report_markdown 物理清空
-      - VIP / 免费场 / 已 unlock → 200，全量数据
+    权限层（2026-04-27 上线前硬隔离）：
+      - GUEST → 401（Depends(get_current_user) 自动拒绝）
+      - REGISTERED + 付费场 → 200，但 report_markdown 物理清空
+      - VIP / 免费场 → 200，全量数据
     """
 
     conn = None
     try:
-        # ── 1. 从 cc 内部 API 拉取 build_match_payload 整包（flatten 后扁平 dict）──
+        conn = get_db()
+        ensure_table(conn)
+
+        # ── 1. 从 match_payloads 读取图表及研报数据 ──────────────
+        row = conn.execute(
+            "SELECT report_markdown, npxg_trend, shot_map_data, lineup_impact_data, updated_at "
+            "FROM match_payloads WHERE match_id = ?",
+            [match_id]
+        ).fetchone()
+
+        md_content          = row["report_markdown"]    if row else ""
+        npxg_trend          = row["npxg_trend"]         if row else "{}"
+        shot_map_data       = row["shot_map_data"]      if row else "{}"
+        lineup_impact_raw   = row["lineup_impact_data"] if row else "{}"
+        updated_at          = row["updated_at"]         if row else ""
+
+        # Parse lineup_impact JSON — default to None if empty/malformed
         try:
-            cc_data = _cc_get_match_payload(match_id)
-        except CCBackendUnavailable as e:
-            log.error(f"[SyncRouter] cc unavailable for {match_id}: {e}")
-            raise HTTPException(
-                status_code=503,
-                detail="match service temporarily unavailable, please retry"
+            lineup_impact_data = json.loads(lineup_impact_raw) if lineup_impact_raw and lineup_impact_raw != "{}" else None
+        except (json.JSONDecodeError, TypeError):
+            lineup_impact_data = None
+
+        # ── 2. 多级回退读取 report markdown ──
+        if not md_content:
+            # 2a. 从 report_store.markdown_content 读取（本地推送写入的内容）
+            rs_row = conn.execute(
+                "SELECT markdown_content FROM report_store WHERE match_id = ?",
+                [match_id]
+            ).fetchone()
+            if rs_row and rs_row["markdown_content"]:
+                md_content = rs_row["markdown_content"]
+                log.info(f"[SyncRouter] ✅ Read MD from report_store.markdown_content for {match_id}")
+
+        if not md_content:
+            # 2b. 从 reports/ 目录读取 .md 文件（手动模式回退）
+            reports_dir = os.path.join(
+                os.path.dirname(os.path.abspath(DB_PATH)), "reports"
             )
+            pattern = os.path.join(reports_dir, f"*{match_id}.md")
+            files = glob.glob(pattern)
+            if files:
+                try:
+                    with open(files[0], "r", encoding="utf-8") as f:
+                        md_content = f.read()
+                    log.info(f"[SyncRouter] ✅ Read MD from file: {files[0]}")
+                except Exception as e:
+                    log.warning(f"[SyncRouter] Failed to read MD file for {match_id}: {e}")
 
-        # cc 返回的扁平结构含（顶层 + match_meta 升上来的字段）：
-        #   match_id, report_markdown, npxg_trend, shot_map_data,
-        #   player_stats, team_match_stats, lineup_impact_data,
-        #   lineup_status, lineup_confirmed_at, odds,
-        #   home_team, away_team, home_icon, away_icon,
-        #   home_prob, away_prob, draw_prob, league, match_time, status,
-        #   inference, pipeline_status, preview_content, title,
-        #   match_status, post_match_review, post_match_shots,
-        #   beginner_summary, chart_insights, key_variables, key_risk, is_free
+        # ── 3. 元数据：从 report_store 读取（含 is_free / 概率 / 赛后数据）──
+        meta = conn.execute(
+            """SELECT home_team, away_team, home_icon, away_icon,
+                      match_time, league, status, inference,
+                      home_prob, away_prob, draw_prob,
+                      match_status, post_match_review, post_match_shots,
+                      pipeline_status,
+                      beginner_summary, chart_insights, key_variables, key_risk,
+                      CASE WHEN status='FREE' THEN 1 ELSE is_free END AS is_free
+               FROM report_store WHERE match_id = ?""",
+            [match_id]
+        ).fetchone()
 
-        md_content        = cc_data.get("report_markdown") or ""
-        npxg_trend        = cc_data.get("npxg_trend") or "{}"
-        shot_map_data     = cc_data.get("shot_map_data") or "{}"
-        lineup_impact_raw = cc_data.get("lineup_impact_data") or "{}"
-
-        if isinstance(lineup_impact_raw, dict):
-            lineup_impact_data = lineup_impact_raw if lineup_impact_raw else None
-        else:
-            try:
-                lineup_impact_data = json.loads(lineup_impact_raw) if lineup_impact_raw and lineup_impact_raw != "{}" else None
-            except (json.JSONDecodeError, TypeError):
-                lineup_impact_data = None
-
-        lineup_status       = cc_data.get("lineup_status") or "predicted"
-        lineup_confirmed_at = cc_data.get("lineup_confirmed_at")
-
-        # cc 已含元数据 + 赛后数据 + 结构化字段，扁平 dict 直接当 meta 用
-        meta = cc_data
-
-        if not md_content and not meta.get("home_team"):
+        if not meta and not md_content:
             raise HTTPException(
                 status_code=404, detail=f"match_id={match_id} 不存在"
             )
+
+        # ── 3b. 首发确认状态：从 match_pipeline 读取 ────────────────────────
+        lineup_status = "predicted"
+        lineup_confirmed_at = None
+        try:
+            mp = conn.execute(
+                "SELECT lineup_confirmed_at FROM match_pipeline WHERE match_id = ?",
+                [match_id]
+            ).fetchone()
+            if mp and mp["lineup_confirmed_at"]:
+                lineup_status = "confirmed"
+                lineup_confirmed_at = mp["lineup_confirmed_at"]
+        except Exception:
+            pass  # match_pipeline 可能未建表，静默兜底
 
         # ── 提取公开首发/伤停简报（在权限截断之前）───────────────────────────
         lineup_brief = ""
@@ -532,147 +565,202 @@ async def get_match_payload(
                 parts.append(m_injury.group(1).strip())
             lineup_brief = '\n\n'.join(parts)
 
+        # ── 应用 strip，去除与结构化字段重复的段落 ───────────────────────
         report_narrative = strip_widget_sections(md_content) if md_content else ""
 
         # ── 权限截断 ────────────────────────────────────────────────────────────
-        is_free_match = bool(meta.get("is_free"))
+        is_free_match = bool(meta["is_free"]) if meta else False
+        is_gated      = False   # 标记给前端：此字段被权限截断，非"暂无数据"
+
+        # GUEST：概率与 AI 推荐不下发（前端首页已锁，此处补后端物理截断）
         _hide_probs = user.is_guest
+        _meta_inference = (meta["inference"] if meta else "") if not _hide_probs else ""
+        _home_prob = (meta["home_prob"] if meta else None) if not _hide_probs else None
+        _away_prob = (meta["away_prob"] if meta else None) if not _hide_probs else None
+        _draw_prob = (meta["draw_prob"] if meta else None) if not _hide_probs else None
+
+        # 非 VIP：赛后复盘数据不下发
         _allow_postmatch = user.is_vip
+        _post_review = (meta["post_match_review"] if meta else None) if _allow_postmatch else None
+        _post_shots_raw = (meta["post_match_shots"] if meta else None) if _allow_postmatch else None
 
-        _meta_inference = (meta.get("inference") or "") if not _hide_probs else ""
-        _home_prob = meta.get("home_prob") if not _hide_probs else None
-        _away_prob = meta.get("away_prob") if not _hide_probs else None
-        _draw_prob = meta.get("draw_prob") if not _hide_probs else None
+        # ── 4. 球员 & 球队统计（从 fact 表实时拼入）──────────────────
+        player_stats    = None
+        team_match_stats = None
+        try:
+            mid_int = int(match_id)
 
-        _post_review = meta.get("post_match_review") if _allow_postmatch else None
-        _post_shots_raw = meta.get("post_match_shots") if _allow_postmatch else None
+            # 4a. dim_match → 区分主客队 Team_ID
+            dm = conn.execute(
+                "SELECT Home_Team_ID, Away_Team_ID FROM dim_match WHERE Match_ID = ?",
+                [mid_int]
+            ).fetchone()
 
-        is_gated = True
-        unlock_reason = None
+            if dm:
+                home_tid = dm["Home_Team_ID"]
+                away_tid = dm["Away_Team_ID"]
 
-        if user.is_guest:
-            access_level = "guest"
-        elif user.is_vip:
-            access_level = "vip"
-        else:
-            access_level = "registered"
+                # 4b. 球队整场统计（Period='All'）
+                def _team_stats(team_id):
+                    r = conn.execute("""
+                        SELECT BallPossesion, expected_goals, total_shots,
+                               ShotsOnTarget, big_chance, yellow_cards,
+                               CASE WHEN total_shots > 0
+                                    THEN ROUND(ShotsOnTarget * 100.0 / total_shots, 1)
+                                    ELSE 0 END AS shot_accuracy
+                        FROM fact_team_match_stats
+                        WHERE Match_ID = ? AND Team_ID = ? AND Period = 'All'
+                    """, [mid_int, team_id]).fetchone()
+                    if not r:
+                        return None
+                    return {
+                        "possession":      round(r["BallPossesion"] or 0, 1),
+                        "xg":              round(r["expected_goals"] or 0, 2),
+                        "total_shots":     int(r["total_shots"] or 0),
+                        "shots_on_target": int(r["ShotsOnTarget"] or 0),
+                        "shot_accuracy":   round(r["shot_accuracy"] or 0, 1),
+                        "big_chances":     int(r["big_chance"] or 0),
+                        "corners":         0,
+                        "yellow_cards":    int(r["yellow_cards"] or 0),
+                    }
 
-        if is_free_match:
-            is_gated = False
-            unlock_reason = "free_match"
-        elif user.is_vip:
-            is_gated = False
-            unlock_reason = "vip"
-        elif not user.is_guest and user.user_id:
-            conn = get_db()
-            unlock_row = conn.execute("""
-                SELECT 1 FROM user_unlocks u
-                JOIN users us ON us.username = u.username
-                WHERE us.id = ? AND u.match_id = ?
-                LIMIT 1
-            """, [user.user_id, str(match_id)]).fetchone()
-            if unlock_row:
-                is_gated = False
-                unlock_reason = "single_unlock"
-                access_level = "unlocked"
+                home_ts = _team_stats(home_tid)
+                away_ts = _team_stats(away_tid)
+                if home_ts or away_ts:
+                    team_match_stats = {
+                        "home_team": home_ts or {},
+                        "away_team": away_ts or {},
+                    }
 
-        # cc 已提供 player_stats + team_match_stats，不再查本地 fact_* / dim_match
-        player_stats     = cc_data.get("player_stats")
-        team_match_stats = cc_data.get("team_match_stats")
+                # 4c. 球员列表
+                POS_MAP = {1: "GK", 2: "DF", 3: "MF", 4: "FW", 5: "FW"}
 
-        # 📊 P0: 市场隐含概率（vip 本地 silver_match_odds）
-        if conn is None:
-            conn = get_db()
+                def _player_list(team_id):
+                    rows = conn.execute("""
+                        SELECT p.Player_ID, dp.player_name,
+                               p.is_goalkeeper, p.position_id, p.usual_position,
+                               p.shirt_number, p.is_captain,
+                               p.minutes_played, p.rating_title,
+                               p.goals, p.assists,
+                               p.expected_goals, p.ShotsOnTarget
+                        FROM fact_player_match_stats p
+                        LEFT JOIN dim_player dp ON dp.player_id = CAST(p.Player_ID AS TEXT)
+                        WHERE p.Match_ID = ? AND p.Team_ID = ? AND p.minutes_played > 0
+                        ORDER BY p.minutes_played DESC
+                    """, [mid_int, team_id]).fetchall()
+
+                    result = []
+                    for r in rows:
+                        name = r["player_name"] or f"#{r['Player_ID']}"
+                        # 推断位置
+                        if r["is_goalkeeper"]:
+                            pos = "GK"
+                        elif r["position_id"] and r["position_id"] in POS_MAP:
+                            pos = POS_MAP[r["position_id"]]
+                        elif r["usual_position"]:
+                            pos = str(r["usual_position"]).upper()[:2]
+                        else:
+                            pos = "MF"
+                        result.append({
+                            "player_id":       str(r["Player_ID"]),
+                            "name":            name,
+                            "shirt":           r["shirt_number"] or "",
+                            "position":        pos,
+                            "minutes":         int(r["minutes_played"] or 0),
+                            "rating":          round(float(r["rating_title"] or 0), 2),
+                            "goals":           int(r["goals"] or 0),
+                            "assists":         int(r["assists"] or 0),
+                            "xg":              round(float(r["expected_goals"] or 0), 2),
+                            "shots_on_target": int(r["ShotsOnTarget"] or 0),
+                            "is_captain":      bool(r["is_captain"]),
+                        })
+                    return result
+
+                home_pl = _player_list(home_tid)
+                away_pl = _player_list(away_tid)
+                if home_pl or away_pl:
+                    player_stats = {
+                        "home_team": home_pl,
+                        "away_team": away_pl,
+                    }
+
+        except Exception as e:
+            log.warning(f"[SyncRouter] player/team stats query failed for {match_id}: {e}")
+
+        # 📊 P0: 市场隐含概率（来自 silver_match_odds.fair_*）
         try:
             market_implied_prob = get_market_implied_prob(conn, str(match_id))
         except Exception as e:
             log.warning(f"[SyncRouter] market_implied_prob failed: {e}")
             market_implied_prob = None
 
-        # 🧠 P0: 综合判断卡 — 纯字符串处理 markdown
+        # 🧠 P0: 综合判断卡 — 解析 LLM 综合结论段 + key_variables + key_risk + inference
         try:
             _verdict_parsed = parse_verdict_section(md_content)
         except Exception as e:
             log.warning(f"[SyncRouter] parse_verdict_section failed: {e}")
             _verdict_parsed = None
 
-        # 新手版结构化字段（cc 已提供，但 chart_insights / key_variables 可能是 JSON 字符串）
-        _beginner_summary = meta.get("beginner_summary")
-        _chart_insights_raw = meta.get("chart_insights")
-        if isinstance(_chart_insights_raw, (dict, list)):
-            _chart_insights = _chart_insights_raw
-        else:
-            try:
-                _chart_insights = json.loads(_chart_insights_raw) if _chart_insights_raw else None
-            except (json.JSONDecodeError, TypeError):
-                _chart_insights = None
-        _key_variables_raw = meta.get("key_variables")
-        if isinstance(_key_variables_raw, (dict, list)):
-            _key_variables = _key_variables_raw
-        else:
-            try:
-                _key_variables = json.loads(_key_variables_raw) if _key_variables_raw else None
-            except (json.JSONDecodeError, TypeError):
-                _key_variables = None
-        _key_risk = meta.get("key_risk")
+        # 新手版结构化字段（解析 JSON 字符串列）
+        _beginner_summary = meta["beginner_summary"] if meta else None
+        try:
+            _chart_insights = json.loads(meta["chart_insights"]) if (meta and meta["chart_insights"]) else None
+        except (json.JSONDecodeError, TypeError):
+            _chart_insights = None
+        try:
+            _key_variables = json.loads(meta["key_variables"]) if (meta and meta["key_variables"]) else None
+        except (json.JSONDecodeError, TypeError):
+            _key_variables = None
+        _key_risk = meta["key_risk"] if meta else None
 
-        # 📊 新手版战绩卡（vip 本地 prediction_audit）
+        # 📊 新手版战绩卡：择优近期亚盘/大小球
         try:
             best_recent_stat = calc_best_recent_stat(conn)
         except Exception as e:
             log.warning(f"[SyncRouter] calc_best_recent_stat failed: {e}")
             best_recent_stat = None
 
-        # post_match_shots 兼容 dict / list / JSON 字符串
-        if isinstance(_post_shots_raw, (dict, list)):
-            _post_shots_final = _post_shots_raw
-        elif isinstance(_post_shots_raw, str) and _post_shots_raw:
-            try:
-                _post_shots_final = json.loads(_post_shots_raw)
-            except (json.JSONDecodeError, TypeError):
-                _post_shots_final = None
-        else:
-            _post_shots_final = None
-
         payload = {
-            "match_id":            match_id,
-            "report_markdown":     report_narrative if not is_gated else None,
-            "report_narrative":    report_narrative if not is_gated else None,
-            "lineup_brief":        lineup_brief,
-            "is_gated":            is_gated,
-            "access_level":        access_level,
-            "unlock_reason":       unlock_reason,
-            "preview_content":     meta.get("preview_content"),
-            "is_free":             is_free_match,
-            "npxg_trend":          npxg_trend,
-            "shot_map_data":       shot_map_data,
-            "updated_at":          "",
-            "home_team":           meta.get("home_team") or "",
-            "away_team":           meta.get("away_team") or "",
-            "home_icon":           meta.get("home_icon") or "",
-            "away_icon":           meta.get("away_icon") or "",
-            "match_time":          meta.get("match_time") or "",
-            "league":              meta.get("league") or "",
-            "inference":           _meta_inference,
-            "home_prob":           _home_prob,
-            "away_prob":           _away_prob,
-            "draw_prob":           _draw_prob,
-            "player_stats":        player_stats,
-            "team_match_stats":    team_match_stats,
-            "match_status":        meta.get("match_status") or "upcoming",
-            "pipeline_status":     meta.get("pipeline_status"),
-            "post_match_review":   _post_review,
-            "post_match_shots":    _post_shots_final,
-            "lineup_impact_data":  lineup_impact_data,
-            "lineup_status":       lineup_status,
-            "lineup_confirmed_at": lineup_confirmed_at,
-            "best_recent_stat":    best_recent_stat,
-            "beginner_summary":    _beginner_summary,
-            "chart_insights":      _chart_insights,
-            "key_variables":       _key_variables,
-            "key_risk":            _key_risk,
-            "market_implied_prob": market_implied_prob,
-            "verdict_summary":     _verdict_parsed,
+            "match_id":        match_id,
+            "report_markdown": report_narrative if not is_gated else None,   # stripped 版本
+            "report_narrative": report_narrative if not is_gated else None,  # 新字段（同值）
+            "lineup_brief":    lineup_brief,  # 公开：首发/伤停简报（不受权限截断）
+            "is_gated":        is_gated,
+            "is_free":         is_free_match,
+            "npxg_trend":      npxg_trend,
+            "shot_map_data":   shot_map_data,
+            "updated_at":      updated_at,
+            "home_team":       meta["home_team"]   if meta else "",
+            "away_team":       meta["away_team"]   if meta else "",
+            "home_icon":       meta["home_icon"]   if meta else "",
+            "away_icon":       meta["away_icon"]   if meta else "",
+            "match_time":      meta["match_time"]  if meta else "",
+            "league":          meta["league"]      if meta else "",
+            "inference":       _meta_inference,
+            "home_prob":       _home_prob,
+            "away_prob":       _away_prob,
+            "draw_prob":       _draw_prob,
+            "player_stats":    player_stats,
+            "team_match_stats": team_match_stats,
+            "match_status":      meta["match_status"] if meta else "upcoming",
+            "pipeline_status":   meta["pipeline_status"] if meta else None,  # PRE_MATCH_READY / FINAL_REPORT_READY / ARCHIVED
+            "post_match_review":  _post_review,
+            "post_match_shots":   (
+                json.loads(_post_shots_raw)
+                if _post_shots_raw
+                else None
+            ),
+            "lineup_impact_data": lineup_impact_data,  # LineupImpact | None (public, no VIP gate)
+            "lineup_status":      lineup_status,        # "confirmed" | "predicted"
+            "lineup_confirmed_at": lineup_confirmed_at, # ISO timestamp | None
+            "best_recent_stat":   best_recent_stat,    # beginner card payload
+            "beginner_summary":   _beginner_summary,   # LLM 大白话一句话（可能为 None，前端 fallback）
+            "chart_insights":     _chart_insights,     # dict | None — 各图表解读
+            "key_variables":      _key_variables,      # list[str] | None — 关键变量 3 条
+            "key_risk":           _key_risk,           # str | None — 一句话风险点
+            # 🆕 P0
+            "market_implied_prob": market_implied_prob,  # {home,draw,away} % | None
+            "verdict_summary":     _verdict_parsed,      # {attack/defense/form/core_logic} | None — 综合判断卡聚合字段
         }
 
         from name_translator import translate_team, translate_player_stats
@@ -683,7 +771,7 @@ async def get_match_payload(
                 payload["player_stats"]["home_team"] = translate_player_stats(payload["player_stats"]["home_team"])
             if "away_team" in payload["player_stats"]:
                 payload["player_stats"]["away_team"] = translate_player_stats(payload["player_stats"]["away_team"])
-
+                
         return payload
 
     finally:

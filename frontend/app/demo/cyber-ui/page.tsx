@@ -13,7 +13,7 @@ export default function CyberUIDemo() {
       
       <header className="relative z-20 pt-24 pb-12 px-12 text-center max-w-4xl mx-auto">
         <h1 className="text-editorial text-5xl md:text-8xl font-black italic uppercase tracking-tighter text-primary">
-          足球数研所
+          喵弟数据研究室
         </h1>
         <p className="mt-6 text-utility text-lg opacity-60 tracking-[0.2em] font-light uppercase">
           AI-Driven Quantitative Intelligence

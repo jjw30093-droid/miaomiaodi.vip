@@ -60,11 +60,14 @@ if os.path.exists(_env_path):
 
 def _load_fixture(conn: sqlite3.Connection, fixture_id: int) -> Optional[dict]:
     row = conn.execute("""
-        SELECT sportmonks_id, starting_at,
-               home_team_sportmonks_id, away_team_sportmonks_id,
-               home_team_name, away_team_name
-        FROM   wc_fixtures
-        WHERE  sportmonks_id = ?
+        SELECT f.sportmonks_id, f.starting_at,
+               f.home_team_sportmonks_id, f.away_team_sportmonks_id,
+               COALESCE(NULLIF(f.placeholder_home,''), ht.name, '主队') AS home_team_name,
+               COALESCE(NULLIF(f.placeholder_away,''), at.name, '客队') AS away_team_name
+        FROM   wc_fixtures f
+        LEFT   JOIN wc_teams ht ON ht.sportmonks_id = f.home_team_sportmonks_id
+        LEFT   JOIN wc_teams [at] ON [at].sportmonks_id = f.away_team_sportmonks_id
+        WHERE  f.sportmonks_id = ?
     """, (fixture_id,)).fetchone()
     return dict(row) if row else None
 

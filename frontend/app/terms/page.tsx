@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: '服务条款 | 足球数研所',
-  description: '足球数研所用户服务条款，包含免责声明、账号安全、订阅政策及第三方依赖说明。',
+  title: '服务条款 | 喵弟数据研究室',
+  description: '喵弟数据研究室用户服务条款，包含免责声明、账号安全、订阅政策及第三方依赖说明。',
 };
 
 export default function TermsPage() {
@@ -19,7 +19,7 @@ export default function TermsPage() {
             ← 返回
           </Link>
           <span className="text-slate-600">|</span>
-          <span className="text-xs text-slate-500 font-mono">足球数研所</span>
+          <span className="text-xs text-slate-500 font-mono">喵弟数据研究室</span>
         </div>
       </div>
 
@@ -33,13 +33,13 @@ export default function TermsPage() {
           <h1 className="text-2xl font-black text-white leading-tight mb-2">
             服务条款
           </h1>
-          <p className="text-sm text-slate-500 font-mono">Terms of Service · miaomiaodi.vip</p>
+          <p className="text-sm text-slate-500 font-mono">Terms of Service · miaomiaodi.cc</p>
         </header>
 
         {/* 引言 */}
         <div className="mb-8 p-4 rounded-xl border border-white/5 bg-white/[0.02]">
           <p className="text-sm leading-7 text-slate-400">
-            欢迎来到<span className="text-white font-semibold">足球数研所</span> (miaomiaodi.vip)。
+            欢迎来到<span className="text-white font-semibold">喵弟数据研究室</span> (miaomiaodi.cc)。
             在使用我们的数据服务前，请花两分钟了解我们的规则。使用本网站，即代表你同意以下条款：
           </p>
         </div>
@@ -109,7 +109,7 @@ export default function TermsPage() {
 
         {/* 底部分割 */}
         <div className="mt-12 pt-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-xs text-slate-600 font-mono">© 2025 足球数研所</p>
+          <p className="text-xs text-slate-600 font-mono">© 2025 喵弟数据研究室</p>
           <div className="flex items-center gap-4">
             <span className="text-xs text-slate-600">当前页面</span>
             <Link href="/privacy" className="text-xs text-[#00ffc3]/60 hover:text-[#00ffc3] transition-colors">

@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: '隐私政策 | 足球数研所',
-  description: '足球数研所隐私政策，说明我们收集哪些信息、如何使用及与第三方的数据共享范围。',
+  title: '隐私政策 | 喵弟数据研究室',
+  description: '喵弟数据研究室隐私政策，说明我们收集哪些信息、如何使用及与第三方的数据共享范围。',
 };
 
 export default function PrivacyPage() {
@@ -19,7 +19,7 @@ export default function PrivacyPage() {
             ← 返回
           </Link>
           <span className="text-slate-600">|</span>
-          <span className="text-xs text-slate-500 font-mono">足球数研所</span>
+          <span className="text-xs text-slate-500 font-mono">喵弟数据研究室</span>
         </div>
       </div>
 
@@ -33,7 +33,7 @@ export default function PrivacyPage() {
           <h1 className="text-2xl font-black text-white leading-tight mb-2">
             🔒 隐私政策
           </h1>
-          <p className="text-sm text-slate-500 font-mono">Privacy Policy · miaomiaodi.vip</p>
+          <p className="text-sm text-slate-500 font-mono">Privacy Policy · miaomiaodi.cc</p>
         </header>
 
         {/* 引言 */}
@@ -121,7 +121,7 @@ export default function PrivacyPage() {
 
         {/* 底部分割 */}
         <div className="mt-12 pt-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-xs text-slate-600 font-mono">© 2025 足球数研所</p>
+          <p className="text-xs text-slate-600 font-mono">© 2025 喵弟数据研究室</p>
           <div className="flex items-center gap-4">
             <Link href="/terms" className="text-xs text-[#baff00]/60 hover:text-[#baff00] transition-colors">
               ← 服务条款

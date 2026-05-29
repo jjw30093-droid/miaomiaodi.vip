@@ -48,7 +48,7 @@ const MatchHeader: React.FC<MatchHeaderProps> = ({
             />
           </div>
           <h1 className="text-sm font-headline font-black italic tracking-wider text-foreground/80">
-            足球数研所 · <span className="text-primary-container">核心研报</span>
+            喵弟数据研究室 · <span className="text-primary-container">核心研报</span>
           </h1>
         </div>
         <div className="flex items-center gap-3 opacity-40">
