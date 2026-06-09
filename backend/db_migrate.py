@@ -32,6 +32,9 @@ def run_migrations(db_path: str = DB_PATH) -> None:
         _create_orders_table(conn)
         _seed_base_products(conn)
         _seed_worldcup_products(conn)
+        # ── Phase 5: Stripe 套餐权益（Migration 9）───────────────────────────
+        _create_user_entitlements_table(conn)
+        _fix_wc_product_names(conn)
         conn.commit()
         log.info("[Migrations] ✅ All migrations applied successfully.")
     finally:
@@ -407,3 +410,70 @@ def _seed_worldcup_products(conn: sqlite3.Connection) -> None:
         ]
     )
     log.info("[Migrations] World Cup product SKUs seeded (OR IGNORE).")
+
+
+# ─────────────────────────────────────────────────────────────
+# Migration 9a: user_entitlements（套餐阶段性权益）
+# ─────────────────────────────────────────────────────────────
+
+def _create_user_entitlements_table(conn: sqlite3.Connection) -> None:
+    """
+    套餐权益表：Stripe 支付成功后写入，gating 层查此表放行。
+
+    scope_kind='stage'      → scope_value='group_stage'|'knockout'（阶段性匹配）
+    scope_kind='date_range' → covers_from/covers_to UTC 窗口（上/下半段套餐）
+    username 去规范化：gating 读 JOIN users.username（旧约束），新写路径从 users 取。
+    UNIQUE(user_id, sku, season) 保证 webhook 幂等（INSERT OR IGNORE）。
+    """
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS user_entitlements (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id         INTEGER NOT NULL,
+            username        TEXT    NOT NULL,
+            sku             TEXT    NOT NULL,
+            scope_kind      TEXT    NOT NULL,
+            scope_value     TEXT,
+            season          TEXT    NOT NULL DEFAULT '2026',
+            competition     TEXT    NOT NULL DEFAULT 'wc',
+            covers_from     TEXT,
+            covers_to       TEXT,
+            source_order_no TEXT    NOT NULL,
+            granted_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            expires_at      TIMESTAMP,
+            revoked_at      TIMESTAMP,
+            UNIQUE(user_id, sku, season),
+            FOREIGN KEY(user_id) REFERENCES users(id)
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_entitlements_user_active
+          ON user_entitlements(user_id, competition, season)
+    """)
+    log.info("[Migrations] user_entitlements table ensured (Migration 9a).")
+
+
+# ─────────────────────────────────────────────────────────────
+# Migration 9b: 修正 WC 套餐 SKU 场次数（72/32 真实数字）
+# ─────────────────────────────────────────────────────────────
+
+def _fix_wc_product_names(conn: sqlite3.Connection) -> None:
+    """
+    2026 世界杯：小组赛 72 场，淘汰赛 32 场（含 R32→决赛）。
+    原名称 48/16 与实际不符，修正为真实场次。
+    metadata 同步更新 match_count，价格不变。
+    """
+    conn.execute("""
+        UPDATE products
+           SET name='世界杯小组赛全包(72场)',
+               metadata='{"scope":"group_stage","match_count":72}'
+         WHERE sku='wc_group_pack'
+           AND name='世界杯小组赛全包(48场)'
+    """)
+    conn.execute("""
+        UPDATE products
+           SET name='世界杯淘汰赛通票(32场)',
+               metadata='{"scope":"knockout","match_count":32}'
+         WHERE sku='wc_ko_pack'
+           AND name='世界杯淘汰赛通票(16场)'
+    """)
+    log.info("[Migrations] WC product names corrected to 72/32 (Migration 9b).")

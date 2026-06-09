@@ -106,14 +106,36 @@ def _load_wc_report(match_id: str) -> Optional[dict]:
 # Gating（[REUSE-IMPORT] 复用逻辑，不重写）
 # ──────────────────────────────────────────────────────────────────────────────
 
+def _resolve_wc_match_context(wc_conn, fixture_id: int) -> dict:
+    """
+    从 worldcup.db 解析场次的阶段（stage_scope）和开球时间（kickoff_utc）。
+    用 wc_stages.sort_order 判断阶段（1=group_stage，>1=knockout）。
+    结果不缓存（调用频率低，场次不变），但 try/except fail-closed。
+    """
+    try:
+        row = wc_conn.execute("""
+            SELECT f.starting_at, s.sort_order, s.name AS stage_name
+            FROM   wc_fixtures f
+            JOIN   wc_stages   s ON s.sportmonks_id = f.stage_sportmonks_id
+            WHERE  f.sportmonks_id = ?
+        """, (fixture_id,)).fetchone()
+        if row:
+            stage_scope = "group_stage" if row["sort_order"] == 1 else "knockout"
+            return {"stage_scope": stage_scope, "kickoff_utc": row["starting_at"] or ""}
+    except Exception as e:
+        log.warning(f"[wc_router] _resolve_wc_match_context failed fixture={fixture_id}: {e}")
+    return {"stage_scope": None, "kickoff_utc": None}
+
+
 def _check_gating(match_id: str, is_free: bool, user: CurrentUser) -> tuple[bool, str, str]:
     """
     返回 (is_gated, access_level, unlock_reason)。
 
-    复用联赛 gating 三步：
+    四步放行逻辑（顺序不可改）：
       1. is_free → 放行
       2. user.is_vip → 放行
-      3. REGISTERED + user_unlocks 命中 → 放行
+      3. REGISTERED + user_unlocks 命中（单场解锁）→ 放行
+      4. REGISTERED + user_entitlements 命中（套餐权益）→ 放行（fail-closed）
     """
     is_gated: bool = True
     unlock_reason: Optional[str] = None
@@ -132,7 +154,7 @@ def _check_gating(match_id: str, is_free: bool, user: CurrentUser) -> tuple[bool
         is_gated = False
         unlock_reason = "vip"
     elif not user.is_guest and user.user_id:
-        # 检查 user_unlocks（football_uk.db，与联赛相同逻辑）
+        # 步骤 3：单场解锁（user_unlocks）
         try:
             conn = _get_main_conn()
             row = conn.execute("""
@@ -148,6 +170,45 @@ def _check_gating(match_id: str, is_free: bool, user: CurrentUser) -> tuple[bool
                 access_level = "unlocked"
         except Exception as e:
             log.warning(f"[wc_router] user_unlocks query failed: {e}")
+
+        # 步骤 4：套餐权益（user_entitlements）— fail-closed
+        if is_gated:
+            try:
+                # 解析场次阶段与开球时间（从 worldcup.db）
+                fixture_id = int(match_id[3:]) if match_id.startswith("wc_") else 0
+                wc_conn = _get_wc_conn()
+                ctx = _resolve_wc_match_context(wc_conn, fixture_id)
+                wc_conn.close()
+
+                stage_scope  = ctx.get("stage_scope")
+                kickoff_utc  = ctx.get("kickoff_utc") or ""
+
+                main_conn = _get_main_conn()
+                ent_row = main_conn.execute("""
+                    SELECT 1 FROM user_entitlements
+                    WHERE user_id = ?
+                      AND competition = 'wc'
+                      AND season = '2026'
+                      AND revoked_at IS NULL
+                      AND (expires_at IS NULL OR datetime(expires_at) > datetime('now'))
+                      AND (
+                            (scope_kind = 'stage'
+                             AND scope_value = ?)
+                         OR (scope_kind = 'date_range'
+                             AND datetime(?) >= datetime(covers_from)
+                             AND datetime(?) <  datetime(covers_to))
+                      )
+                    LIMIT 1
+                """, (user.user_id, stage_scope, kickoff_utc, kickoff_utc)).fetchone()
+                main_conn.close()
+
+                if ent_row:
+                    is_gated = False
+                    unlock_reason = "package"
+                    access_level = "unlocked"
+            except Exception as e:
+                # fail-closed：出错保持 is_gated=True，不泄露内容
+                log.warning(f"[wc_router] entitlement check failed match={match_id}: {e}")
 
     return is_gated, access_level, unlock_reason or ""
 

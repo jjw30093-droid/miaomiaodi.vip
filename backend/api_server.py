@@ -20,6 +20,7 @@ from model_health_router import router as model_health_router
 from products_router import router as products_router
 from orders_router import router as orders_router
 from wc_router import router as wc_router  # 世界杯专用研报端点（硬隔离）
+from stripe_router import router as stripe_router  # Stripe 支付（checkout/webhook/admin）
 from auth_deps import get_current_user, CurrentUser
 from fastapi import Depends
 from db_migrate import run_migrations
@@ -135,7 +136,8 @@ app.include_router(user_router)
 app.include_router(model_health_router)
 app.include_router(products_router, prefix="/api/v1", tags=["Products"])
 app.include_router(orders_router, prefix="/api/v1", tags=["Orders"])
-app.include_router(wc_router)  # GET /api/v1/wc/match_payload/{match_id}
+app.include_router(wc_router)   # GET /api/v1/wc/match_payload/{match_id}
+app.include_router(stripe_router, prefix="/api/v1")  # Stripe: /payments/stripe/checkout, /webhooks/stripe, /admin/orders/{no}/fulfill
 
 
 # ==========================================

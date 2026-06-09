@@ -2,8 +2,9 @@
 orders_router.py — 订单创建 + 查询接口
 
 路由：
-  POST /api/v1/orders  — 创建待支付订单（需登录）
-  GET  /api/v1/orders  — 查我的订单列表（需登录）
+  POST /api/v1/orders              — 创建待支付订单（需登录）
+  GET  /api/v1/orders              — 查我的订单列表（需登录）
+  GET  /api/v1/orders/pending      — 查未过期 pending 订单
 """
 
 import os
@@ -22,6 +23,44 @@ router = APIRouter(tags=["Orders"])
 
 _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.environ.get("DB_PATH", os.path.join(_THIS_DIR, "football_uk.db"))
+WC_DB_PATH = os.environ.get("WC_DB_PATH", os.path.join(_THIS_DIR, "worldcup.db"))
+
+
+def _get_wc_conn() -> sqlite3.Connection:
+    """worldcup.db 连接，用于 WC 场次存在性验证。"""
+    conn = sqlite3.connect(WC_DB_PATH, timeout=5)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def _wc_report_exists(match_id: str) -> dict:
+    """
+    检查 wc_reports 表中 match_id 是否有研报。
+    绕开 cc_client，避免 WC 场次收到 503。
+    返回 {exists: bool, is_free: bool, match_time: str|None}。
+    """
+    try:
+        conn = _get_wc_conn()
+        row = conn.execute(
+            "SELECT is_free, match_time FROM wc_reports WHERE match_id=?",
+            (match_id,)
+        ).fetchone()
+        conn.close()
+        if row:
+            return {"exists": True, "is_free": bool(row["is_free"]), "match_time": row["match_time"]}
+        # 未生成研报时也允许下单（研报可能还在生成中）
+        # 改为检查 wc_fixtures 确认场次是否真实存在
+        conn = _get_wc_conn()
+        fx = conn.execute(
+            "SELECT sportmonks_id FROM wc_fixtures WHERE sportmonks_id=?",
+            (int(match_id[3:]),)
+        ).fetchone()
+        conn.close()
+        return {"exists": bool(fx), "is_free": False, "match_time": None}
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"[orders] wc check failed: {e}")
+        return {"exists": False, "is_free": False, "match_time": None}
 
 
 def _get_conn() -> sqlite3.Connection:
@@ -64,17 +103,22 @@ async def create_order(
         if product["type"] == "single_match":
             if not body.match_id:
                 raise HTTPException(status_code=400, detail="match_id is required for single_match products")
-            # Phase 2: 校验比赛存在性走 cc 内部 API（vip 本地 report_store 已冻结在 5/18）
-            try:
-                cc_check = _cc_report_exists(str(body.match_id))
-            except CCBackendUnavailable as e:
-                # cc 不可达 → 拒绝下单，避免脏数据触发悬空订单
-                raise HTTPException(
-                    status_code=503,
-                    detail="match service temporarily unavailable, please retry"
-                )
-            if not cc_check.get("exists"):
-                raise HTTPException(status_code=404, detail="Match not found")
+            # WC 场次：直接查 worldcup.db，不走 cc_client（避免 wc_ id 返回 503）
+            if str(body.match_id).startswith("wc_"):
+                wc_check = _wc_report_exists(str(body.match_id))
+                if not wc_check.get("exists"):
+                    raise HTTPException(status_code=404, detail="WC match not found")
+            else:
+                # 联赛场次：走 cc 内部 API
+                try:
+                    cc_check = _cc_report_exists(str(body.match_id))
+                except CCBackendUnavailable:
+                    raise HTTPException(
+                        status_code=503,
+                        detail="match service temporarily unavailable, please retry"
+                    )
+                if not cc_check.get("exists"):
+                    raise HTTPException(status_code=404, detail="Match not found")
             # 防重复购买：同 user + match_id 已有 paid 或未过期 pending 订单
             dup = conn.execute(
                 """SELECT id, status FROM orders

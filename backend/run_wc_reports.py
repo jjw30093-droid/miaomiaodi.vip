@@ -59,12 +59,21 @@ if os.path.exists(_env_path):
 # ──────────────────────────────────────────────────────────────────────────────
 
 def _load_fixture(conn: sqlite3.Connection, fixture_id: int) -> Optional[dict]:
+    # A1 fix: home_team_name/away_team_name 不存在于 wc_fixtures，JOIN wc_teams 取名
+    # match_label 兜底（占位赛程或团队名缺失时）
     row = conn.execute("""
-        SELECT sportmonks_id, starting_at,
-               home_team_sportmonks_id, away_team_sportmonks_id,
-               home_team_name, away_team_name
-        FROM   wc_fixtures
-        WHERE  sportmonks_id = ?
+        SELECT f.sportmonks_id,
+               f.starting_at,
+               f.home_team_sportmonks_id,
+               f.away_team_sportmonks_id,
+               COALESCE(ht.name, f.placeholder_home, f.match_label, '主队') AS home_team_name,
+               COALESCE(at.name, f.placeholder_away, f.match_label, '客队') AS away_team_name,
+               f.match_label,
+               f.is_placeholder
+        FROM   wc_fixtures f
+        LEFT   JOIN wc_teams ht ON ht.sportmonks_id = f.home_team_sportmonks_id
+        LEFT   JOIN wc_teams at ON at.sportmonks_id = f.away_team_sportmonks_id
+        WHERE  f.sportmonks_id = ?
     """, (fixture_id,)).fetchone()
     return dict(row) if row else None
 
@@ -183,10 +192,16 @@ def generate_wc_report(
 
         # ── 6. 量化基准线（Python 生成，LLM 不得重算） ───────────────────────
         from wc_workflow import build_prebuilt_quant_section  # type: ignore
+        # 把 n_books/divergence 从 prediction 顶层补入 wdl dict，供 quant_section 显示
+        wdl_for_quant = {
+            **prediction["wdl"],
+            "n_books":   prediction.get("n_books_wdl", 0),
+            "divergence": prediction.get("divergence", 0.0),
+        }
         quant_section = build_prebuilt_quant_section(
             home_name   = home_name,
             away_name   = away_name,
-            wdl         = prediction["wdl"],
+            wdl         = wdl_for_quant,
             ou          = prediction["ou"],
             ah          = ah_implied or None,
             single_pick = single_pick,
