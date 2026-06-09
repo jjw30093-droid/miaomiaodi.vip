@@ -8,7 +8,6 @@ from minio_service import MinioUploader, process_markdown_images
 from db import get_conn
 from name_translator import translate_team
 from auth_deps import get_optional_user, get_current_user, CurrentUser
-import cc_client
 router = APIRouter(prefix="/api/v1", tags=["Premium Reports"])
 
 DB_PATH = os.environ.get("DB_PATH") or "/home/ubuntu/app/backend/football_uk.db"
@@ -20,27 +19,6 @@ minio_uploader = MinioUploader()
 
 def get_db_conn():
     return get_conn(DB_PATH)
-
-
-def _compute_daily_free_id(rows: list) -> Optional[str]:
-    """
-    从 cc 返回的 rows 列表（list of dict）中筛出今日免费场 match_id。
-    算法：UTC 当日窗口（CST 当天 00:00-23:59 = UTC 前一天 16:00 ~ 当天 15:59）内
-    match_time 最早的一条。
-    """
-    now_cst = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=8)
-    utc_start = (now_cst.replace(hour=0, minute=0, second=0) - timedelta(hours=8)).strftime("%Y-%m-%d %H:%M:%S")
-    utc_end   = (now_cst.replace(hour=23, minute=59, second=59) - timedelta(hours=8)).strftime("%Y-%m-%d %H:%M:%S")
-    candidates = [
-        r for r in rows
-        if r.get("match_time") and utc_start <= r["match_time"] <= utc_end
-        and r.get("home_team") != "Home" and r.get("away_team") != "Away"
-    ]
-    if not candidates:
-        return None
-    earliest = min(candidates, key=lambda r: r["match_time"])
-    return str(earliest["match_id"])
-
 
 @router.get("/report/{match_id}")
 async def get_premium_report(
@@ -125,17 +103,31 @@ async def get_latest_reports(user: CurrentUser = Depends(get_optional_user)):
     conn = get_db_conn()
     cursor = conn.cursor()
     try:
-        # Phase 2: 数据来源改为 cc 内部 API（vip 本地 report_store 已冻结在 5/18）
-        try:
-            rows_raw = cc_client.get_latest(limit=150)
-        except cc_client.CCBackendUnavailable as e:
-            raise HTTPException(status_code=503, detail="match service temporarily unavailable, please retry")
+        # 1) 先算 daily_free_id（提前到循环前，避免顺序耦合）
+        now_cst = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=8)
+        utc_start = (now_cst.replace(hour=0, minute=0, second=0) - timedelta(hours=8)).strftime("%Y-%m-%d %H:%M:%S")
+        utc_end   = (now_cst.replace(hour=23, minute=59, second=59) - timedelta(hours=8)).strftime("%Y-%m-%d %H:%M:%S")
+        free_row = conn.execute("""
+            SELECT match_id FROM report_store
+            WHERE match_time BETWEEN ? AND ?
+              AND home_team != 'Home' AND away_team != 'Away'
+            ORDER BY match_time ASC LIMIT 1
+        """, [utc_start, utc_end]).fetchone()
+        daily_free_id = str(free_row["match_id"]) if free_row else None
 
-        # daily_free_id 在内存中筛（同算法：UTC 当日窗口最早一场）
-        daily_free_id = _compute_daily_free_id(rows_raw)
-
-        # 适配字段名（cc 返回 match_id，原逻辑后续 for 循环用 r["id"]）
-        rows = [{**r, "id": r["match_id"]} for r in rows_raw]
+        # 2) 拉数据
+        cursor.execute("""
+            SELECT
+                match_id as id, title, home_team, away_team,
+                home_icon, away_icon, home_prob, away_prob, draw_prob,
+                league, match_time, status, inference, pipeline_status,
+                COALESCE(is_pinned, 0) as is_pinned
+            FROM report_store
+            WHERE home_team != 'Home' AND away_team != 'Away'
+            ORDER BY match_time DESC
+            LIMIT 150
+        """)
+        rows = cursor.fetchall()
 
         matches = []
         for r in rows:
@@ -204,12 +196,24 @@ async def get_latest_reports(user: CurrentUser = Depends(get_optional_user)):
 @router.get("/reports/daily_free_id")
 async def get_daily_free_id(user: CurrentUser = Depends(get_current_user)):
     """返回今日免费场次 match_id（当天 match_time 最早的 UPCOMING 比赛）。需登录访问。"""
-    # Phase 2: 数据来源改为 cc 内部 API，daily_free_id 在内存中筛
+    conn = get_db_conn()
     try:
-        rows = cc_client.get_latest(limit=150)
-    except cc_client.CCBackendUnavailable as e:
-        raise HTTPException(status_code=503, detail="match service temporarily unavailable, please retry")
-    return {"free_match_id": _compute_daily_free_id(rows)}
+        now_cst = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=8)
+        today_str = now_cst.strftime("%Y-%m-%d")
+        # match_time 以 UTC 存储，用 UTC 窗口等效本日 CST 范围
+        # CST 今日 00:00 = UTC 前一天 16:00; CST 今日 23:59 = UTC 今天 15:59
+        utc_start = (now_cst.replace(hour=0, minute=0, second=0) - timedelta(hours=8)).strftime("%Y-%m-%d %H:%M:%S")
+        utc_end   = (now_cst.replace(hour=23, minute=59, second=59) - timedelta(hours=8)).strftime("%Y-%m-%d %H:%M:%S")
+        row = conn.execute("""
+            SELECT match_id FROM report_store
+            WHERE match_time BETWEEN ? AND ?
+              AND home_team != 'Home' AND away_team != 'Away'
+            ORDER BY match_time ASC
+            LIMIT 1
+        """, [utc_start, utc_end]).fetchone()
+        return {"free_match_id": str(row["match_id"]) if row else None}
+    finally:
+        conn.close()
 
 
 @router.get("/strategies/equity_curves")
@@ -235,11 +239,18 @@ async def get_archive_leagues(
 ):
     """归档库中所有出现过的联赛名称（用于前端下拉选择器）。"""
     _ = user
-    # Phase 2: 数据来源改为 cc 内部 API（vip 本地 report_store 已冻结在 5/18）
+    conn = get_db_conn()
     try:
-        return cc_client.get_archive_leagues()
-    except cc_client.CCBackendUnavailable as e:
-        raise HTTPException(status_code=503, detail="match service temporarily unavailable, please retry")
+        rows = conn.execute("""
+            SELECT DISTINCT league FROM report_store
+            WHERE is_archived = 1 AND league IS NOT NULL AND league != ''
+            ORDER BY league
+        """).fetchall()
+        return [r["league"] for r in rows]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
 
 
 @router.get("/reports/archive")
@@ -258,33 +269,64 @@ async def get_archived_reports(
       - REGISTERED / VIP → 200，含 inference
     """
     _ = user  # 强制鉴权，user 对象本身列表查询不需要
-    # Phase 2: 数据来源改为 cc 内部 API（vip 本地 report_store 已冻结在 5/18）
-    # cc 端默认 is_archived=1；league 多值 / 日期区间筛选已在 cc 端等价支持
+    conn = get_db_conn()
+    cursor = conn.cursor()
     try:
-        cc_resp = cc_client.get_archive(
-            page=page,
-            per_page=per_page,
-            league=league,
-            start_date=start_date,
-            end_date=end_date,
-        )
-    except cc_client.CCBackendUnavailable as e:
-        raise HTTPException(status_code=503, detail="match service temporarily unavailable, please retry")
+        # 动态拼 WHERE 条件
+        conditions: list[str] = ["is_archived = 1"]
+        params: list = []
 
-    items = cc_resp.get("items", [])
-    return {
-        "total":   cc_resp.get("total", 0),
-        "page":    page,
-        "perPage": per_page,
-        "data": [{
-            "id":              r.get("match_id"),
-            "league":          r.get("league"),
-            "time":            r.get("match_time"),
-            "createdAt":       r.get("created_at"),
-            "status":          r.get("pipeline_status") or r.get("status"),
-            "pipeline_status": r.get("pipeline_status"),
-            "inference":       r.get("inference"),
-            "homeTeam":        {"name": translate_team(r.get("home_team")), "icon": r.get("home_icon")},
-            "awayTeam":        {"name": translate_team(r.get("away_team")), "icon": r.get("away_icon")},
-        } for r in items]
-    }
+        if league:
+            # 支持逗号分隔多值（用于把"J联赛"映射到 East+West 两个英文变体）
+            league_list = [s.strip() for s in league.split(",") if s.strip()]
+            if len(league_list) == 1:
+                conditions.append("league = ?")
+                params.append(league_list[0])
+            elif len(league_list) > 1:
+                placeholders = ",".join(["?"] * len(league_list))
+                conditions.append(f"league IN ({placeholders})")
+                params.extend(league_list)
+        if start_date:
+            conditions.append("DATE(match_time) >= ?")
+            params.append(start_date)
+        if end_date:
+            conditions.append("DATE(match_time) <= ?")
+            params.append(end_date)
+
+        where = " AND ".join(conditions)
+        offset = (page - 1) * per_page
+
+        cursor.execute(
+            f"SELECT COUNT(*) as n FROM report_store WHERE {where}",
+            params,
+        )
+        total = cursor.fetchone()["n"]
+
+        cursor.execute(
+            f"""SELECT match_id as id, home_team, away_team, home_icon, away_icon,
+                       league, match_time, status, inference, pipeline_status, created_at
+                FROM report_store
+                WHERE {where}
+                ORDER BY match_time DESC
+                LIMIT ? OFFSET ?""",
+            params + [per_page, offset],
+        )
+        rows = cursor.fetchall()
+        return {
+            "total": total, "page": page, "perPage": per_page,
+            "data": [{
+                "id":              r["id"],
+                "league":          r["league"],
+                "time":            r["match_time"],
+                "createdAt":       r["created_at"],
+                "status":          r["pipeline_status"] or r["status"],
+                "pipeline_status": r["pipeline_status"],
+                "inference":       r["inference"],
+                "homeTeam":        {"name": translate_team(r["home_team"]), "icon": r["home_icon"]},
+                "awayTeam":        {"name": translate_team(r["away_team"]), "icon": r["away_icon"]},
+            } for r in rows]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()

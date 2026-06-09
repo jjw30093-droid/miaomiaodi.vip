@@ -33,8 +33,7 @@ export default function Footer() {
             隐私政策
           </Link>
         </div>
-        <span className="text-xs text-gray-600 font-mono">© 2025 足球数研所</span>
-        <span className="text-xs text-gray-700 font-mono">足球数研所 · 数据研究订阅服务 · 不提供投注建议</span>
+        <span className="text-xs text-gray-600 font-mono">© 2025 喵弟数据研究室</span>
       </div>
     </footer>
   );

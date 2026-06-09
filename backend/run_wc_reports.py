@@ -67,12 +67,12 @@ def _load_fixture(conn: sqlite3.Connection, fixture_id: int) -> Optional[dict]:
                f.home_team_sportmonks_id,
                f.away_team_sportmonks_id,
                COALESCE(ht.name, f.placeholder_home, f.match_label, '主队') AS home_team_name,
-               COALESCE(at.name, f.placeholder_away, f.match_label, '客队') AS away_team_name,
+               COALESCE(away_t.name, f.placeholder_away, f.match_label, '客队') AS away_team_name,
                f.match_label,
                f.is_placeholder
         FROM   wc_fixtures f
         LEFT   JOIN wc_teams ht ON ht.sportmonks_id = f.home_team_sportmonks_id
-        LEFT   JOIN wc_teams at ON at.sportmonks_id = f.away_team_sportmonks_id
+        LEFT   JOIN wc_teams away_t ON away_t.sportmonks_id = f.away_team_sportmonks_id
         WHERE  f.sportmonks_id = ?
     """, (fixture_id,)).fetchone()
     return dict(row) if row else None

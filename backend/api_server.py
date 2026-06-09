@@ -17,8 +17,6 @@ from wechat_auth_router import router as wechat_auth_router
 from review_router import router as review_router
 from user_router import router as user_router
 from model_health_router import router as model_health_router
-from products_router import router as products_router
-from orders_router import router as orders_router
 from wc_router import router as wc_router  # 世界杯专用研报端点（硬隔离）
 from stripe_router import router as stripe_router  # Stripe 支付（checkout/webhook/admin）
 from auth_deps import get_current_user, CurrentUser
