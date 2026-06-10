@@ -369,8 +369,10 @@ def generate_wc_report(
             report_markdown = f"[DRY-RUN] Would generate report for {match_id}\n\n{quant_section}"
             log.info(f"  [DRY-RUN] skipping LLM chain")
 
-        # ── 8. 解析 json_meta（从 LLM 输出中提取） ────────────────────────────
+        # ── 8. 解析 json_meta + 从正文中删除该块 ────────────────────────────────
         beginner_summary, key_risk, key_variables, chart_insights = _parse_json_meta(report_markdown)
+        # 删除 ```json_meta ... ``` 块，前端不需要看到原始 JSON
+        report_markdown = re.sub(r"\n*```json_meta\s*\n.*?\n```\s*$", "", report_markdown, flags=re.DOTALL).rstrip()
 
         # ── 9. 组装 payload_json（烘焙进库） ──────────────────────────────────
         payload_json = {
