@@ -27,9 +27,10 @@ import StrategyEquityChart from '@/components/StrategyEquityChart';
 import { apiClient } from '@/lib/apiClient';
 import ThemeToggleButton from '@/components/ThemeToggleButton';
 import { useTheme } from '@/components/ThemeProvider';
-import MatchCardGated from '@/components/MatchCardGated';
+import ContactAdminModal from '@/components/ContactAdminModal';
 import Footer from '@/components/layout/Footer';
 import { translateLeague } from '@/lib/leagueNames';
+import { translateTeam } from '@/lib/teamNames';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -74,7 +75,7 @@ const ProbabilityBar = ({ value, colorClass, lightColorClass }: { value: number,
   );
 };
 
-const CompactMatchCard = ({ match, isLoggedIn, isDark }: { match: Match, isLoggedIn: boolean, onClick: () => void, isDark: boolean }) => {
+const CompactMatchCard = ({ match, isLoggedIn, isDark, onClick }: { match: Match, isLoggedIn: boolean, onClick: () => void, isDark: boolean }) => {
   // API 返回已是百分比（0~100），直接取整即可，不再 ×100
   const hPctRaw = match.homeTeam.prob != null ? Number(match.homeTeam.prob) : null;
   const aPctRaw = match.awayTeam.prob != null ? Number(match.awayTeam.prob) : null;
@@ -84,51 +85,34 @@ const CompactMatchCard = ({ match, isLoggedIn, isDark }: { match: Match, isLogge
   const leagueZh = translateLeague(match.league);
 
   return (
-  <div
-    onClick={() => window.location.href=`/report/${match.id}`}
+  <button
+    type="button"
+    onClick={onClick}
     suppressHydrationWarning
-    className={`relative rounded-xl p-4 flex flex-col items-center justify-center gap-3 cursor-pointer active:scale-95 transition-all overflow-hidden group ${
+    className={`relative w-full rounded-2xl px-5 py-4 text-left active:scale-[0.99] transition-all ${
       isDark
         ? `glass-panel hover:bg-white/5 ${match.display_category === 'ARCHIVE' ? 'opacity-60' : ''}`
         : `bg-white shadow-[0px_4px_16px_rgba(25,28,29,0.06)] hover:shadow-[0px_8px_24px_rgba(25,28,29,0.10)] ${match.display_category === 'ARCHIVE' ? 'opacity-60' : ''}`
     }`}
   >
-    {isDark ? (
-      <div className="text-xs font-black tracking-widest text-[#E91E63]/60 uppercase absolute top-2 left-3">
-        {leagueZh}
-      </div>
-    ) : (
-      <div className="flex items-center gap-1 absolute top-2 left-3">
-        <span className="w-1.5 h-1.5 rounded-full bg-[#005faf]" />
-        <span className="text-xs font-bold text-[#005faf] uppercase tracking-wider">{leagueZh}</span>
-      </div>
-    )}
-    {match.is_daily_free && (
-      <div className={`absolute top-2 right-2 text-[7px] font-black rounded-full px-1.5 py-0.5 ${isDark ? 'text-green-400 border border-green-500/30' : 'text-green-700 bg-green-100'}`}>
-        今日免费
-      </div>
-    )}
-    <div className="flex items-center justify-center gap-3 w-full mt-2">
-      <img src={match.homeTeam.icon || "/logo_meow.jpg"} alt="H" className={`w-8 h-8 rounded-full ${isDark ? 'border border-white/10' : 'border border-[#e1e3e4]'}`} />
-      <span className={`text-xs font-bold ${isDark ? 'text-white/75' : 'text-[#5b3f43] bg-[#f2f4f5] px-2 py-0.5 rounded'}`}>VS</span>
-      <img src={match.awayTeam.icon || "/logo_meow.jpg"} alt="A" className={`w-8 h-8 rounded-full ${isDark ? 'border border-white/10' : 'border border-[#e1e3e4]'}`} />
+    {/* 联赛 + 时间 */}
+    <div className="flex items-center justify-between mb-3">
+      <span className={`text-xs font-bold ${isDark ? 'text-[#E91E63]/70' : 'text-[#005faf]'}`}>{leagueZh}</span>
+      <span className={`text-xs font-medium ${isDark ? 'text-white/50' : 'text-[#5b3f43]'}`}>{formatMatchTime(match.time)}</span>
     </div>
-    <div className="text-center w-full px-1">
-      <div className={`text-xs font-bold mb-0.5 truncate ${isDark ? 'text-white' : 'text-[#191c1d]'}`}>{match.homeTeam.name} vs {match.awayTeam.name}</div>
-      <div className={`text-xs font-medium ${isDark ? 'text-white/75' : 'text-[#5b3f43]'}`}>{formatMatchTime(match.time)}</div>
+    {/* 主队 VS 客队 */}
+    <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        <img src={match.homeTeam.icon || "/logo_meow.jpg"} alt="H" className={`w-10 h-10 rounded-full shrink-0 ${isDark ? 'border border-white/10' : 'border border-[#e1e3e4]'}`} />
+        <span className={`text-base font-bold truncate ${isDark ? 'text-white' : 'text-[#191c1d]'}`}>{match.homeTeam.name}</span>
+      </div>
+      <span className={`text-sm font-bold shrink-0 px-2 ${isDark ? 'text-white/40' : 'text-[#5b3f43]'}`}>VS</span>
+      <div className="flex items-center gap-3 flex-1 min-w-0 justify-end">
+        <span className={`text-base font-bold truncate text-right ${isDark ? 'text-white' : 'text-[#191c1d]'}`}>{match.awayTeam.name}</span>
+        <img src={match.awayTeam.icon || "/logo_meow.jpg"} alt="A" className={`w-10 h-10 rounded-full shrink-0 ${isDark ? 'border border-white/10' : 'border border-[#e1e3e4]'}`} />
+      </div>
     </div>
-    {isLoggedIn && hasPct ? (
-      <div className={`w-full flex h-1 rounded-full overflow-hidden ${isDark ? 'bg-white/5' : 'bg-[#e1e3e4]'}`}>
-        <div className={`h-full ${isDark ? 'bg-[#E91E63]' : 'bg-[#b7004d]'}`} style={{ width: `${hPct}%` }} />
-        <div className={`h-full ${isDark ? 'bg-secondary-magenta' : 'bg-[#005faf]'}`} style={{ width: `${aPct}%` }} />
-      </div>
-    ) : (
-      <div className="w-full flex items-center justify-center gap-1 h-4">
-        <Lock size={9} className={isDark ? 'text-white/30' : 'text-[#8f6f73]'} />
-        <span className={`text-xs font-bold ${isDark ? 'text-[#1D4ED8] [text-shadow:0_0_6px_rgba(59,130,246,0.7)]' : 'text-[#005faf]'}`}>登录查看</span>
-      </div>
-    )}
-  </div>
+  </button>
   );
 };
 
@@ -231,13 +215,7 @@ const MatchCard = ({ match, onClick, isLoggedIn, isDark }: { match: Match, onCli
           <div className="bg-[#f2f4f5] rounded-xl p-4 relative z-10">
             <div className="flex items-center justify-center gap-2 py-2">
               <Lock size={14} className="text-[#8f6f73]" />
-              <Link
-                href="/login"
-                onClick={e => e.stopPropagation()}
-                className="text-sm font-bold text-[#b7004d] hover:opacity-80 transition-opacity"
-              >
-                登录解锁模型预测
-              </Link>
+              <span className="text-sm font-bold text-[#b7004d]">加微信开通查看</span>
             </div>
           </div>
         )}
@@ -308,13 +286,9 @@ const MatchCard = ({ match, onClick, isLoggedIn, isDark }: { match: Match, onCli
             </div>
           ))}
           <div className="col-span-3 mt-1">
-            <Link
-              href="/login"
-              onClick={e => e.stopPropagation()}
-              className="block w-full text-center py-2.5 rounded-full bg-[#E91E63]/10 border border-[#E91E63]/30 text-[#E91E63] text-xs font-black tracking-widest hover:bg-[#E91E63]/20 transition-all"
-            >
-              登录解锁胜平负概率
-            </Link>
+            <span className="block w-full text-center py-2.5 rounded-full bg-[#E91E63]/10 border border-[#E91E63]/30 text-[#E91E63] text-xs font-black tracking-widest">
+              加微信开通查看概率
+            </span>
           </div>
         </div>
       )}
@@ -350,6 +324,11 @@ export default function FootballLabPage() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [contactOpen, setContactOpen] = useState(false);
+
+  const handleCardClick = (id: string) => {
+    if (isLoggedIn) { window.location.href = '/report/' + id; } else { setContactOpen(true); }
+  };
 
   useEffect(() => {
     if (status === 'loading') return; // 等 session 落定再请求
@@ -357,7 +336,12 @@ export default function FootballLabPage() {
       try {
         setLoading(true);
         const data = await apiClient.get<Match[]>('/reports/latest', { token: apiToken });
-        setMatches(data || []);
+        const translated = (data || []).map(m => ({
+          ...m,
+          homeTeam: { ...m.homeTeam, name: translateTeam(m.homeTeam.name) },
+          awayTeam: { ...m.awayTeam, name: translateTeam(m.awayTeam.name) },
+        }));
+        setMatches(translated);
       } catch (e) {
         console.error('API Error:', e);
         setError('服务连接超时，请检查网络。');
@@ -587,7 +571,7 @@ export default function FootballLabPage() {
                             : 'bg-gradient-to-r from-[#b7004d] to-[#de2264] text-white shadow-[0px_4px_12px_rgba(183,0,77,0.3)] hover:opacity-90'
                         }`}
                       >
-                        {isDark ? '登录 / 注册' : '登录 / 注册 →'}
+                        {isDark ? '登录' : '登录 →'}
                       </Link>
                     )}
                   </motion.div>
@@ -771,60 +755,31 @@ export default function FootballLabPage() {
                  <p className="font-display italic font-bold tracking-widest text-lg">NO QUANT DATA FOUND</p>
                  <p className="text-xs mt-2 font-medium tracking-tighter">当前时段暂无符合量化标准的预测报告</p>
               </div>
-            ) : filteredMatches[0]?.display_category === 'GATED' ? (
-              /* ── 未登录 GUEST 视图：登录引导 + 比赛卡片（仅队名/队徽）── */
-              <div className="space-y-4">
-                {!isLoggedIn && (
-                  <div className="bg-[#E91E63]/10 dark:bg-[#E91E63]/15 border border-[#E91E63]/30 rounded-xl p-3 flex items-center justify-between">
-                    <span className="text-xs font-medium text-zinc-800 dark:text-white">🔒 登录查看完整 AI 研报与量化分析</span>
-                    <Link href="/login" className="text-xs font-bold text-[#E91E63] underline ml-2 shrink-0">立即登录</Link>
-                  </div>
-                )}
-                <div className="grid grid-cols-2 gap-4">
-                  {filteredMatches.map(m => (
-                    <MatchCardGated
-                      key={m.id}
-                      matchId={m.id}
-                      homeName={m.homeTeam.name}
-                      homeIcon={m.homeTeam.icon ?? null}
-                      awayName={m.awayTeam.name}
-                      awayIcon={m.awayTeam.icon ?? null}
-                      time={m.time}
-                      league={m.league}
-                    />
-                  ))}
-                </div>
-              </div>
             ) : (
               <>
-                {ELITE_MATCH && (
-                  <section className="mb-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-2">
-                        <span suppressHydrationWarning className={`w-1.5 h-1.5 rounded-full ${isDark ? 'bg-[#E91E63]' : 'bg-[#b7004d]'}`} />
-                        <h2 suppressHydrationWarning className={`text-sm font-bold ${isDark ? 'tracking-widest uppercase text-white/80' : 'text-[#191c1d]'}`}>焦点分析</h2>
-                      </div>
-                      {!isDark && <span className="text-xs font-bold text-[#b7004d] uppercase tracking-wider">{translateLeague(ELITE_MATCH.league)}</span>}
-                    </div>
-                    <MatchCard match={ELITE_MATCH} isLoggedIn={isLoggedIn} isDark={isDark} onClick={() => window.location.href=`/report/${ELITE_MATCH.id}`} />
-                  </section>
+                {/* 游客引导横幅 */}
+                {!isLoggedIn && (
+                  <div className="border border-[#E91E63]/30 rounded-xl mb-4 overflow-hidden">
+                    <button
+                      onClick={() => setContactOpen(true)}
+                      className="w-full bg-[#E91E63]/10 dark:bg-[#E91E63]/15 p-3 text-xs font-medium text-zinc-800 dark:text-white text-left"
+                    >
+                      💬 加管理员微信开通账号，查看完整研报
+                    </button>
+                    <Link
+                      href="/login"
+                      className="flex items-center justify-center gap-1.5 w-full py-2.5 bg-white/5 dark:bg-white/5 border-t border-[#E91E63]/20 text-sm font-bold text-[#E91E63]"
+                    >
+                      已有账号？点此登录 →
+                    </Link>
+                  </div>
                 )}
 
-                {OTHER_MATCHES.length > 0 && (
-                  <section>
-                    <div className="flex items-center gap-2 mb-4">
-                      <span suppressHydrationWarning className={`w-1.5 h-1.5 rounded-full ${isDark ? 'bg-secondary-magenta shadow-[0_0_8px_#FF00E5]' : 'bg-[#005faf]'}`} />
-                      <h2 suppressHydrationWarning className={`text-sm font-bold ${isDark ? 'tracking-widest uppercase text-white/80' : 'text-[#191c1d]'}`}>
-                        {isDark ? '后续研报预览' : '赛事数据'}
-                      </h2>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      {OTHER_MATCHES.map(m => (
-                        <CompactMatchCard key={m.id} match={m} isLoggedIn={isLoggedIn} isDark={isDark} onClick={() => window.location.href=`/report/${m.id}`} />
-                      ))}
-                    </div>
-                  </section>
-                )}
+                <div className="flex flex-col gap-3">
+                  {[...filteredMatches].sort((a, b) => (a.time > b.time ? 1 : -1)).map(m => (
+                    <CompactMatchCard key={m.id} match={m} isLoggedIn={isLoggedIn} isDark={isDark} onClick={() => handleCardClick(m.id)} />
+                  ))}
+                </div>
               </>
             )
           )}
@@ -848,7 +803,7 @@ export default function FootballLabPage() {
                ) : (
                  <div className="grid grid-cols-2 gap-4">
                    {filteredMatches.map(m => (
-                     <CompactMatchCard key={m.id} match={m} isLoggedIn={isLoggedIn} isDark={isDark} onClick={() => window.location.href=`/report/${m.id}`} />
+                     <CompactMatchCard key={m.id} match={m} isLoggedIn={isLoggedIn} isDark={isDark} onClick={() => handleCardClick(m.id)} />
                    ))}
                  </div>
                )}
@@ -949,6 +904,8 @@ export default function FootballLabPage() {
           })}
         </nav>
       )}
+
+      <ContactAdminModal open={contactOpen} onClose={() => setContactOpen(false)} />
     </div>
   );
 }

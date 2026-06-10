@@ -35,6 +35,8 @@ def run_migrations(db_path: str = DB_PATH) -> None:
         # ── Phase 5: Stripe 套餐权益（Migration 9）───────────────────────────
         _create_user_entitlements_table(conn)
         _fix_wc_product_names(conn)
+        # ── Phase 6: 账号停用字段（Migration 10）────────────────────────────
+        _add_disabled_to_users(conn)
         conn.commit()
         log.info("[Migrations] ✅ All migrations applied successfully.")
     finally:
@@ -477,3 +479,16 @@ def _fix_wc_product_names(conn: sqlite3.Connection) -> None:
            AND name='世界杯淘汰赛通票(16场)'
     """)
     log.info("[Migrations] WC product names corrected to 72/32 (Migration 9b).")
+
+
+# ─────────────────────────────────────────────────────────────
+# Migration 10: users.disabled（账号停用字段）
+# ─────────────────────────────────────────────────────────────
+
+def _add_disabled_to_users(conn: sqlite3.Connection) -> None:
+    """给 users 表添加 disabled 列（0=正常，1=停用）。"""
+    try:
+        conn.execute("ALTER TABLE users ADD COLUMN disabled INTEGER DEFAULT 0")
+        log.info("[Migrations] users.disabled column added (Migration 10).")
+    except Exception:
+        pass  # 列已存在，幂等忽略

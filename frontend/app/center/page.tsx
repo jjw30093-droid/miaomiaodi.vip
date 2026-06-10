@@ -12,6 +12,7 @@ import HeroVipCard from '@/components/center/HeroVipCard';
 import AccountInfoCard from '@/components/center/AccountInfoCard';
 import RedeemCdkRow from '@/components/center/RedeemCdkRow';
 import DevicesSection from '@/components/center/DevicesSection';
+import ChangePasswordCard from '@/components/center/ChangePasswordCard';
 import PreferencesSection from '@/components/center/PreferencesSection';
 import LogoutButton from '@/components/center/LogoutButton';
 import { apiClient } from '@/lib/apiClient';
@@ -230,6 +231,11 @@ function CenterContent() {
         {/* 设备与安全 */}
         <SectionCard title="设备与安全" isDark={isDark}>
           <DevicesSection isDark={isDark} />
+        </SectionCard>
+
+        {/* 修改密码 */}
+        <SectionCard title="修改密码" isDark={isDark}>
+          <ChangePasswordCard isDark={isDark} apiToken={apiToken} />
         </SectionCard>
 
         {/* 偏好设置 */}

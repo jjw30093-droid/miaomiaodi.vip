@@ -25,7 +25,7 @@ import WcModelPredictionsCard from '@/components/report/WcModelPredictionsCard';
 import WcProjectedLineupTable from '@/components/report/WcProjectedLineupTable';
 import WcRecentFormCard from '@/components/report/WcRecentFormCard';
 // WC 游客预览页（无需登录，展示摘要 + 联系管理员）
-import WcGuestPreview from '@/components/report/WcGuestPreview';
+import ContactAdminPanel from '@/components/ContactAdminPanel';
 import {
   ChevronLeft, Lock, BarChart2, Crosshair, TrendingUp, Star, Activity, FileText,
 } from 'lucide-react';
@@ -72,30 +72,14 @@ type AccessLevel = 'anonymous' | 'registered' | 'vip';
 
 function LoginPrompt({ matchId }: { matchId: string }) {
   return (
-    <div className="glass-panel max-w-md w-full p-10 text-center backdrop-blur-3xl animate-fade-in shadow-ambient-lift border border-white/10 rounded-3xl">
-      <div className="w-16 h-16 rounded-full bg-primary-neon/10 border border-primary-neon/30 flex items-center justify-center mx-auto mb-6">
-        <Lock size={28} className="text-primary-neon" />
-      </div>
-      <h2 className="text-xl font-black italic mb-3 tracking-tight">登录后查看研报</h2>
-      <p className="text-white/75 text-xs mb-8 leading-relaxed">
-        注册账号免费获得每日精选场次完整分析<br />
-        包含射门分布图、npxG 趋势及球员贡献矩阵
-      </p>
-      <div className="flex flex-col gap-3">
+    <div className="max-w-sm w-full flex flex-col gap-4">
+      <ContactAdminPanel />
+      <div className="text-center">
         <Link
-          href={`/login?from=/report/${matchId}`}
-          className="block w-full py-3 rounded-xl bg-primary-neon/10 border border-primary-neon/40 text-primary-neon text-sm font-black tracking-widest hover:bg-primary-neon/20 transition-all"
+          href={`/login?next=/report/${matchId}`}
+          className="text-xs text-zinc-400 hover:text-primary-neon transition-colors"
         >
-          登录账号
-        </Link>
-        <Link
-          href="/register"
-          className="block w-full py-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm font-black tracking-widest hover:bg-white/10 transition-all"
-        >
-          免费注册
-        </Link>
-        <Link href="/" className="text-xs text-white/40 hover:text-white/70 transition-colors mt-2">
-          返回首页
+          已有账号？点此登录 →
         </Link>
       </div>
     </div>
@@ -814,29 +798,22 @@ export default async function ReportPage({
 
         {accessLevel === 'anonymous' ? (
           <>
-            {matchId.startsWith('wc_') ? (
-              /* 世界杯游客：展示预览摘要 + 联系管理员二维码（不跳登录）*/
-              <WcGuestPreview matchId={matchId} />
-            ) : (
-              /* 联赛游客：显示登录提示（保持现有行为）*/
-              <>
-                <header className="sticky top-0 z-40 bg-[var(--header-bg)] backdrop-blur-md border-b border-[var(--header-border)] px-4 py-3 flex items-center gap-3">
-                  <Link href="/" className="p-2 -ml-2 text-slate-400 dark:text-white hover:text-primary-neon transition-colors flex-shrink-0 group">
-                    <ChevronLeft size={22} className="group-hover:-translate-x-0.5 transition-transform" />
-                  </Link>
-                  <div className="flex flex-col min-w-0 flex-1">
-                    <span className="text-xs font-bold tracking-wider text-primary-neon uppercase">
-                      QUANT ANALYSIS · FOOTBALL
-                    </span>
-                    <span className="text-sm font-black text-slate-800 dark:text-white leading-tight">比赛研报</span>
-                  </div>
-                  <ThemeToggleButton />
-                </header>
-                <div className="flex flex-col items-center justify-center py-32 px-4">
-                  <LoginPrompt matchId={matchId} />
-                </div>
-              </>
-            )}
+            {/* 所有游客统一：联系管理员二维码 + 登录链接 */}
+            <header className="sticky top-0 z-40 bg-[var(--header-bg)] backdrop-blur-md border-b border-[var(--header-border)] px-4 py-3 flex items-center gap-3">
+              <Link href="/" className="p-2 -ml-2 text-slate-400 dark:text-white hover:text-primary-neon transition-colors flex-shrink-0 group">
+                <ChevronLeft size={22} className="group-hover:-translate-x-0.5 transition-transform" />
+              </Link>
+              <div className="flex flex-col min-w-0 flex-1">
+                <span className="text-xs font-bold tracking-wider text-primary-neon uppercase">
+                  QUANT ANALYSIS · FOOTBALL
+                </span>
+                <span className="text-sm font-black text-slate-800 dark:text-white leading-tight">比赛研报</span>
+              </div>
+              <ThemeToggleButton />
+            </header>
+            <div className="flex flex-col items-center justify-center py-16 px-4">
+              <LoginPrompt matchId={matchId} />
+            </div>
           </>
         ) : (
           <Suspense

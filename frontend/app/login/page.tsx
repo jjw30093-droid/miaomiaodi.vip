@@ -151,17 +151,6 @@ export default function LoginPage() {
               )}
             </div>
 
-            {/* Register link */}
-            {viewState !== 'support' && (
-              <div className="mt-6 text-center relative z-10">
-                <p className="text-sm text-[#5b3f43]">
-                  还没有账号？{' '}
-                  <Link href="/register" className="text-[#b7004d] font-bold hover:opacity-80 transition-opacity">
-                    注册新账号
-                  </Link>
-                </p>
-              </div>
-            )}
           </div>
         </main>
 
@@ -251,17 +240,6 @@ export default function LoginPage() {
             <SupportCard onBack={() => setViewState(prevState)} />
           )}
 
-          {/* Register link */}
-          {viewState !== 'support' && (
-            <div className="mt-6 text-center">
-              <p className="text-xs text-zinc-500">
-                还没有账号？{' '}
-                <Link href="/register" className="text-[#E91E63] font-bold hover:opacity-80 transition-opacity">
-                  注册新账号
-                </Link>
-              </p>
-            </div>
-          )}
         </div>
       </main>
     </div>

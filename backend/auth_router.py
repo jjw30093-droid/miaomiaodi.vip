@@ -29,13 +29,7 @@ from pydantic import BaseModel
 
 from auth_deps import issue_session_token
 from rate_limit import hit_request, client_ip as _client_ip
-
-try:
-    import bcrypt as _bcrypt_lib
-    _BCRYPT_AVAILABLE = True
-except ImportError:
-    _bcrypt_lib = None
-    _BCRYPT_AVAILABLE = False
+from password_utils import validate_password, hash_password, verify_password
 
 try:
     from notify_utils import notify as _notify
@@ -51,9 +45,6 @@ DB_PATH = os.environ.get("DB_PATH", os.path.join(_THIS_DIR, "football_uk.db"))
 ADMIN_SECRET_TOKEN = os.environ.get("ADMIN_SECRET_TOKEN", "")
 
 USERNAME_MIN_LEN = 2
-PASSWORD_MIN_LEN = 6
-_PWD_HAS_LOWER = re.compile(r'[a-z]')
-_PWD_HAS_UPPER = re.compile(r'[A-Z]')
 
 # 注册限流：每 IP 每小时最多 5 次（窗口 3600s）
 _register_rate: dict[str, dict] = {}
@@ -95,31 +86,6 @@ def validate_username(name: str) -> Optional[str]:
         return "用户名包含非法字符"
     return None
 
-
-def validate_password(pwd: str) -> Optional[str]:
-    if not pwd or len(pwd) < PASSWORD_MIN_LEN:
-        return f"密码长度不能少于 {PASSWORD_MIN_LEN} 个英文字符"
-    if not _PWD_HAS_LOWER.search(pwd):
-        return "密码必须包含小写英文字母"
-    if not _PWD_HAS_UPPER.search(pwd):
-        return "密码必须包含大写英文字母"
-    return None
-
-
-def _hash_password(password: str) -> str:
-    if not _BCRYPT_AVAILABLE:
-        raise RuntimeError("bcrypt 未安装，请先 pip install bcrypt")
-    salt = _bcrypt_lib.gensalt(rounds=10)
-    return _bcrypt_lib.hashpw(password.encode("utf-8"), salt).decode("utf-8")
-
-
-def _verify_password(password: str, hashed: str) -> bool:
-    if not _BCRYPT_AVAILABLE:
-        return False
-    try:
-        return _bcrypt_lib.checkpw(password.encode("utf-8"), hashed.encode("utf-8"))
-    except Exception:
-        return False
 
 
 def _get_db() -> sqlite3.Connection:
@@ -164,11 +130,8 @@ def _rate_limit_register(ip: str) -> None:
 
 @router.post("/auth/register")
 async def register(body: RegisterRequest, request: Request):
-    """直接注册账号，无需管理员审核。
-
-    反滥用：同一 device_id + 同一 IP 只允许注册一个账号。
-    device_id 由前端生成，为可选字段；未提供时仅按 IP 限制。
-    """
+    """注册入口已关闭。账号由管理员通过后台开通。"""
+    raise HTTPException(status_code=403, detail="注册已关闭，请联系管理员开通账号")
     ip = _client_ip(request)
     _rate_limit_register(ip)
 
@@ -185,7 +148,7 @@ async def register(body: RegisterRequest, request: Request):
     if err:
         raise HTTPException(status_code=422, detail=err)
 
-    password_hash = _hash_password(password)
+    password_hash = hash_password(password)
     openid_placeholder = f"USER_{username.lower()}"
 
     conn = _get_db()
@@ -288,13 +251,16 @@ async def login(body: LoginRequest, request: Request):
     try:
         # 查已审核通过的 users 表
         user_row = conn.execute(
-            "SELECT id, username, password_hash, nickname, role, avatar_url, vip_expires_at "
+            "SELECT id, username, password_hash, nickname, role, avatar_url, vip_expires_at, "
+            "COALESCE(disabled, 0) as disabled "
             "FROM users WHERE username = ? AND auth_source = 'username'",
             (username,)
         ).fetchone()
 
         if user_row:
-            if not _verify_password(password, user_row["password_hash"] or ""):
+            if user_row["disabled"]:
+                raise HTTPException(status_code=403, detail="账号已停用，请联系管理员")
+            if not verify_password(password, user_row["password_hash"] or ""):
                 raise HTTPException(status_code=401, detail="用户名或密码错误")
             token = issue_session_token(
                 user_id=user_row["id"],
@@ -456,6 +422,7 @@ async def list_all_users(
     try:
         rows = conn.execute(
             """SELECT id, nickname, username, role, auth_source,
+                      COALESCE(disabled, 0) as disabled,
                       register_ip, register_device_id, created_at
                FROM users
                ORDER BY id DESC"""
@@ -463,3 +430,203 @@ async def list_all_users(
         return [dict(r) for r in rows]
     finally:
         conn.close()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 新管理员端点：建号 / 重置密码 / 停用 / 删除
+# ─────────────────────────────────────────────────────────────────────────────
+
+class AdminCreateUserRequest(BaseModel):
+    username: str
+    password: str
+    nickname: Optional[str] = None
+
+
+class AdminResetPasswordRequest(BaseModel):
+    new_password: str
+
+
+class AdminDisableRequest(BaseModel):
+    disabled: int  # 0=启用, 1=停用
+
+
+def _revoke_all_sessions(conn: sqlite3.Connection, user_id: int) -> None:
+    """吊销某用户全部活跃 session（踢下线）。"""
+    conn.execute(
+        "UPDATE user_sessions SET revoked_at=datetime('now'), revoke_reason='admin_action' "
+        "WHERE user_id=? AND revoked_at IS NULL",
+        (user_id,)
+    )
+
+
+@router.post("/admin/users")
+async def admin_create_user(
+    body: AdminCreateUserRequest,
+    request: Request,
+    _: None = Depends(_verify_admin),
+):
+    """管理员建号：创建 role=vip、永久有效的账号。"""
+    username = body.username.strip()
+    password = body.password
+    nickname = (body.nickname or "").strip() or username
+
+    err = validate_username(username)
+    if err:
+        raise HTTPException(status_code=422, detail=err)
+    err = validate_password(password)
+    if err:
+        raise HTTPException(status_code=422, detail=err)
+
+    password_hash = hash_password(password)
+    openid_placeholder = f"USER_{username.lower()}"
+    ip = _client_ip(request)
+    ua = request.headers.get("user-agent", "")[:512]
+
+    conn = _get_db()
+    try:
+        existing = conn.execute("SELECT 1 FROM users WHERE username = ?", (username,)).fetchone()
+        if existing:
+            raise HTTPException(status_code=409, detail="用户名已存在")
+
+        conn.execute(
+            """INSERT INTO users
+               (openid, username, password_hash, nickname, role, auth_source,
+                vip_expires_at, disabled, register_ip, created_at)
+               VALUES (?, ?, ?, ?, 'vip', 'username', NULL, 0, ?, datetime('now'))""",
+            (openid_placeholder, username, password_hash, nickname, ip)
+        )
+        conn.commit()
+
+        new_user = conn.execute(
+            "SELECT id FROM users WHERE username = ?", (username,)
+        ).fetchone()
+
+        _write_audit_log(conn, "admin_create_user", "admin",
+                         f"username={username}", ip, ua)
+        conn.commit()
+    except HTTPException:
+        raise
+    except sqlite3.IntegrityError:
+        conn.rollback()
+        raise HTTPException(status_code=409, detail="用户名已存在")
+    except Exception as e:
+        conn.rollback()
+        log.error(f"[AdminCreateUser] DB error: {e}")
+        raise HTTPException(status_code=500, detail="建号失败，请稍后重试")
+    finally:
+        conn.close()
+
+    return {"status": "ok", "user_id": new_user["id"], "username": username, "role": "vip"}
+
+
+@router.post("/admin/users/{user_id}/reset-password")
+async def admin_reset_password(
+    user_id: int,
+    body: AdminResetPasswordRequest,
+    request: Request,
+    _: None = Depends(_verify_admin),
+):
+    """管理员重置某用户密码，并踢出所有活跃 session。"""
+    err = validate_password(body.new_password)
+    if err:
+        raise HTTPException(status_code=422, detail=err)
+
+    new_hash = hash_password(body.new_password)
+    ip = _client_ip(request)
+    ua = request.headers.get("user-agent", "")[:512]
+
+    conn = _get_db()
+    try:
+        row = conn.execute("SELECT id FROM users WHERE id = ?", (user_id,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="用户不存在")
+
+        conn.execute(
+            "UPDATE users SET password_hash=?, updated_at=datetime('now') WHERE id=?",
+            (new_hash, user_id)
+        )
+        _revoke_all_sessions(conn, user_id)
+        _write_audit_log(conn, "admin_reset_password", "admin",
+                         f"user_id={user_id}", ip, ua)
+        conn.commit()
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        log.error(f"[AdminResetPassword] DB error: {e}")
+        raise HTTPException(status_code=500, detail="重置失败")
+    finally:
+        conn.close()
+
+    return {"status": "ok"}
+
+
+@router.post("/admin/users/{user_id}/disable")
+async def admin_disable_user(
+    user_id: int,
+    body: AdminDisableRequest,
+    request: Request,
+    _: None = Depends(_verify_admin),
+):
+    """停用(disabled=1)或启用(disabled=0)某账号。停用时踢出所有 session。"""
+    ip = _client_ip(request)
+    ua = request.headers.get("user-agent", "")[:512]
+
+    conn = _get_db()
+    try:
+        row = conn.execute("SELECT id FROM users WHERE id = ?", (user_id,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="用户不存在")
+
+        conn.execute(
+            "UPDATE users SET disabled=?, updated_at=datetime('now') WHERE id=?",
+            (1 if body.disabled else 0, user_id)
+        )
+        if body.disabled:
+            _revoke_all_sessions(conn, user_id)
+        action = "admin_disable_user" if body.disabled else "admin_enable_user"
+        _write_audit_log(conn, action, "admin", f"user_id={user_id}", ip, ua)
+        conn.commit()
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        log.error(f"[AdminDisableUser] DB error: {e}")
+        raise HTTPException(status_code=500, detail="操作失败")
+    finally:
+        conn.close()
+
+    return {"status": "ok"}
+
+
+@router.delete("/admin/users/{user_id}")
+async def admin_delete_user(
+    user_id: int,
+    request: Request,
+    _: None = Depends(_verify_admin),
+):
+    """永久删除某账号及其所有 session。"""
+    ip = _client_ip(request)
+    ua = request.headers.get("user-agent", "")[:512]
+
+    conn = _get_db()
+    try:
+        row = conn.execute("SELECT username FROM users WHERE id = ?", (user_id,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="用户不存在")
+
+        _revoke_all_sessions(conn, user_id)
+        conn.execute("DELETE FROM users WHERE id=?", (user_id,))
+        _write_audit_log(conn, "admin_delete_user", "admin",
+                         f"user_id={user_id} username={row['username']}", ip, ua)
+        conn.commit()
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        log.error(f"[AdminDeleteUser] DB error: {e}")
+        raise HTTPException(status_code=500, detail="删除失败")
+    finally:
+        conn.close()
+
+    return {"status": "ok"}

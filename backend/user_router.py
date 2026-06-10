@@ -24,6 +24,7 @@ from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Depends
 from pydantic import BaseModel
 
 from auth_deps import get_current_user, CurrentUser
+from password_utils import validate_password, hash_password, verify_password
 
 log = logging.getLogger(__name__)
 
@@ -313,6 +314,63 @@ async def logout(user: CurrentUser = Depends(get_current_user)):
             (user.jti, user.user_id)
         )
         conn.commit()
+    finally:
+        conn.close()
+
+    return {"status": "ok"}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# POST /password  —  自助修改密码
+# ─────────────────────────────────────────────────────────────────────────────
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
+
+
+@router.post("/password")
+async def change_password(
+    body: ChangePasswordRequest,
+    request: Request,
+    user: CurrentUser = Depends(get_current_user),
+):
+    """用户自助修改密码。需要提供原密码验证身份。"""
+    from rate_limit import hit_request
+    hit_request("user_password", request, max_per_min=5)
+
+    if user.user_id == 0:
+        raise HTTPException(status_code=400, detail="超管账号不支持此操作")
+
+    err = validate_password(body.new_password)
+    if err:
+        raise HTTPException(status_code=422, detail=err)
+
+    conn = _get_conn()
+    try:
+        row = conn.execute(
+            "SELECT password_hash FROM users WHERE id=? AND auth_source='username'",
+            (user.user_id,)
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=400, detail="该账号不支持密码登录")
+        if not verify_password(body.old_password, row["password_hash"] or ""):
+            raise HTTPException(status_code=401, detail="原密码错误")
+        if body.old_password == body.new_password:
+            raise HTTPException(status_code=422, detail="新密码不能与原密码相同")
+
+        new_hash = hash_password(body.new_password)
+        conn.execute(
+            "UPDATE users SET password_hash=?, updated_at=datetime('now') WHERE id=?",
+            (new_hash, user.user_id)
+        )
+        conn.commit()
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        log.error(f"[ChangePassword] DB error: {e}")
+        raise HTTPException(status_code=500, detail="修改失败，请稍后重试")
     finally:
         conn.close()
 
