@@ -274,8 +274,15 @@ function adaptCloudPayload(payload: CloudReportPayload): ReportData {
       playerContribution: payload.chart_insights.player_contribution,
     } : null,
     markdownSections: parseStructuredMarkdown(payload.report_markdown),
-    ahImplied:   payload.ah_implied    ?? null,
-    wcTeamStats: payload.wc_team_stats ?? null,
+    ahImplied:    payload.ah_implied    ?? null,
+    wcTeamStats:  payload.wc_team_stats ?? null,
+    // WC cc 增强数据
+    wcCcPredictions:   (payload as any).wc_cc_predictions   ?? null,
+    wcPredictedLineup: (payload as any).wc_predicted_lineup ?? null,
+    wcHomeRecent:      (payload as any).wc_home_recent      ?? null,
+    wcAwayRecent:      (payload as any).wc_away_recent      ?? null,
+    wcRecentCompare:   (payload as any).wc_recent_compare   ?? null,
+    wcH2h:             (payload as any).wc_h2h              ?? null,
     postMatchReview: payload.post_match_review ?? null,
     postMatchShots: (() => {
       const raw = payload.post_match_shots;

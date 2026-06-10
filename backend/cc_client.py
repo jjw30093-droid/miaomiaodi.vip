@@ -112,6 +112,31 @@ def get_archive(page: int = 1, per_page: int = 20,
     return _get("/internal/api/v1/reports/archive", params=params)
 
 
+def get_worldcup_match(fixture_sportmonks_id: int) -> dict:
+    """
+    从 cc 站拉取世界杯单场富数据。
+    返回 dict 含：predicted_lineup / predictions / home_recent_fixtures /
+    away_recent_fixtures / recent_stats_compare / h2h / odds / value_bets 等。
+    cc 不可达或 4xx → 抛 CCBackendUnavailable，调用方降级。
+    """
+    data = _get(f"/api/v1/worldcup/match/{fixture_sportmonks_id}")
+    # cc 可能返回 {"data": {...}} 或裸 dict
+    if isinstance(data, dict) and "data" in data:
+        return data["data"]
+    return data
+
+
+def get_worldcup_team(team_sportmonks_id: int) -> dict:
+    """
+    从 cc 站拉取球队世界杯数据（qualifier_recent_fixtures / qualifier_stats 等）。
+    cc 不可达 → 抛 CCBackendUnavailable，调用方降级。
+    """
+    data = _get(f"/api/v1/worldcup/team/{team_sportmonks_id}")
+    if isinstance(data, dict) and "data" in data:
+        return data["data"]
+    return data
+
+
 def get_archive_leagues() -> list:
     """
     cc 端无对应 endpoint，从 archive 全量拉一次（per_page=1000）后本地去重。

@@ -21,6 +21,9 @@ import Footer from '@/components/layout/Footer';
 // WC-only components（仅在 tournamentType==='wc' 时渲染，联赛路径零影响）
 import WcAttackTable from '@/components/report/WcAttackTable';
 import WcAhInfoCard from '@/components/report/WcAhInfoCard';
+import WcModelPredictionsCard from '@/components/report/WcModelPredictionsCard';
+import WcProjectedLineupTable from '@/components/report/WcProjectedLineupTable';
+import WcRecentFormCard from '@/components/report/WcRecentFormCard';
 import {
   ChevronLeft, Lock, BarChart2, Crosshair, TrendingUp, Star, Activity, FileText,
 } from 'lucide-react';
@@ -464,6 +467,37 @@ async function ReportContent({
                 />
               );
             })()}
+
+            {/* Block B-WC-MODEL · 模型预测对标（第三方 Sportmonks 模型 vs 市场共识）*/}
+            {isWc && (
+              <WcModelPredictionsCard
+                wcCcPredictions={(report as any).wcCcPredictions}
+                marketHomeProb={report.homeProb}
+                marketDrawProb={report.drawProb}
+                marketAwayProb={report.awayProb}
+                homeTeam={homeTeam}
+                awayTeam={awayTeam}
+              />
+            )}
+
+            {/* Block B-WC-LINEUP · 预计首发简报 */}
+            {isWc && (
+              <WcProjectedLineupTable
+                wcPredictedLineup={(report as any).wcPredictedLineup}
+                homeTeam={homeTeam}
+                awayTeam={awayTeam}
+              />
+            )}
+
+            {/* Block B-WC-RECENT · 近期表现 */}
+            {isWc && (
+              <WcRecentFormCard
+                wcHomeRecent={(report as any).wcHomeRecent}
+                wcAwayRecent={(report as any).wcAwayRecent}
+                homeTeam={homeTeam}
+                awayTeam={awayTeam}
+              />
+            )}
           </section>
         )}
 

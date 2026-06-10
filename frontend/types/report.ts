@@ -297,6 +297,18 @@ export interface ReportData {
   ahImplied?: { line: number; magnitude: number; n_books: number } | null;
   /** WC-only：队伍统计（仅 WC；联赛为 null）*/
   wcTeamStats?: { home: Record<string, number | null>; away: Record<string, number | null> } | null;
+  /** WC-only：Sportmonks 第三方模型预测（cc站）*/
+  wcCcPredictions?: Record<string, any> | null;
+  /** WC-only：预计首发阵容（cc站，22人列表）*/
+  wcPredictedLineup?: Array<Record<string, any>> | null;
+  /** WC-only：主队近期场次（cc站）*/
+  wcHomeRecent?: Array<Record<string, any>> | null;
+  /** WC-only：客队近期场次（cc站）*/
+  wcAwayRecent?: Array<Record<string, any>> | null;
+  /** WC-only：近期对比统计（cc站）*/
+  wcRecentCompare?: Record<string, any> | null;
+  /** WC-only：历史交锋（cc站）*/
+  wcH2h?: Array<Record<string, any>> | null;
   /** P1：长文按 H2 拆段后的 sections — 旧研报无字段时为空 dict */
   markdownSections?: {
     // 新版（AH/OU 导向，2026-04-28+）

@@ -327,6 +327,16 @@ def _build_payload(
         "ah_implied":    _payload_extra.get("market_implied", {}).get("ah") or None,
         "wc_team_stats": _payload_extra.get("wc_team_stats") or None,
 
+        # ── cc 增强数据（GUEST 隐藏模型概率；首发/近期表现可见） ──
+        "wc_cc_predictions": (
+            _payload_extra.get("cc_predictions") or {}
+        ) if not _hide_probs else {},
+        "wc_predicted_lineup":  _payload_extra.get("predicted_lineup") or [],
+        "wc_home_recent":       _payload_extra.get("home_recent") or [],
+        "wc_away_recent":       _payload_extra.get("away_recent") or [],
+        "wc_recent_compare":    _payload_extra.get("recent_compare") or {},
+        "wc_h2h":               _payload_extra.get("h2h") or [],
+
         # ── 新手版字段 ──
         "beginner_summary":    report.get("beginner_summary"),
         "chart_insights":      chart_insights,

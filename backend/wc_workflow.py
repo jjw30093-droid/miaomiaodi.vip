@@ -69,6 +69,17 @@ class WcMatchReportState(TypedDict):
 
     prebuilt_quant_section: str  # Python 生成的 WDL/OU/AH 数值段（不让 LLM 重算）
 
+    # ── cc 站增强数据（可能为空 dict/list，agent 必须容错）──
+    cc_predictions:  dict   # Sportmonks 模型预测 {fulltime_result, over_under_2_5, btts, ...}
+    predicted_lineup: list  # 预计首发 [{team_sportmonks_id, player_name, player_name_zh,
+                            #             jersey_number, position, formation_position, confidence}...]
+    home_recent:     list   # 主队近 N 场 [{match_label, starting_at, state_short_name, ...}...]
+    away_recent:     list   # 客队近 N 场
+    recent_compare:  dict   # 近期对比 {windows, home, away}
+    h2h:             list   # 历史交锋
+    cc_home_team_id: int    # 主队 Sportmonks ID（用于 lineup 分组）
+    cc_away_team_id: int    # 客队 Sportmonks ID
+
     # ── Agent 中间输出 ──
     agent1_output: str
     agent2_output: str
@@ -114,22 +125,27 @@ match_info: 比赛基本信息
 }"""
 
 WC_AGENT2_SYSTEM_PROMPT = """# 角色
-你是世界杯盘口解读模块。分析 WDL 市场共识与 OU/AH 盘口信息，输出结构化 JSON。
+你是世界杯盘口解读模块。分析 WDL 市场共识、OU/AH 盘口信息、以及第三方模型预测，输出结构化 JSON。
 
 # 铁律
 1. **仅输出合法 JSON**，不写叙事文字，不加 markdown 围栏。
 2. **绝对禁止自行计算概率**，数值全部引用输入。
-3. **OU 必须标注** "历史基线建立中，2026实盘滚动验证"，绝对禁止引用 market-80 的 54.5% 或 61% 等历史准确率。
+3. **OU 必须标注** "历史基线建立中，2026实盘滚动验证"，绝对禁止引用历史准确率。
 4. **AH 仅幅度信息（market 让球幅度=N球）**，绝对禁止给出 AH 胜率或推荐。
 5. **WDL 推荐** 只能来自 single_pick 字段，不可自行判断方向。
 6. 禁止任何"热钱信号 / 资金流向 / 庄家意图"等话术。
-7. 所有文本字段使用中文。
+7. **cc_predictions 字段是第三方模型预测**，仅作参考视角展示，不得用它覆盖或替换市场共识。
+8. 所有文本字段使用中文。
 
 # 输入数据
 wc_ml_output: WDL 市场共识概率 + 书商数量 + 离散度
 ou_display: OU Goal Line 展示数据（含免责声明）
 ah_info: AH 市场隐含让球幅度（仅幅度，无胜率）
 single_pick: WC 单推选择结果（可能为 {} 代表 SKIP）
+cc_predictions: 第三方模型预测数据（若为空 dict 则跳过模型对标分析）
+  - fulltime_result: {home, draw, away} 模型 WDL 概率（%）
+  - over_under_2_5: {over, under} 大小球概率
+  - both_teams_to_score: {yes, no} 双方进球概率
 
 # 输出格式（严格 JSON）
 {
@@ -145,12 +161,22 @@ single_pick: WC 单推选择结果（可能为 {} 代表 SKIP）
     "over_prob": <number|null>,
     "under_prob": <number|null>,
     "note": "历史基线建立中，2026实盘滚动验证",
-    "commentary": "<一句话说明进球趋势预期，20 字内，严禁引用 54.5%/61% 等历史准确率>"
+    "commentary": "<一句话说明进球趋势预期，20 字内>"
   },
   "ah_analysis": {
     "line": <number|null>,
     "magnitude": <number|null>,
     "commentary": "<一句话描述市场让球幅度含义，20 字内，严禁给出 AH 胜率>"
+  },
+  "model_vs_market": {
+    "available": <true|false>,
+    "model_home_pct": <number|null>,
+    "model_draw_pct": <number|null>,
+    "model_away_pct": <number|null>,
+    "market_home_pct": <number|null>,
+    "gap_summary": "<一句话描述模型与市场最大分歧方向及幅度，如有 available=false 写 null>",
+    "btts_model_pct": <number|null>,
+    "disclaimer": "第三方模型预测，2026实盘待验证，仅供参考"
   },
   "market_vs_model_edge": "<一句话说明市场共识与单推逻辑的契合度，20 字内>"
 }"""
@@ -193,18 +219,30 @@ WC_AGENT4_SYSTEM_PROMPT = """# 角色
 你是世界杯研报撰写专家。整合前三个 Agent 的分析，生成一份完整的 Markdown 研报。
 
 # 铁律（红线，任何条违反都是错误输出）
-1. **推荐方向只能是 WDL（主胜/平局/客胜）**；绝对禁止给出亚盘推荐或大小球推荐（这不是联赛）。
+1. **推荐方向只能是 WDL（主胜/平局/客胜）**；绝对禁止给出亚盘推荐或大小球推荐。
 2. **OU（进球数）仅展示分析，不出推荐**；必须带"历史基线建立中，2026实盘滚动验证"免责。
 3. **AH 仅写市场隐含让球幅度**，绝对禁止给出 AH 胜率或 AH 方向推荐。
 4. **禁止出现** xG / NPXGD / 期望进球 / 射门坐标等联赛专属指标（WC 无此数据）。
 5. **BCC 缺失时**，对应行/格不显示数字（写"—"或隐藏），绝对不得插值估算。
 6. **禁止出现** 跟单稳赚 / 胜率保证 / 热钱信号 / 前 N 场回归 等话术。
 7. **禁止引用** market-80 历史准确率（54.5% / 61%）。
-8. **所有概率数值必须** 原封不动引用 prebuilt_quant_section，不得重算或修改。
+8. **所有市场共识概率数值必须** 原封不动引用 prebuilt_quant_section，不得重算或修改。
 9. 全文使用中文，禁止英文单词（ML→算法模型，Edge→价值边际 等）。
-10. **SKIP 场次**：推荐方向写"观望"，理由说明"市场共识分歧过大或样本不足"，不得强行给出方向。
+10. **SKIP 场次**：推荐方向写"观望"，理由说明"市场共识分歧过大或样本不足"。
+11. **模型预测对标段落**：若 agent2_output.model_vs_market.available=false 或数据为空，跳过该段不写（不写"暂无数据"占位）。
+12. **预计首发段落**：若 predicted_lineup 为空列表，跳过整个 ### 预计首发简报 段落，不写占位文字。
+13. **近期表现段落**：home_recent / away_recent 可能为 2022 大赛数据，必须注明数据年份或来源，绝不伪造近期状态。
 
-# 研报 Markdown 结构（按此顺序，不得删改 H2 标题）
+# 输入数据说明
+- agent1_output: 队伍统计信号 JSON
+- agent2_output: 盘口分析 JSON（含 model_vs_market 字段）
+- agent3_output: 战力评估 JSON
+- prebuilt_quant_section: Python 精确生成的量化基准线（直接粘贴，不修改）
+- predicted_lineup: 预计首发列表（可能为空）
+- home_recent / away_recent: 近期场次列表（可能为空或仅含历史大赛数据）
+- match_info: 比赛基本信息
+
+# 研报 Markdown 结构（按此顺序，不得删改 H2 标题；条件段落见铁律 11-13）
 
 ## {主队} vs {客队} · 世界杯 {日期}
 
@@ -215,6 +253,22 @@ WC_AGENT4_SYSTEM_PROMPT = """# 角色
 ## 量化概率基准线
 
 {直接插入 prebuilt_quant_section，不修改任何数字}
+
+---
+
+## 模型预测对标（条件：agent2_output.model_vs_market.available=true 时渲染，否则跳过）
+
+| 维度 | 市场共识（去水） | 算法模型（第三方参考） |
+|------|----------------|----------------------|
+| 主胜概率 | XX% | XX% |
+| 平局概率 | XX% | XX% |
+| 客胜概率 | XX% | XX% |
+| 大球(>2.5) | XX% | XX% |
+| 双方进球 | — | XX% |
+
+> ⚠️ 算法模型为第三方预测数据，2026实盘待验证，仅供参考。市场共识为本研报推荐依据。
+
+[一句话分析最大分歧方向及其可能含义，不给出方向建议]
 
 ---
 
@@ -234,6 +288,35 @@ WC_AGENT4_SYSTEM_PROMPT = """# 角色
 
 ---
 
+### 预计首发简报（条件：predicted_lineup 不为空时渲染，否则跳过此段）
+
+**{主队}** （阵型：从 predicted_lineup 中提取或写"待公布"）
+
+| 号码 | 位置 | 球员 |
+|------|------|------|
+| [jersey_number] | [position 中文] | [player_name_zh 或 player_name] |
+（列出主队 11 名首发，按 formation_position 排序）
+
+**{客队}** （阵型：同上）
+
+| 号码 | 位置 | 球员 |
+|------|------|------|
+（列出客队 11 名首发）
+
+> 注：首发为赛前预测阵容，以实际出场为准。
+
+---
+
+## 近期表现（条件：home_recent 或 away_recent 非空时渲染，否则跳过）
+
+**{主队} 近期战绩**
+[列出最近 3-5 场，每场一行：日期 | 对阵 | 结果。若数据为 2022 年，注明"以下为 2022 年大赛历史战绩（本届未参加预选赛）"。若有近期预选赛数据则正常呈现。]
+
+**{客队} 近期战绩**
+[同上]
+
+---
+
 ## WDL 推荐分析
 
 [基于市场共识和战力对比，说明推荐方向及核心逻辑。SKIP 时写观望理由。]
@@ -242,8 +325,7 @@ WC_AGENT4_SYSTEM_PROMPT = """# 角色
 
 ## 进球数（Goal Line）展示
 
-[market7 共识概率，带 split 说明；必须包含 "历史基线建立中，2026实盘滚动验证" 免责声明；
-严禁引用 54.5% / 61% 等历史准确率；OU 不出推荐]
+[market 共识概率，带 split 说明；必须包含 "历史基线建立中，2026实盘滚动验证" 免责声明；OU 不出推荐]
 
 ---
 
@@ -263,26 +345,26 @@ WC_AGENT4_SYSTEM_PROMPT = """# 角色
 
 ```json_meta
 {
-  "beginner_summary": "用大白话一句话概括推荐理由（SKIP 时写'本场分析数据指向不明确，建议观望'），不超过 50 字，禁用专业术语，语气像朋友微信聊天，包含一个具体数据事实",
+  "beginner_summary": "用大白话一句话概括推荐理由，不超过 50 字，禁用专业术语，语气像朋友微信聊天，包含一个具体数据事实",
   "chart_insights": {
     "npxgd": "一句话描述本场每分钟危险进攻/射门趋势对 WDL 的意义，30 字内",
     "shotmap": null,
-    "lineup_compare": null,
+    "lineup_compare": "若有首发数据，一句话描述阵型/首发对本场的影响；否则写 null",
     "injuries": null,
     "player_contribution": null
   },
   "key_variables": [
-    "本场最关键的 3 个 WDL 相关变量，每条不超过 20 字。例：主队主场近 4 场均胜 / 书商 N 家共识主胜 / 让球幅度 N 球偏向主队"
+    "本场最关键的 3 个 WDL 相关变量，每条不超过 20 字"
   ],
-  "key_risk": "本场 WDL 推荐最大的风险点，一句话不超过 40 字。SKIP 时写'书商分歧超阈值，市场定价存在不确定性'"
+  "key_risk": "本场 WDL 推荐最大的风险点，一句话不超过 40 字"
 }
 ```
 
 # 关键约束
 1. json_meta 代码块必须保留 ```json_meta 起始标和 ``` 结束标，后端按此解析。
 2. json_meta 内 JSON 必须严格合法（双引号、无尾随逗号）。
-3. key_variables 数组长度恰好 3 条；shotmap / lineup_compare / injuries / player_contribution 固定写 null（WC 无此数据）。
-4. 所有数值原封不动引用输入，禁止编造或重算。
+3. key_variables 数组长度恰好 3 条；shotmap / injuries / player_contribution 固定写 null。
+4. 所有市场共识概率数值原封不动引用输入，禁止编造或重算。
 """
 
 
@@ -302,10 +384,11 @@ def _build_wc_agent_context(state: WcMatchReportState, agent_key: str) -> dict:
     elif agent_key == "agent2_output":
         return {
             **base,
-            "wc_ml_output": state.get("wc_ml_output", {}),
-            "ou_display":   state.get("ou_display", {}),
-            "ah_info":      state.get("ah_info", {}),
-            "single_pick":  state.get("single_pick", {}),
+            "wc_ml_output":  state.get("wc_ml_output", {}),
+            "ou_display":    state.get("ou_display", {}),
+            "ah_info":       state.get("ah_info", {}),
+            "single_pick":   state.get("single_pick", {}),
+            "cc_predictions": state.get("cc_predictions", {}),  # 第三方模型预测
         }
     elif agent_key == "agent3_output":
         return {
@@ -314,6 +397,17 @@ def _build_wc_agent_context(state: WcMatchReportState, agent_key: str) -> dict:
             "agent2_output": state.get("agent2_output", ""),
         }
     elif agent_key == "final_report":
+        # 首发数据：按 cc_home/away_team_id 分组，仅传 11 名首发
+        predicted_lineup = state.get("predicted_lineup") or []
+        home_tid = state.get("cc_home_team_id") or 0
+        away_tid = state.get("cc_away_team_id") or 0
+        home_starters = [p for p in predicted_lineup if p.get("team_sportmonks_id") == home_tid][:11]
+        away_starters = [p for p in predicted_lineup if p.get("team_sportmonks_id") == away_tid][:11]
+
+        # 近期表现：各取最近 5 场
+        home_recent = (state.get("home_recent") or [])[:5]
+        away_recent = (state.get("away_recent") or [])[:5]
+
         return {
             **base,
             "agent1_output":          state.get("agent1_output", ""),
@@ -324,6 +418,11 @@ def _build_wc_agent_context(state: WcMatchReportState, agent_key: str) -> dict:
             "ou_display":             state.get("ou_display", {}),
             "ah_info":                state.get("ah_info", {}),
             "single_pick":            state.get("single_pick", {}),
+            # ── cc 富数据 ────────────────────────────────────────────────────
+            "predicted_lineup_home":  home_starters,
+            "predicted_lineup_away":  away_starters,
+            "home_recent":            home_recent,
+            "away_recent":            away_recent,
         }
     return base
 

@@ -114,6 +114,82 @@ def _load_team_stats(conn: sqlite3.Connection, fixture_id: int, fixture: dict) -
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# 从 cc 站拉取世界杯富数据（预测/首发/近期表现）
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _load_cc_enrichment(fixture_id: int) -> dict:
+    """
+    从 cc 站 /api/v1/worldcup/match/{id} 拉取富数据。
+    失败时返回空 dict（降级），不阻塞研报生成。
+    返回标准化的增强数据 dict:
+      {
+        "predicted_lineup": [...],   # 预计首发（含 player_name_zh）
+        "predictions": {...},        # Sportmonks 模型预测（by_type key-value）
+        "home_recent":  [...],       # 近 N 场（可能为 2022 旧数据）
+        "away_recent":  [...],
+        "recent_compare": {...},     # 近期对比统计 {windows, home, away}
+        "h2h": [...],                # 历史交锋
+        "home_team_id": int,
+        "away_team_id": int,
+      }
+    """
+    try:
+        from cc_client import get_worldcup_match, CCBackendUnavailable  # type: ignore
+        data = get_worldcup_match(fixture_id)
+        if not data:
+            return {}
+
+        # 标准化预测字段（by_type → {fulltime_result, over_under_2_5, ...}）
+        raw_pred = data.get("predictions") or {}
+        predictions_clean: dict = {}
+        if isinstance(raw_pred, dict):
+            by_type = raw_pred.get("by_type") or raw_pred
+            for k, v in by_type.items():
+                if isinstance(v, dict):
+                    predictions_clean[k] = v
+
+        # 首发阵容（22 人列表）
+        pl = data.get("predicted_lineup") or data.get("lineups") or []
+        predicted_lineup = pl if isinstance(pl, list) else []
+
+        # 近期表现
+        home_recent = data.get("home_recent_fixtures") or []
+        away_recent = data.get("away_recent_fixtures") or []
+        recent_compare = data.get("recent_stats_compare") or {}
+        h2h = data.get("h2h") or []
+
+        # 队伍 id（用于阵容分组）
+        fixture_data = data.get("fixture") or {}
+        participants = fixture_data.get("participants") or []
+        home_team_id, away_team_id = 0, 0
+        for p in participants:
+            meta = p.get("meta") or {}
+            if meta.get("location") == "home":
+                home_team_id = p.get("id") or 0
+            elif meta.get("location") == "away":
+                away_team_id = p.get("id") or 0
+
+        log.info(
+            f"  [cc_enrichment] lineup={len(predicted_lineup)} preds={len(predictions_clean)} "
+            f"home_recent={len(home_recent)} away_recent={len(away_recent)} h2h={len(h2h)}"
+        )
+        return {
+            "predicted_lineup": predicted_lineup,
+            "predictions":      predictions_clean,
+            "home_recent":      home_recent,
+            "away_recent":      away_recent,
+            "recent_compare":   recent_compare,
+            "h2h":              h2h,
+            "home_team_id":     home_team_id,
+            "away_team_id":     away_team_id,
+        }
+
+    except Exception as e:
+        log.warning(f"  [cc_enrichment] failed (graceful degradation): {type(e).__name__}: {e}")
+        return {}
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # 主生成逻辑
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -153,6 +229,9 @@ def generate_wc_report(
         log.info(f"  {home_name} vs {away_name} @ {match_time}")
 
         team_stats = _load_team_stats(conn, fixture_id, fixture)
+
+        # ── 1b. 从 cc 站拉取富数据（降级安全）─────────────────────────────────
+        cc_data = _load_cc_enrichment(fixture_id)
 
         # ── 2. 去水共识 ────────────────────────────────────────────────────────
         from wc_devig import devig_consensus  # type: ignore
@@ -238,6 +317,15 @@ def generate_wc_report(
                 "ah_info":                ah_implied or {},
                 "single_pick":            single_pick or {},
                 "prebuilt_quant_section": quant_section,
+                # ── cc 站增强数据 ──────────────────────────────────────────────
+                "cc_predictions":         cc_data.get("predictions") or {},
+                "predicted_lineup":       cc_data.get("predicted_lineup") or [],
+                "home_recent":            cc_data.get("home_recent") or [],
+                "away_recent":            cc_data.get("away_recent") or [],
+                "recent_compare":         cc_data.get("recent_compare") or {},
+                "h2h":                    cc_data.get("h2h") or [],
+                "cc_home_team_id":        cc_data.get("home_team_id") or 0,
+                "cc_away_team_id":        cc_data.get("away_team_id") or 0,
                 "agent1_output":          "",
                 "agent2_output":          "",
                 "agent3_output":          "",
@@ -263,8 +351,15 @@ def generate_wc_report(
                 "ah":     ah_implied,
                 "period": "opening",
             },
-            "model_meta": prediction.get("model_meta", {}),
-            "grade":      grade_result,
+            "model_meta":      prediction.get("model_meta", {}),
+            "grade":           grade_result,
+            # ── cc 富数据烘焙 ──────────────────────────────────────────────────
+            "cc_predictions":  cc_data.get("predictions") or {},
+            "predicted_lineup": cc_data.get("predicted_lineup") or [],
+            "home_recent":     cc_data.get("home_recent") or [],
+            "away_recent":     cc_data.get("away_recent") or [],
+            "recent_compare":  cc_data.get("recent_compare") or {},
+            "h2h":             cc_data.get("h2h") or [],
         }
 
         # ── 10. 写库 ─────────────────────────────────────────────────────────
