@@ -358,8 +358,8 @@ async function ReportContent({
             />
           )}
 
-          {/* ④ 模型综合判断（前置！原位置在最末，现作为决策摘要的收口） */}
-          {hasFullAccess && (
+          {/* ④ 模型综合判断（WC 不渲染：verdictSummary=null 且 keyVariables 由 AI 正文覆盖）*/}
+          {hasFullAccess && !isWc && (
             <ModelVerdictCard
               homeTeam={homeTeam}
               awayTeam={awayTeam}
@@ -383,7 +383,8 @@ async function ReportContent({
         {/* ── 3. 数据论据区（注册用户）────────────────────────────────────── */}
         {showCharts && (
           <section id="data" className="flex flex-col gap-5">
-            {/* Block A · npxGD 趋势图 + 解读 + 长文段 */}
+            {/* Block A · npxGD 趋势图（联赛专用，WC 无此数据直接跳过）*/}
+            {!isWc && (
             <div className="bg-[var(--panel-bg-strong)] backdrop-blur-xl border border-[var(--panel-border-strong)] rounded-2xl p-5 overflow-hidden shadow-[var(--panel-shadow-strong)]">
               <SectionLabel
                 icon={<TrendingUp size={11} />}
@@ -411,6 +412,7 @@ async function ReportContent({
                 </div>
               )}
             </div>
+            )}
 
             {/* Block B · 射门渗透（联赛）或 WC 攻防统计表 */}
             {!isWc && (
