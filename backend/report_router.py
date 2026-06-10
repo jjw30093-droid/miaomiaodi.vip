@@ -102,19 +102,25 @@ def _get_wc_cards(user) -> list:
     try:
         conn = sqlite3.connect(WC_DB_PATH, timeout=5)
         conn.row_factory = sqlite3.Row
+        # JOIN wc_fixtures → wc_teams 取队徽 image_path
         rows = conn.execute("""
-            SELECT match_id, home_team, away_team, match_time,
-                   home_prob, draw_prob, away_prob,
-                   inference, pipeline_status, match_status, is_free
-            FROM wc_reports
-            WHERE home_team IS NOT NULL
-              AND away_team IS NOT NULL
-              AND pipeline_status NOT IN ('TEST', 'PLACEHOLDER')
-              AND home_team NOT LIKE '%Group%'
-              AND away_team NOT LIKE '%Group%'
-              AND home_team NOT LIKE 'TBD%'
-              AND away_team NOT LIKE 'TBD%'
-            ORDER BY match_time DESC
+            SELECT wr.match_id, wr.home_team, wr.away_team, wr.match_time,
+                   wr.home_prob, wr.draw_prob, wr.away_prob,
+                   wr.inference, wr.pipeline_status, wr.match_status, wr.is_free,
+                   ht.image_path AS home_icon,
+                   at_t.image_path AS away_icon
+            FROM wc_reports wr
+            LEFT JOIN wc_fixtures f ON f.sportmonks_id = wr.fixture_sportmonks_id
+            LEFT JOIN wc_teams ht ON ht.sportmonks_id = f.home_team_sportmonks_id
+            LEFT JOIN wc_teams at_t ON at_t.sportmonks_id = f.away_team_sportmonks_id
+            WHERE wr.home_team IS NOT NULL
+              AND wr.away_team IS NOT NULL
+              AND wr.pipeline_status NOT IN ('TEST', 'PLACEHOLDER')
+              AND wr.home_team NOT LIKE '%Group%'
+              AND wr.away_team NOT LIKE '%Group%'
+              AND wr.home_team NOT LIKE 'TBD%'
+              AND wr.away_team NOT LIKE 'TBD%'
+            ORDER BY wr.match_time DESC
             LIMIT 20
         """).fetchall()
         conn.close()
@@ -125,6 +131,8 @@ def _get_wc_cards(user) -> list:
     for r in rows:
         mid = str(r["match_id"])
         _, iso_time = _classify_match(r["match_time"] or "")
+        home_icon = r["home_icon"] or None
+        away_icon = r["away_icon"] or None
 
         if user.is_guest:
             cards.append({
@@ -135,8 +143,8 @@ def _get_wc_cards(user) -> list:
                 "status": "GATED",
                 "pipeline_status": None,
                 "inference": "",
-                "homeTeam": {"name": r["home_team"] or "", "icon": None, "prob": None},
-                "awayTeam": {"name": r["away_team"] or "", "icon": None, "prob": None},
+                "homeTeam": {"name": r["home_team"] or "", "icon": home_icon, "prob": None},
+                "awayTeam": {"name": r["away_team"] or "", "icon": away_icon, "prob": None},
                 "drawProb": None,
                 "is_daily_free": bool(r["is_free"]),
                 "is_pinned": False,
@@ -152,9 +160,9 @@ def _get_wc_cards(user) -> list:
                 "status": r["pipeline_status"] or "",
                 "pipeline_status": r["pipeline_status"],
                 "inference": r["inference"] or "",
-                "homeTeam": {"name": r["home_team"] or "", "icon": None,
+                "homeTeam": {"name": r["home_team"] or "", "icon": home_icon,
                              "prob": r["home_prob"]},
-                "awayTeam": {"name": r["away_team"] or "", "icon": None,
+                "awayTeam": {"name": r["away_team"] or "", "icon": away_icon,
                              "prob": r["away_prob"]},
                 "drawProb": r["draw_prob"],
                 "is_daily_free": bool(r["is_free"]),

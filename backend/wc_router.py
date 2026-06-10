@@ -68,9 +68,16 @@ def _get_main_conn() -> sqlite3.Connection:
 def _load_wc_report(match_id: str) -> Optional[dict]:
     try:
         conn = _get_wc_conn()
-        row = conn.execute(
-            "SELECT * FROM wc_reports WHERE match_id=?", (match_id,)
-        ).fetchone()
+        row = conn.execute("""
+            SELECT wr.*,
+                   ht.image_path AS home_icon,
+                   at_t.image_path AS away_icon
+            FROM wc_reports wr
+            LEFT JOIN wc_fixtures f ON f.sportmonks_id = wr.fixture_sportmonks_id
+            LEFT JOIN wc_teams ht ON ht.sportmonks_id = f.home_team_sportmonks_id
+            LEFT JOIN wc_teams at_t ON at_t.sportmonks_id = f.away_team_sportmonks_id
+            WHERE wr.match_id=?
+        """, (match_id,)).fetchone()
         conn.close()
     except Exception as e:
         log.error(f"[wc_router] DB error reading wc_reports: {e}")
@@ -297,8 +304,8 @@ def _build_payload(
         # ── 元数据 ──
         "home_team":           report.get("home_team") or "",
         "away_team":           report.get("away_team") or "",
-        "home_icon":           "",    # WC 暂无 icon URL
-        "away_icon":           "",
+        "home_icon":           report.get("home_icon") or "",
+        "away_icon":           report.get("away_icon") or "",
         "match_time":          report.get("match_time") or "",
         "league":              report.get("league") or "World Cup",
         "match_status":        report.get("match_status") or "upcoming",

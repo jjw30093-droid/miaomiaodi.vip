@@ -19,7 +19,7 @@ import CollapsibleSection from '@/components/common/CollapsibleSection';
 import { BackgroundEffects } from '@/components/BackgroundEffects';
 import Footer from '@/components/layout/Footer';
 // WC-only components（仅在 tournamentType==='wc' 时渲染，联赛路径零影响）
-import WcAttackTable from '@/components/report/WcAttackTable';
+import WcRecentStatsCompare from '@/components/report/WcRecentStatsCompare';
 import WcAhInfoCard from '@/components/report/WcAhInfoCard';
 import WcModelPredictionsCard from '@/components/report/WcModelPredictionsCard';
 import WcProjectedLineupTable from '@/components/report/WcProjectedLineupTable';
@@ -439,21 +439,14 @@ async function ReportContent({
               </div>
             )}
 
-            {/* Block B-WC · 世界杯攻防对比表（无 xG/射门坐标，仅队伍统计） */}
-            {isWc && (() => {
-              // 从 payload 透传的 wc_team_stats（可能在 chartInsights 中无，需后端打进 payload）
-              // Phase 1: 用 null 兜底，组件内部渲染 "—"
-              const wcHome = (report as any).wcTeamStats?.home ?? {};
-              const wcAway = (report as any).wcTeamStats?.away ?? {};
-              return (
-                <WcAttackTable
-                  homeTeamName={homeTeam}
-                  awayTeamName={awayTeam}
-                  homeStats={wcHome}
-                  awayStats={wcAway}
-                />
-              );
-            })()}
+            {/* Block B-WC · 近期数据对比（替代空的「原始攻防对比」，使用近5/10场均值）*/}
+            {isWc && (
+              <WcRecentStatsCompare
+                wcRecentCompare={(report as any).wcRecentCompare}
+                homeTeam={homeTeam}
+                awayTeam={awayTeam}
+              />
+            )}
 
             {/* Block B-WC-AH · 亚盘让球信息卡（仅幅度，无胜率）*/}
             {isWc && (() => {

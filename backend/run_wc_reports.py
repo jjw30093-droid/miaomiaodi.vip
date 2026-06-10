@@ -269,6 +269,35 @@ def generate_wc_report(
             log.info(f"  SKIP: {grade_result.get('skip_reason')}")
             # SKIP 不阻止生成研报，只是研报内不出推荐
 
+        # ── 5b. 人工推荐覆盖（editorial override，优先级高于模型）────────────────
+        # 格式：match_id → (市场, 方向描述, 赔率, confidence, inference文本, 备注)
+        _AH_ODDS_MAP = {
+            # fixture 19609127 (Mexico vs South Africa) AH -1: Bookmaker Bet365
+            "wc_19609127": 1.77,
+        }
+        PICK_OVERRIDES = {
+            "wc_19609127": {
+                "picked_market":     "ah",
+                "picked_direction":  "home",
+                "picked_odds":       _AH_ODDS_MAP.get(match_id),
+                "picked_confidence": "HIGH",
+                "inference": f"【推荐】{home_name} 让一球 @{_AH_ODDS_MAP.get(match_id, '—')}  · 仅供参考",
+                "caution_text": "亚盘参考，不构成投注建议",
+            },
+            "wc_19609153": {
+                "picked_market":     "wdl",
+                "picked_direction":  "home_win",
+                "picked_odds":       2.62,
+                "picked_confidence": "MID",
+                "inference": f"【推荐】{home_name} 主胜 @2.62  {round(prediction['wdl']['home']*100,1)}% ({prediction['wdl']['home']:.3f}/{prediction['wdl']['draw']:.3f}/{prediction['wdl']['away']:.3f})",
+                "caution_text": None,
+            },
+        }
+        if match_id in PICK_OVERRIDES:
+            override = PICK_OVERRIDES[match_id]
+            single_pick = override
+            log.info(f"  [OVERRIDE] {match_id} pick → {override['inference']}")
+
         # ── 6. 量化基准线（Python 生成，LLM 不得重算） ───────────────────────
         from wc_workflow import build_prebuilt_quant_section  # type: ignore
         # 把 n_books/divergence 从 prediction 顶层补入 wdl dict，供 quant_section 显示

@@ -1,6 +1,7 @@
 import { getMatchReport } from '@/lib/fetchReport';
 import ContactAdminPanel from '@/components/ContactAdminPanel';
 import Link from 'next/link';
+import Image from 'next/image';
 import { ChevronLeft } from 'lucide-react';
 
 /**
@@ -14,6 +15,8 @@ export default async function WcGuestPreview({ matchId }: { matchId: string }) {
 
   const homeTeam = report?.homeTeamName ?? '主队';
   const awayTeam = report?.awayTeamName ?? '客队';
+  const homeIcon = (report as any)?.homeIcon as string | null | undefined;
+  const awayIcon = (report as any)?.awayIcon as string | null | undefined;
   const matchTime = report?.matchTime
     ? new Date(report.matchTime).toLocaleString('zh-CN', {
         month: '2-digit',
@@ -55,12 +58,22 @@ export default async function WcGuestPreview({ matchId }: { matchId: string }) {
             世界杯 · {matchTime ? matchTime + ' (北京时间)' : '赛前'}
           </p>
           <div className="flex items-center justify-between gap-4">
-            <div className="flex-1 text-center">
-              <p className="text-lg font-black text-white break-words">{homeTeam}</p>
+            <div className="flex-1 text-center flex flex-col items-center gap-2">
+              {homeIcon ? (
+                <Image src={homeIcon} alt={homeTeam} width={48} height={48} unoptimized className="rounded-full" />
+              ) : (
+                <div className="w-12 h-12 rounded-full bg-zinc-800" />
+              )}
+              <p className="text-base font-black text-white break-words">{homeTeam}</p>
             </div>
             <div className="text-zinc-500 text-sm font-mono shrink-0">VS</div>
-            <div className="flex-1 text-center">
-              <p className="text-lg font-black text-white break-words">{awayTeam}</p>
+            <div className="flex-1 text-center flex flex-col items-center gap-2">
+              {awayIcon ? (
+                <Image src={awayIcon} alt={awayTeam} width={48} height={48} unoptimized className="rounded-full" />
+              ) : (
+                <div className="w-12 h-12 rounded-full bg-zinc-800" />
+              )}
+              <p className="text-base font-black text-white break-words">{awayTeam}</p>
             </div>
           </div>
         </div>

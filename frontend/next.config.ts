@@ -17,6 +17,10 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: '*.fotmob.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'cdn.sportmonks.com',
+      },
     ],
   },
   rewrites: async () => {
