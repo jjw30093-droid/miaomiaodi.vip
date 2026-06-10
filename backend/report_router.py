@@ -10,8 +10,9 @@ from name_translator import translate_team
 from auth_deps import get_optional_user, get_current_user, CurrentUser
 router = APIRouter(prefix="/api/v1", tags=["Premium Reports"])
 
-DB_PATH = os.environ.get("DB_PATH") or "/home/ubuntu/app/backend/football_uk.db"
-_THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH    = os.environ.get("DB_PATH") or "/home/ubuntu/app/backend/football_uk.db"
+WC_DB_PATH = os.environ.get("WC_DB_PATH", os.path.join(os.path.dirname(os.path.abspath(__file__)), "worldcup.db"))
+_THIS_DIR  = os.path.dirname(os.path.abspath(__file__))
 REPORTS_DIR = os.environ.get("REPORTS_DIR", os.path.join(_THIS_DIR, "reports"))
 
 # 单例 MinIO 服务
@@ -90,6 +91,77 @@ def _classify_match(match_time_str: str) -> tuple[str, str]:
     # 返回标准 UTC ISO 8601，前端自行转本地时区，不在服务端硬编码 +8h
     iso_time = dt.strftime("%Y-%m-%dT%H:%M:%SZ")
     return category, iso_time
+
+
+def _get_wc_cards(user) -> list:
+    """
+    从 worldcup.db.wc_reports 拉取世界杯比赛卡片，混入 /reports/latest。
+    GUEST 档脱敏与联赛一致（无 inference/概率）。
+    worldcup.db 不可用时静默返回 []，不影响联赛卡片。
+    """
+    try:
+        conn = sqlite3.connect(WC_DB_PATH, timeout=5)
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("""
+            SELECT match_id, home_team, away_team, match_time,
+                   home_prob, draw_prob, away_prob,
+                   inference, pipeline_status, match_status, is_free
+            FROM wc_reports
+            WHERE home_team IS NOT NULL
+              AND away_team IS NOT NULL
+              AND pipeline_status NOT IN ('TEST', 'PLACEHOLDER')
+              AND home_team NOT LIKE '%Group%'
+              AND away_team NOT LIKE '%Group%'
+              AND home_team NOT LIKE 'TBD%'
+              AND away_team NOT LIKE 'TBD%'
+            ORDER BY match_time DESC
+            LIMIT 20
+        """).fetchall()
+        conn.close()
+    except Exception:
+        return []
+
+    cards = []
+    for r in rows:
+        mid = str(r["match_id"])
+        _, iso_time = _classify_match(r["match_time"] or "")
+
+        if user.is_guest:
+            cards.append({
+                "id": mid,
+                "league": "世界杯",
+                "time": iso_time,
+                "display_category": "GATED",
+                "status": "GATED",
+                "pipeline_status": None,
+                "inference": "",
+                "homeTeam": {"name": r["home_team"] or "", "icon": None, "prob": None},
+                "awayTeam": {"name": r["away_team"] or "", "icon": None, "prob": None},
+                "drawProb": None,
+                "is_daily_free": bool(r["is_free"]),
+                "is_pinned": False,
+                "tournament_type": "wc",
+            })
+        else:
+            display_category, _ = _classify_match(r["match_time"] or "")
+            cards.append({
+                "id": mid,
+                "league": "世界杯",
+                "time": iso_time,
+                "display_category": display_category,
+                "status": r["pipeline_status"] or "",
+                "pipeline_status": r["pipeline_status"],
+                "inference": r["inference"] or "",
+                "homeTeam": {"name": r["home_team"] or "", "icon": None,
+                             "prob": r["home_prob"]},
+                "awayTeam": {"name": r["away_team"] or "", "icon": None,
+                             "prob": r["away_prob"]},
+                "drawProb": r["draw_prob"],
+                "is_daily_free": bool(r["is_free"]),
+                "is_pinned": False,
+                "tournament_type": "wc",
+            })
+    return cards
 
 
 @router.get("/reports/latest")
@@ -186,6 +258,15 @@ async def get_latest_reports(user: CurrentUser = Depends(get_optional_user)):
                 "is_daily_free": is_free,
                 "is_pinned": bool(r["is_pinned"]),
             })
+
+        # ── 合并世界杯卡片（从 worldcup.db 拉取，失败静默）────────────────
+        wc_cards = _get_wc_cards(user)
+        if wc_cards:
+            matches = wc_cards + matches
+            # 按 match_time 排序（WC 6 月场次自然排前）
+            def _sort_key(m: dict) -> str:
+                return m.get("time") or ""
+            matches.sort(key=_sort_key, reverse=True)
 
         return matches
     except Exception as e:

@@ -43,12 +43,19 @@ export default function MatchCardGated({
       })
     : '';
 
+  // 世界杯场次：直接进详情页（展示预览 + 联系管理员），不跳登录
+  const handleClick = () => {
+    if (matchId.startsWith('wc_')) {
+      router.push('/report/' + matchId);
+    } else {
+      router.push('/login?next=' + encodeURIComponent('/report/' + matchId));
+    }
+  };
+
   return (
     <button
       type="button"
-      onClick={() =>
-        router.push('/login?next=' + encodeURIComponent('/report/' + matchId))
-      }
+      onClick={handleClick}
       className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 active:scale-[0.99] transition-transform text-left"
     >
       {/* 顶部：联赛 + 时间 */}

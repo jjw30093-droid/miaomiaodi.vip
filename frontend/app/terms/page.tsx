@@ -88,7 +88,7 @@ export default function TermsPage() {
                 <span className="text-white font-semibold">数字商品性质：</span>我们的 VIP 服务提供的是实时的数字化内容与高级图表解锁。由于数字商品具有"一旦解锁即可复制与阅读"的不可逆特性，<span className="text-white font-semibold">VIP 订阅一旦生效，原则上不提供退款服务</span>。
               </p>
               <p className="text-sm leading-7 text-slate-400">
-                <span className="text-white font-semibold">安全支付：</span>我们的付费结算将由国际标准的高级第三方支付网关（如 Stripe）进行加密处理。我们不会在自己的服务器上直接收集或明文存储你的信用卡核心信息，确保你的财务数据安全。
+                <span className="text-white font-semibold">开通方式：</span>账号开通由管理员人工审核处理，请通过站内联系方式与管理员沟通，确认后将为你开通对应权限。
               </p>
             </div>
           </section>

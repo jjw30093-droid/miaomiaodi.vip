@@ -24,6 +24,8 @@ import WcAhInfoCard from '@/components/report/WcAhInfoCard';
 import WcModelPredictionsCard from '@/components/report/WcModelPredictionsCard';
 import WcProjectedLineupTable from '@/components/report/WcProjectedLineupTable';
 import WcRecentFormCard from '@/components/report/WcRecentFormCard';
+// WC 游客预览页（无需登录，展示摘要 + 联系管理员）
+import WcGuestPreview from '@/components/report/WcGuestPreview';
 import {
   ChevronLeft, Lock, BarChart2, Crosshair, TrendingUp, Star, Activity, FileText,
 } from 'lucide-react';
@@ -628,8 +630,8 @@ async function ReportContent({
                 <Lock size={24} className="text-yellow-400/60" />
                 <p className="text-sm font-black text-slate-900 dark:text-white">赛后量化复盘 · 仅 VIP 可见</p>
                 <p className="text-xs text-slate-600 dark:text-white font-mono">包含模型回测、实际期望进球对比、AI 审计报告</p>
-                <Link href="/pricing" className="mt-1 px-4 py-2 rounded-full bg-yellow-400/10 border border-yellow-400/30 text-yellow-700 dark:text-yellow-400 text-xs font-black tracking-widest hover:bg-yellow-400/20 transition-all">
-                  升级 VIP →
+                <Link href="/login" className="mt-1 px-4 py-2 rounded-full bg-yellow-400/10 border border-yellow-400/30 text-yellow-700 dark:text-yellow-400 text-xs font-black tracking-widest hover:bg-yellow-400/20 transition-all">
+                  联系管理员开通 →
                 </Link>
               </div>
             )}
@@ -817,22 +819,29 @@ export default async function ReportPage({
 
         {accessLevel === 'anonymous' ? (
           <>
-            {/* 匿名用户：显示简单导航栏 + 登录提示 */}
-            <header className="sticky top-0 z-40 bg-[var(--header-bg)] backdrop-blur-md border-b border-[var(--header-border)] px-4 py-3 flex items-center gap-3">
-              <Link href="/" className="p-2 -ml-2 text-slate-400 dark:text-white hover:text-primary-neon transition-colors flex-shrink-0 group">
-                <ChevronLeft size={22} className="group-hover:-translate-x-0.5 transition-transform" />
-              </Link>
-              <div className="flex flex-col min-w-0 flex-1">
-                <span className="text-xs font-bold tracking-wider text-primary-neon uppercase">
-                  QUANT ANALYSIS · FOOTBALL
-                </span>
-                <span className="text-sm font-black text-slate-800 dark:text-white leading-tight">比赛研报</span>
-              </div>
-              <ThemeToggleButton />
-            </header>
-            <div className="flex flex-col items-center justify-center py-32 px-4">
-              <LoginPrompt matchId={matchId} />
-            </div>
+            {matchId.startsWith('wc_') ? (
+              /* 世界杯游客：展示预览摘要 + 联系管理员二维码（不跳登录）*/
+              <WcGuestPreview matchId={matchId} />
+            ) : (
+              /* 联赛游客：显示登录提示（保持现有行为）*/
+              <>
+                <header className="sticky top-0 z-40 bg-[var(--header-bg)] backdrop-blur-md border-b border-[var(--header-border)] px-4 py-3 flex items-center gap-3">
+                  <Link href="/" className="p-2 -ml-2 text-slate-400 dark:text-white hover:text-primary-neon transition-colors flex-shrink-0 group">
+                    <ChevronLeft size={22} className="group-hover:-translate-x-0.5 transition-transform" />
+                  </Link>
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <span className="text-xs font-bold tracking-wider text-primary-neon uppercase">
+                      QUANT ANALYSIS · FOOTBALL
+                    </span>
+                    <span className="text-sm font-black text-slate-800 dark:text-white leading-tight">比赛研报</span>
+                  </div>
+                  <ThemeToggleButton />
+                </header>
+                <div className="flex flex-col items-center justify-center py-32 px-4">
+                  <LoginPrompt matchId={matchId} />
+                </div>
+              </>
+            )}
           </>
         ) : (
           <Suspense
