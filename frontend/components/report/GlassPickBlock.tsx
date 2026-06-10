@@ -101,20 +101,20 @@ export default function GlassPickBlock({ inference }: { inference: string }) {
       <div className="rounded-xl bg-slate-50 dark:bg-black/30 border border-slate-200 dark:border-white/10
                       divide-y divide-slate-100 dark:divide-white/10">
         <div className="flex items-center justify-between px-3 py-2.5">
-          <span className="text-sm text-slate-700 dark:text-white/70 font-semibold">模型覆盖率</span>
+          <span className="text-sm text-slate-700 dark:text-white font-semibold">模型覆盖率</span>
           <span className="text-sm font-black text-slate-900 dark:text-white tabular-nums">
             {prob ? `${prob}%` : '—'}
           </span>
         </div>
         <div className="flex items-center justify-between px-3 py-2.5">
-          <span className="text-sm text-slate-700 dark:text-white/70 font-semibold">
+          <span className="text-sm text-slate-700 dark:text-white font-semibold">
             {pickType === 'AH' ? '亚盘覆盖率' : pickType === 'OU' ? '大球/小球概率' : '胜/平/负概率'}
           </span>
           <span className="text-sm font-black tabular-nums">
             <span className="text-[#005faf] dark:text-[#00F0FF]">{wdl[0]}%</span>
-            <span className="text-slate-400 dark:text-white/30 mx-1">/</span>
+            <span className="text-slate-400 dark:text-white mx-1">/</span>
             <span className="text-slate-900 dark:text-white">{wdl[1]}%</span>
-            <span className="text-slate-400 dark:text-white/30 mx-1">/</span>
+            <span className="text-slate-400 dark:text-white mx-1">/</span>
             <span className="text-[color:var(--secondary-magenta)] dark:text-[#FF00E5]">{wdl[2]}%</span>
           </span>
         </div>

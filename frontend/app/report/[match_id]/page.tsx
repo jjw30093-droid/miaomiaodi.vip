@@ -32,6 +32,7 @@ import {
 import { MatchTimeDisplay } from '@/components/MatchTimeDisplay';
 import ThemeToggleButton from '@/components/ThemeToggleButton';
 import { translateLeague } from '@/lib/leagueNames';
+import { translateTeam } from '@/lib/teamNames';
 
 const PlayerContributionTable = nextDynamic(() => import('@/components/PlayerContributionTable'));
 const NpxgTrendChart    = nextDynamic(() => import('@/components/NpxgTrendChart'));
@@ -181,11 +182,22 @@ async function ReportContent({
   }
 
   // ── Team names ─────────────────────────────────────────────────────────────
-  let homeTeam = report.homeTeamName;
-  let awayTeam = report.awayTeamName;
+  let homeTeam = translateTeam(report.homeTeamName);
+  let awayTeam = translateTeam(report.awayTeamName);
   if (homeTeam === 'HOME TEAM' && report.markdownContent) {
     const m = report.markdownContent.match(/# (.*) vs (.*)/i);
-    if (m) { homeTeam = m[1].trim(); awayTeam = m[2].trim(); }
+    if (m) { homeTeam = translateTeam(m[1].trim()); awayTeam = translateTeam(m[2].trim()); }
+  }
+  // 研报正文内英文球队名替换为中文
+  if (report.markdownContent) {
+    const rawHome = report.homeTeamName;
+    const rawAway = report.awayTeamName;
+    if (rawHome && rawHome !== homeTeam) {
+      report.markdownContent = report.markdownContent.split(rawHome).join(homeTeam);
+    }
+    if (rawAway && rawAway !== awayTeam) {
+      report.markdownContent = report.markdownContent.split(rawAway).join(awayTeam);
+    }
   }
 
   // ── Tournament type ────────────────────────────────────────────────────────

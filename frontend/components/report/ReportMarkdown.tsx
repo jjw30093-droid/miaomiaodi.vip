@@ -28,7 +28,7 @@ const MD_COMPONENTS: Record<string, React.FC<any>> = {
     </h3>
   ),
   p: ({ children }) => (
-    <p className="text-sm text-slate-800 dark:text-white leading-[1.75] mb-5 break-words">{children}</p>
+    <p className="text-base text-slate-900 dark:text-white leading-[1.85] mb-5 break-words">{children}</p>
   ),
   strong: ({ children }) => (
     <strong className="font-black text-slate-900 dark:text-white bg-slate-100 dark:bg-white/[0.06] px-0.5 rounded">{children}</strong>
@@ -39,7 +39,7 @@ const MD_COMPONENTS: Record<string, React.FC<any>> = {
   hr: () => <hr className="my-8 border-slate-200 dark:border-white/10" />,
 
   blockquote: ({ children }) => (
-    <blockquote className="my-5 px-5 py-4 bg-slate-50 dark:bg-white/[0.03] rounded-r-2xl border-l-[3px] border-[color:var(--primary-neon)]/60 dark:border-[#00F0FF]/50 text-slate-700 dark:text-white text-sm leading-[1.7] not-italic">
+    <blockquote className="my-5 px-5 py-4 bg-slate-50 dark:bg-white/[0.03] rounded-r-2xl border-l-[3px] border-[color:var(--primary-neon)]/60 dark:border-[#00F0FF]/50 text-slate-900 dark:text-white text-base leading-[1.8] not-italic">
       {children}
     </blockquote>
   ),
@@ -66,7 +66,7 @@ const MD_COMPONENTS: Record<string, React.FC<any>> = {
     </th>
   ),
   td: ({ children }) => (
-    <td className="px-3 py-2.5 text-slate-800 dark:text-white align-middle text-sm font-medium">{children}</td>
+    <td className="px-3 py-2.5 text-slate-900 dark:text-white align-middle text-base font-medium">{children}</td>
   ),
 
   ul: ({ children }) => (
@@ -76,7 +76,7 @@ const MD_COMPONENTS: Record<string, React.FC<any>> = {
     <ol className="my-4 space-y-2 pl-5 list-decimal">{children}</ol>
   ),
   li: ({ children }) => (
-    <li className="flex items-start gap-2.5 text-sm text-slate-800 dark:text-white leading-[1.7] break-words">
+    <li className="flex items-start gap-2.5 text-base text-slate-900 dark:text-white leading-[1.8] break-words">
       <span className="mt-2 w-1.5 h-1.5 rounded-full bg-[color:var(--primary-neon)] dark:bg-[#00F0FF] shrink-0" />
       <span>{children}</span>
     </li>
