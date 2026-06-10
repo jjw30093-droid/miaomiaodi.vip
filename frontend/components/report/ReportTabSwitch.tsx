@@ -21,7 +21,7 @@ export default function ReportTabSwitch({
   beginner: ReactNode;
   pro: ReactNode;
 }) {
-  const [active, setActive] = useState<'beginner' | 'pro'>('beginner');
+  const [active, setActive] = useState<'beginner' | 'pro'>('pro');
   const anchorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

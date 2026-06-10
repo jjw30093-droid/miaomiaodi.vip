@@ -40,6 +40,12 @@ const LEAGUE_NAME_ZH: Record<string, string> = {
   'K-League 1':                              '韩K联',
   'A-League Men':                            '澳超',
 
+  // 世界杯
+  'World Cup':                               '世界杯',
+  'WORLD CUP':                               '世界杯',
+  'FIFA World Cup':                          '世界杯',
+  'World Cup 2026':                          '世界杯',
+
   // 其他
   'Major Leagues':                           '主流联赛',
 };
@@ -47,5 +53,8 @@ const LEAGUE_NAME_ZH: Record<string, string> = {
 /** 英文联赛名 → 中文展示名；未匹配时原样返回 */
 export function translateLeague(name: string | null | undefined): string {
   if (!name) return '';
-  return LEAGUE_NAME_ZH[name] ?? name;
+  if (LEAGUE_NAME_ZH[name]) return LEAGUE_NAME_ZH[name];
+  // 兜底：World Cup 各种大小写/后缀变体
+  if (/world\s*cup/i.test(name)) return '世界杯';
+  return name;
 }

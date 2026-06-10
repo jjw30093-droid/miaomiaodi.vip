@@ -48,6 +48,36 @@ const TEAM_NAME_ZH: Record<string, string> = {
   'Angola':                  '安哥拉',
   'Uganda':                  '乌干达',
   'Tanzania':                '坦桑尼亚',
+  'Rwanda':                  '卢旺达',
+  'Zimbabwe':                '津巴布韦',
+  'Lesotho':                 '莱索托',
+  'Benin':                   '贝宁',
+  'Togo':                    '多哥',
+  'Gabon':                   '加蓬',
+  'Guinea':                  '几内亚',
+  'Guinea-Bissau':           '几内亚比绍',
+  'Equatorial Guinea':       '赤道几内亚',
+  'Mozambique':              '莫桑比克',
+  'Madagascar':              '马达加斯加',
+  'Mauritania':              '毛里塔尼亚',
+  'Namibia':                 '纳米比亚',
+  'Botswana':                '博茨瓦纳',
+  'Malawi':                  '马拉维',
+  'Kenya':                   '肯尼亚',
+  'Sudan':                   '苏丹',
+  'Libya':                   '利比亚',
+  'Ethiopia':                '埃塞俄比亚',
+  'Sierra Leone':            '塞拉利昂',
+  'Liberia':                 '利比里亚',
+  'Niger':                   '尼日尔',
+  'Comoros':                 '科摩罗',
+  'Gambia':                  '冈比亚',
+  'Eswatini':                '斯威士兰',
+  'Burundi':                 '布隆迪',
+  'South Sudan':             '南苏丹',
+  'Central African Republic':'中非',
+  'Chad':                    '乍得',
+  'Congo':                   '刚果',
 
   // ── CONCACAF（北中美，6 席）───────────────────────────────────────────────
   'USA':                     '美国',
@@ -138,5 +168,15 @@ const TEAM_NAME_ZH: Record<string, string> = {
 /** 英文球队名 → 中文展示名；未匹配时原样返回 */
 export function translateTeam(name: string | null | undefined): string {
   if (!name) return '';
-  return TEAM_NAME_ZH[name] ?? name;
+  return TEAM_NAME_ZH[name.trim()] ?? name;
+}
+
+/** 翻译 "A vs B" 形式的对阵标签，两边各自翻译 */
+export function translateMatchLabel(label: string | null | undefined): string {
+  if (!label) return '—';
+  const m = label.split(/\s+vs\.?\s+/i);
+  if (m.length === 2) {
+    return `${translateTeam(m[0])} vs ${translateTeam(m[1])}`;
+  }
+  return label;
 }

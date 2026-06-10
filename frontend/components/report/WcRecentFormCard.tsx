@@ -7,6 +7,8 @@
  * 各取最近 5 场，条件渲染：数据为空则不渲染
  */
 
+import { translateMatchLabel } from '@/lib/teamNames';
+
 interface RecentFixture {
   match_label?: string;
   starting_at?: string;
@@ -74,7 +76,7 @@ function RecentList({ matches, teamName }: { matches: RecentFixture[]; teamName:
                 {formatDate(m.starting_at)}
               </span>
               <span className={`w-4 shrink-0 font-bold ${res.color}`}>{res.text}</span>
-              <span className="text-zinc-400 truncate">{m.match_label || '—'}</span>
+              <span className="text-zinc-400 truncate">{translateMatchLabel(m.match_label)}</span>
             </div>
           );
         })}

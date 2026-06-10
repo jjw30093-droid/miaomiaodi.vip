@@ -3,6 +3,8 @@
 import { Star, ChevronRight } from 'lucide-react';
 import { MatchTimeDisplay } from '@/components/MatchTimeDisplay';
 import { switchToProTab } from './ReportTabSwitch';
+import { translateLeague } from '@/lib/leagueNames';
+import { translateTeam } from '@/lib/teamNames';
 import RecentStatCard from './RecentStatCard';
 import type { BestRecentStat } from '@/types/report';
 
@@ -82,6 +84,7 @@ export default function BeginnerView({
   bestRecentStat,
 }: Props) {
   const parsed       = parseInference(inference);
+  const pickLabel    = translateTeam(parsed.direction);
   const pickType     = getPickType(inference);
   const stars        = parsed.confidence ? STARS_FROM_CONF[parsed.confidence] : 0;
   const hasProbs     = homeProb != null && awayProb != null;
@@ -100,7 +103,7 @@ export default function BeginnerView({
   const oneLiner = beginnerSummary?.trim()
     ? beginnerSummary
     : (parsed.direction
-        ? `本场预测方向：${parsed.direction}${parsed.odds ? `，市场价格 @${parsed.odds}` : ''}${stars ? `，信心 ${stars}星` : ''}。`
+        ? `本场预测方向：${pickLabel}${parsed.odds ? `，市场价格 @${parsed.odds}` : ''}${stars ? `，信心 ${stars}星` : ''}。`
         : '本场分析数据准备中…');
 
   return (
@@ -115,7 +118,7 @@ export default function BeginnerView({
           <span className="inline-block text-xs font-bold tracking-[0.15em] uppercase px-3 py-1 rounded-full
                            bg-slate-900 text-white
                            dark:bg-white/[0.06] dark:text-white dark:border dark:border-white/15">
-            {league}
+            {translateLeague(league)}
             {matchTime && <span className="ml-2 opacity-70 normal-case tracking-wider">· <MatchTimeDisplay utcStr={matchTime} /></span>}
           </span>
         )}
@@ -161,7 +164,7 @@ export default function BeginnerView({
               <span className="text-xs font-bold px-1.5 py-0.5 rounded-full
                                bg-[#E91E63]/10 text-[#E91E63] dark:bg-[#00F0FF]/10 dark:text-[#00F0FF]
                                border border-[#E91E63]/20 dark:border-[#00F0FF]/20">
-                {pickType === 'AH' ? 'Spread' : pickType === 'OU' ? '进球数' : '赛果'}
+                {pickType === 'AH' ? '亚盘' : pickType === 'OU' ? '进球数' : '赛果'}
               </span>
             </div>
             {pipelineStatus === 'FINAL_REPORT_READY' && (
@@ -178,7 +181,7 @@ export default function BeginnerView({
           <div className="relative flex items-end justify-between gap-3">
             <div className="min-w-0">
               <div className="text-[32px] sm:text-4xl font-black tracking-tighter text-slate-900 dark:text-white leading-none">
-                {parsed.direction}
+                {pickLabel}
               </div>
               {parsed.odds && (
                 <div className="flex items-baseline gap-1.5 mt-2.5">
@@ -223,7 +226,7 @@ export default function BeginnerView({
                             border border-slate-900/10 dark:border-[var(--panel-border-strong)]
                             rounded-2xl p-5">
           <p className="text-xs font-black tracking-[0.25em] uppercase text-slate-700 dark:text-white/80 mb-4">
-            {pickType === 'AH' ? '📊 Spread 覆盖概率' : pickType === 'OU' ? '📊 进球数概率' : '📊 三种结果概率'}
+            {pickType === 'AH' ? '📊 亚盘覆盖概率' : pickType === 'OU' ? '📊 进球数概率' : '📊 三种结果概率'}
           </p>
           <div className="space-y-3">
             {pickType === 'OU' ? (
