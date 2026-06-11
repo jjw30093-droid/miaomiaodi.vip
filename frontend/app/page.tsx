@@ -22,7 +22,6 @@ import {
   ChevronDown,
   Filter
 } from 'lucide-react';
-import { BackgroundEffects } from '@/components/BackgroundEffects';
 import StrategyEquityChart from '@/components/StrategyEquityChart';
 import { apiClient } from '@/lib/apiClient';
 import ThemeToggleButton from '@/components/ThemeToggleButton';

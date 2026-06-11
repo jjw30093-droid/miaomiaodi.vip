@@ -14,7 +14,6 @@ import ModelVerdictCard from '@/components/report/ModelVerdictCard';
 import SectionNavBar from '@/components/report/SectionNavBar';
 import InsightLine from '@/components/report/InsightLine';
 import CollapsibleSection from '@/components/common/CollapsibleSection';
-import { BackgroundEffects } from '@/components/BackgroundEffects';
 import Footer from '@/components/layout/Footer';
 // WC-only components（仅在 tournamentType==='wc' 时渲染，联赛路径零影响）
 import WcRecentStatsCompare from '@/components/report/WcRecentStatsCompare';

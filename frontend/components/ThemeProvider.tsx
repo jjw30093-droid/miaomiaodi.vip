@@ -12,13 +12,13 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
-  const [theme, setTheme] = useState<Theme>('dark');
+  const [theme, setTheme] = useState<Theme>('light');
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     // 读 localStorage 后再标记 mounted，防止 theme effect 先行覆盖
     const saved = localStorage.getItem('theme');
-    setTheme(saved === 'light' ? 'light' : 'dark');
+    setTheme(saved === 'dark' ? 'dark' : 'light');
     setMounted(true);
   }, []);
 
