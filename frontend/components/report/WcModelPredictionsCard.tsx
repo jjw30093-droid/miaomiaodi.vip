@@ -84,14 +84,14 @@ export default function WcModelPredictionsCard({
   if (rows.length === 0) return null;
 
   return (
-    <div className="rounded-xl border border-zinc-700/40 bg-zinc-900/60 p-4 mt-4">
-      <h3 className="text-sm font-bold text-zinc-300 mb-3">
+    <div className="rounded-xl border border-stone-200 bg-white dark:border-zinc-700/40 dark:bg-zinc-900/60 p-4 mt-4">
+      <h3 className="text-sm font-bold text-stone-700 dark:text-zinc-300 mb-3">
         📊 模型预测对标
       </h3>
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
-            <tr className="text-zinc-400">
+            <tr className="text-stone-500 dark:text-zinc-400">
               <th className="text-left pb-2 pr-4">维度</th>
               <th className="text-right pb-2 pr-4">市场共识（去水）</th>
               <th className="text-right pb-2">算法模型（参考）</th>
@@ -100,15 +100,15 @@ export default function WcModelPredictionsCard({
           <tbody>
             {rows.map((r) => (
               <tr key={r.label} className="border-t border-zinc-800">
-                <td className="py-1.5 pr-4 text-zinc-300">{r.label}</td>
+                <td className="py-1.5 pr-4 text-stone-700 dark:text-zinc-300">{r.label}</td>
                 <td className="py-1.5 pr-4 text-right text-[#baff00] font-mono">{r.market}</td>
-                <td className="py-1.5 text-right text-zinc-400 font-mono">{r.model}</td>
+                <td className="py-1.5 text-right text-stone-500 dark:text-zinc-400 font-mono">{r.model}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <p className="mt-3 text-[10px] text-zinc-500 leading-relaxed">
+      <p className="mt-3 text-[10px] text-stone-500 dark:text-zinc-500 leading-relaxed">
         ⚠️ 算法模型为 Sportmonks 第三方预测数据，2026 实盘待验证，仅供参考。
         市场共识（去水）为本研报推荐依据。
       </p>

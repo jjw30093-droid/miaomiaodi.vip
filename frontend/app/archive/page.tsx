@@ -134,7 +134,7 @@ export default function ArchivePage() {
               className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold transition-all border ${
                 leagueFilter
                   ? 'bg-primary-container/10 border-primary-container text-primary-container'
-                  : 'bg-white/5 border-white/10 text-zinc-400'
+                  : 'bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 text-zinc-500 dark:text-zinc-400'
               }`}
             >
               <Filter size={10} />
@@ -144,12 +144,12 @@ export default function ArchivePage() {
             {showLeagueDropdown && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowLeagueDropdown(false)} />
-                <div className="absolute top-full mt-2 right-0 z-50 bg-[#050814] border border-white/10
+                <div className="absolute top-full mt-2 right-0 z-50 bg-white dark:bg-zinc-900 border border-black/10 dark:border-white/10
                                 rounded-2xl py-2 min-w-[160px] max-h-64 overflow-y-auto shadow-2xl">
                   <button
                     onClick={() => { setLeagueFilter(''); setShowLeagueDropdown(false); }}
                     className={`w-full text-left px-4 py-2 text-xs font-bold transition-colors ${
-                      !leagueFilter ? 'text-primary-container' : 'text-zinc-400 hover:text-white'
+                      !leagueFilter ? 'text-primary-container' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
                     }`}
                   >
                     全部联赛
@@ -159,7 +159,7 @@ export default function ArchivePage() {
                       key={displayName}
                       onClick={() => { setLeagueFilter(displayName); setShowLeagueDropdown(false); }}
                       className={`w-full text-left px-4 py-2 text-xs font-bold transition-colors ${
-                        leagueFilter === displayName ? 'text-primary-container' : 'text-zinc-400 hover:text-white'
+                        leagueFilter === displayName ? 'text-primary-container' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
                       }`}
                     >
                       {displayName}
@@ -176,9 +176,9 @@ export default function ArchivePage() {
               type="date"
               value={startDate}
               onChange={e => setStartDate(e.target.value)}
-              className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-full
-                         px-3 py-2 text-xs font-bold text-zinc-400
-                         [color-scheme:dark] focus:outline-none focus:border-primary-container/50
+              className="flex-1 min-w-0 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-full
+                         px-3 py-2 text-xs font-bold text-zinc-600 dark:text-zinc-400
+                         focus:outline-none focus:border-primary-container/50
                          transition-colors"
               placeholder="开始日期"
             />
@@ -187,9 +187,9 @@ export default function ArchivePage() {
               type="date"
               value={endDate}
               onChange={e => setEndDate(e.target.value)}
-              className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-full
-                         px-3 py-2 text-xs font-bold text-zinc-400
-                         [color-scheme:dark] focus:outline-none focus:border-primary-container/50
+              className="flex-1 min-w-0 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-full
+                         px-3 py-2 text-xs font-bold text-zinc-600 dark:text-zinc-400
+                         focus:outline-none focus:border-primary-container/50
                          transition-colors"
               placeholder="结束日期"
             />
@@ -197,7 +197,7 @@ export default function ArchivePage() {
               <button
                 onClick={() => { setStartDate(''); setEndDate(''); }}
                 className="shrink-0 flex items-center justify-center w-6 h-6 rounded-full
-                           bg-white/5 border border-white/10 text-zinc-500 hover:text-white
+                           bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 text-zinc-500 hover:text-zinc-900 dark:hover:text-white
                            transition-colors"
                 title="清除日期"
               >

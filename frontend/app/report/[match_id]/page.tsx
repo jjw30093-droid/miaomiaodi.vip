@@ -14,6 +14,7 @@ import ModelVerdictCard from '@/components/report/ModelVerdictCard';
 import SectionNavBar from '@/components/report/SectionNavBar';
 import InsightLine from '@/components/report/InsightLine';
 import CollapsibleSection from '@/components/common/CollapsibleSection';
+import { BackgroundEffects } from '@/components/BackgroundEffects';
 import Footer from '@/components/layout/Footer';
 // WC-only components（仅在 tournamentType==='wc' 时渲染，联赛路径零影响）
 import WcRecentStatsCompare from '@/components/report/WcRecentStatsCompare';
@@ -100,7 +101,7 @@ function SectionLabel({
 }) {
   return (
     <div className="flex items-center gap-2.5 mb-4">
-      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-[color:var(--primary-neon)] dark:bg-[#00F0FF]" />
+      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-[color:var(--primary-neon)]" />
       <span className="text-sm font-bold tracking-wide text-slate-700 dark:text-white flex items-center gap-1.5">
         {icon}
         {label}
@@ -114,7 +115,7 @@ function FreeMatchBanner() {
   return (
     <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-green-500/10 border border-green-500/20 w-fit">
       <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-      <span className="text-xs font-black text-green-400 tracking-widest uppercase">
+      <span className="text-xs font-black text-green-400 tracking-wide">
         今日免费场次 · 完整内容开放
       </span>
     </div>
@@ -126,7 +127,7 @@ function PostMatchPlaceholder({ title, icon }: { title: string; icon: React.Reac
     <div className="rounded-2xl border border-yellow-500/30 bg-yellow-500/[0.06] p-8
                     flex flex-col items-center justify-center gap-3 text-center">
       <div className="text-yellow-600 dark:text-yellow-400">{icon}</div>
-      <p className="text-xs font-black tracking-[0.3em] uppercase text-yellow-700 dark:text-yellow-400">
+      <p className="text-xs font-black tracking-wide text-yellow-700 dark:text-yellow-400">
         {title}
       </p>
       <p className="text-sm font-semibold text-slate-700 dark:text-white">
@@ -159,14 +160,14 @@ async function ReportContent({
           <Link href="/" className="p-2 -ml-2 text-slate-400 dark:text-white hover:text-primary-neon transition-colors flex-shrink-0">
             <ChevronLeft size={22} />
           </Link>
-          <span className="text-xs font-bold tracking-wider text-primary-neon uppercase">
-            QUANT ANALYSIS · FOOTBALL
+          <span className="text-xs font-bold tracking-wide text-primary-neon">
+            足球量化研报
           </span>
           <div className="ml-auto"><ThemeToggleButton /></div>
         </header>
         <div className="flex flex-col items-center justify-center py-32 px-6 text-center">
           <div className="text-secondary-magenta text-5xl mb-6 opacity-30">⚠️</div>
-          <h2 className="text-xl font-black italic mb-4 tracking-tight uppercase">量化数据流离线</h2>
+          <h2 className="text-xl font-black mb-4 tracking-tight">量化数据流离线</h2>
           <p className="text-white/40 text-xs mb-8 leading-relaxed">
             数据同步失败 · 请稍后重试或前往首页
           </p>
@@ -403,7 +404,7 @@ async function ReportContent({
           ) : !report.markdownContent || report.markdownContent.startsWith('报告内容正在同步中') ? (
             <div className={`${CARD} p-5 overflow-hidden`}>
               <SectionLabel icon={<BarChart2 size={11} />} label="AI 神经分析 · 赛前结论" />
-              <PostMatchPlaceholder title="Report · Generating" icon={<FileText size={26} />} />
+              <PostMatchPlaceholder title="研报生成中" icon={<FileText size={26} />} />
             </div>
           ) : (
             <div className={`${CARD} p-5 overflow-hidden`}>
@@ -428,7 +429,7 @@ async function ReportContent({
               <SectionLabel
                 icon={<TrendingUp size={11} />}
                 label="战力演化趋势 · NPXGD"
-                accentClass="bg-secondary-magenta shadow-[0_0_6px_#FF00E5]"
+                accentClass="bg-secondary-magenta"
               />
               {report.trendData && adaptTrend(report.trendData) ? (
                 <div className="w-full overflow-x-hidden">
@@ -459,7 +460,7 @@ async function ReportContent({
                 <SectionLabel
                   icon={<Crosshair size={11} />}
                   label="射门渗透分析 · 近5场"
-                  accentClass="bg-primary-neon shadow-[0_0_6px_#00F0FF]"
+                  accentClass="bg-primary-neon"
                 />
                 {report.shotHistory ? (
                   <div className="w-full overflow-x-hidden">
@@ -553,13 +554,13 @@ async function ReportContent({
                   }
                   accentClass={
                     report.lineupStatus === 'confirmed'
-                      ? 'bg-[#00F0FF] shadow-[0_0_6px_#00F0FF]'
-                      : 'bg-green-400 shadow-[0_0_6px_#4ade80]'
+                      ? 'bg-primary-neon'
+                      : 'bg-green-400'
                   }
                   badge={
                     report.lineupStatus === 'confirmed' && report.lineupConfirmedAt ? (
                       <span className="text-xs font-black px-2 py-0.5 rounded-full border
-                                       bg-[#00F0FF]/10 text-[#00F0FF] border-[#00F0FF]/40">
+                                       bg-primary-neon/10 text-primary-neon border-primary-neon/40">
                         ✅ 已确认 · {new Date(report.lineupConfirmedAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     ) : report.lineupStatus !== 'confirmed' ? (
@@ -610,7 +611,7 @@ async function ReportContent({
           <section id="review" className="flex flex-col gap-4">
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-yellow-500/10 border border-yellow-500/20 w-fit">
               <span className="w-1.5 h-1.5 rounded-full bg-yellow-400" />
-              <span className="text-xs font-black text-yellow-700 dark:text-yellow-400 tracking-widest uppercase">
+              <span className="text-xs font-black text-yellow-700 dark:text-yellow-400 tracking-wide">
                 赛后复盘 · VIP 专属
               </span>
             </div>
@@ -680,7 +681,7 @@ async function ReportContent({
                     </div>
                   ) : (
                     <PostMatchPlaceholder
-                      title="Post-Match Shot Map · Syncing"
+                      title="赛后射门图 · 同步中"
                       icon={<Crosshair size={26} />}
                     />
                   )}
@@ -697,7 +698,7 @@ async function ReportContent({
                     <MarkdownRenderer content={report.postMatchReview} />
                   ) : (
                     <PostMatchPlaceholder
-                      title="Post-Match Review · 预计 10:30 CST 自动生成"
+                      title="赛后复盘 · 预计 10:30 CST 自动生成"
                       icon={<BarChart2 size={26} />}
                     />
                   )}
@@ -715,10 +716,10 @@ async function ReportContent({
       <div className="fixed bottom-0 left-0 right-0 bg-[var(--header-bg)] backdrop-blur-xl border-t border-[var(--header-border)] px-4 pt-3 pb-6 z-50">
         <div className="max-w-2xl mx-auto flex items-center justify-between gap-4">
           <div className="min-w-0">
-            <span className="block text-[#005faf] dark:text-[#3B82F6] text-xs font-black uppercase tracking-wider mb-0.5">
+            <span className="block text-[#005faf] dark:text-[#3B82F6] text-xs font-black tracking-wide mb-0.5">
               系统预判
             </span>
-            <span className="text-slate-900 dark:text-white font-black text-base uppercase tracking-tight truncate block">
+            <span className="text-slate-900 dark:text-white font-black text-base tracking-tight truncate block">
               {verdictDisplay}
             </span>
           </div>
@@ -813,8 +814,8 @@ export default async function ReportPage({
                 <ChevronLeft size={22} className="group-hover:-translate-x-0.5 transition-transform" />
               </Link>
               <div className="flex flex-col min-w-0 flex-1">
-                <span className="text-xs font-bold tracking-wider text-primary-neon uppercase">
-                  QUANT ANALYSIS · FOOTBALL
+                <span className="text-xs font-bold tracking-wide text-primary-neon">
+                  足球量化研报
                 </span>
                 <span className="text-sm font-black text-slate-800 dark:text-white leading-tight">比赛研报</span>
               </div>
@@ -834,8 +835,8 @@ export default async function ReportPage({
                     <ChevronLeft size={22} />
                   </Link>
                   <div className="flex flex-col min-w-0 flex-1">
-                    <span className="text-xs font-bold tracking-wider text-primary-neon uppercase">
-                      QUANT ANALYSIS · FOOTBALL
+                    <span className="text-xs font-bold tracking-wide text-primary-neon">
+                      足球量化研报
                     </span>
                     <span className="text-sm font-black text-slate-800 dark:text-white leading-tight">比赛研报</span>
                   </div>
@@ -843,8 +844,8 @@ export default async function ReportPage({
                 </header>
                 <div className="flex flex-col items-center justify-center py-60 gap-8">
                   <Activity size={40} className="text-primary-neon animate-spin" />
-                  <p className="text-xs font-black text-primary-neon/40 uppercase tracking-[0.5em] animate-pulse">
-                    NEURAL SYNC :: PROCESSING QUANT DATA
+                  <p className="text-xs font-black text-primary-neon/40 tracking-wide animate-pulse">
+                    数据加载中
                   </p>
                 </div>
               </div>
@@ -870,9 +871,8 @@ export default async function ReportPage({
           </div>
         </div>
 
-        <footer className="mt-12 pt-8 border-t border-slate-200 dark:border-white/5 w-full max-w-2xl mx-auto px-4 flex justify-between items-center text-xs font-bold text-slate-600 dark:text-white uppercase tracking-[0.3em]">
-          <span>喵弟量化实验室 :: SYSTEM CORE v6.2.0</span>
-          <span>STITCH PROTOCOL SECURED</span>
+        <footer className="mt-12 pt-8 border-t border-slate-200 dark:border-white/5 w-full max-w-2xl mx-auto px-4 flex justify-between items-center text-xs font-bold text-slate-600 dark:text-white tracking-wide">
+          <span>喵弟量化实验室</span>
         </footer>
         <Footer />
       </div>

@@ -112,9 +112,9 @@ export default function GlassPickBlock({
   return (
     <div className="rounded-2xl overflow-hidden relative
                     bg-white/90 dark:bg-[#0A1220]
-                    border border-slate-900/10 dark:border-[#00F0FF]/25
+                    border border-slate-900/10 dark:border-primary-neon/25
                     border-l-4 border-l-[#005faf]
-                    dark:border-l-[3px] dark:border-l-[#00F0FF]
+                    dark:border-l-[3px] dark:border-l-primary-neon
                     shadow-[0_1px_4px_rgba(15,23,42,0.05)] dark:shadow-none
                     p-4 space-y-3">
 
@@ -122,7 +122,7 @@ export default function GlassPickBlock({
       <div className="flex items-center justify-between">
         <span className="text-xs font-black tracking-[0.1em] px-2.5 py-1 rounded-full
                          bg-[#005faf] text-white
-                         dark:bg-[#00F0FF] dark:text-[#06080C]">
+                         dark:bg-primary-neon dark:text-[#06080C]">
           核心结论
         </span>
         <div className="flex gap-0.5">
@@ -142,14 +142,14 @@ export default function GlassPickBlock({
       {/* Main pick */}
       <div>
         <p className="text-3xl sm:text-4xl font-black leading-tight tracking-tight
-                      text-slate-900 dark:text-[#00F0FF]">
+                      text-slate-900 dark:text-primary-neon">
           {(() => {
             const [team, ...rest] = label.split(/\s+/);
             return [translateTeam(team), ...rest].filter(Boolean).join(' ') || '—';
           })()}
         </p>
         {odds && (
-          <p className="text-xl font-black mt-1 text-[#005faf] dark:text-[#00F0FF]">
+          <p className="text-xl font-black mt-1 text-[#005faf] dark:text-primary-neon">
             @{odds}
           </p>
         )}
@@ -183,11 +183,11 @@ export default function GlassPickBlock({
                 key={key}
                 className={`grid grid-cols-[52px_1fr_1fr_1fr] gap-1 items-center px-3 py-2 text-[13px] ${
                   isRec
-                    ? 'bg-[#005faf]/8 dark:bg-[#00F0FF]/10 ring-inset ring-1 ring-[#005faf]/20 dark:ring-[#00F0FF]/25'
+                    ? 'bg-[#005faf]/8 dark:bg-primary-neon/10 ring-inset ring-1 ring-[#005faf]/20 dark:ring-primary-neon/25'
                     : ''
                 }`}
               >
-                <span className={`font-bold ${isRec ? 'text-[#005faf] dark:text-[#00F0FF]' : 'text-slate-600 dark:text-white/70'}`}>
+                <span className={`font-bold ${isRec ? 'text-[#005faf] dark:text-primary-neon' : 'text-slate-600 dark:text-white/70'}`}>
                   {ROW_LABEL[key]}
                 </span>
                 <span className="tabular-nums text-right text-slate-600 dark:text-white/60">{market.toFixed(1)}%</span>

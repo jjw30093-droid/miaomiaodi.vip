@@ -42,7 +42,7 @@ export default function ModelVerdictCard({
 
       {/* 标题 */}
       <div className="px-5 pt-5 pb-3">
-        <p className="text-xs font-black tracking-[0.25em] uppercase text-[#005faf] dark:text-[#00F0FF]">
+        <p className="text-xs font-black tracking-wide text-[#005faf] dark:text-primary-neon">
           🔑 关键论据
         </p>
       </div>
@@ -83,13 +83,13 @@ export default function ModelVerdictCard({
       {/* ─── ② 关键变量 ─── */}
       {hasVariables && (
         <div className="px-5 py-4 border-t border-slate-200/60 dark:border-white/5">
-          <p className="text-xs font-black tracking-[0.25em] uppercase text-slate-700 dark:text-white/80 mb-3">
+          <p className="text-xs font-black tracking-wide text-slate-700 dark:text-white/80 mb-3">
             🔑 关键变量
           </p>
           <ul className="space-y-2">
             {variables.slice(0, 3).map((v, i) => (
               <li key={i} className="flex items-start gap-2 text-[15px] text-slate-700 dark:text-white/85 leading-relaxed">
-                <span className="text-[#E91E63] dark:text-[#00F0FF] flex-shrink-0 mt-1">•</span>
+                <span className="text-primary-neon flex-shrink-0 mt-1">•</span>
                 <span>{v}</span>
               </li>
             ))}

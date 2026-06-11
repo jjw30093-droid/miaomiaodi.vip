@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useSession, signIn } from 'next-auth/react';
 import { apiClient } from '@/lib/apiClient';
 
-const LIME   = '#baff00';
+const LIME   = '#C8102E';
 const RED    = '#ff3d54';
 const BG     = 'rgba(5, 6, 16, 0.82)';
 const BORDER = 'rgba(255,255,255,0.08)';

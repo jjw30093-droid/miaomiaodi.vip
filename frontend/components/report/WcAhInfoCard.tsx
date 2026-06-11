@@ -38,14 +38,14 @@ export default function WcAhInfoCard({
                     bg-white/85 backdrop-blur-xl
                     dark:bg-[#0A1220]
                     border border-slate-900/10
-                    dark:border dark:border-[#00F0FF]/20
+                    dark:border dark:border-primary-neon/20
                     shadow-[0_4px_24px_rgba(15,23,42,0.06)]
-                    dark:shadow-[0_0_24px_rgba(0,240,255,0.15)]
+                    dark:shadow-none
                     p-4 space-y-2">
 
       {/* Header */}
       <div className="flex items-center gap-2">
-        <span className="text-xs font-black tracking-widest uppercase text-[#005faf] dark:text-[#00F0FF]">
+        <span className="text-xs font-black tracking-wide text-[#005faf] dark:text-primary-neon">
           亚盘参考
         </span>
         <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400
@@ -59,7 +59,7 @@ export default function WcAhInfoCard({
         <div className="flex-1 text-center">
           <div className="text-xs text-slate-500 dark:text-slate-400 mb-0.5">市场隐含让球</div>
           <div className="text-xl font-black text-slate-800 dark:text-slate-100">
-            {favoredTeam} <span className="text-[#005faf] dark:text-[#00F0FF]">-{displayLine}</span>
+            {favoredTeam} <span className="text-[#005faf] dark:text-primary-neon">-{displayLine}</span>
           </div>
           <div className="text-xs text-slate-400 dark:text-slate-500">
             {nBooks} 家书商中位

@@ -26,7 +26,7 @@ export default function BottomNav({ isDark }: Props) {
             return (
               <Link key={item.href} href={item.href}>
                 {isActive ? (
-                  <div className="flex flex-col items-center gap-0.5 bg-[#E91E63] text-white rounded-full px-4 py-1.5">
+                  <div className="flex flex-col items-center gap-0.5 bg-primary-neon text-white rounded-full px-4 py-1.5">
                     <span className="text-[18px] leading-none">{item.iconDark}</span>
                     <span className="text-[13px] font-bold leading-none">{item.label}</span>
                   </div>

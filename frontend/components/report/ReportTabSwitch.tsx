@@ -48,7 +48,7 @@ export default function ReportTabSwitch({
   const baseTab =
     'flex items-center justify-center gap-1.5 flex-1 py-2 px-3 rounded-full text-xs font-black tracking-widest transition-all duration-200';
   const activeTab =
-    'bg-[#E91E63] text-white shadow-[0_2px_12px_rgba(233,30,99,0.35)] dark:bg-[#00F0FF] dark:text-[#06080C] dark:shadow-[0_0_16px_rgba(0,240,255,0.35)]';
+    'bg-[#E91E63] text-white shadow-sm dark:bg-primary-neon dark:text-[#06080C]';
   const inactiveTab =
     'text-slate-600 dark:text-white/60 hover:text-slate-900 dark:hover:text-white';
 

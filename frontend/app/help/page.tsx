@@ -358,8 +358,8 @@ export default function HelpCenterPage() {
     }, 0);
   }, [query]);
 
-  const pageBg = isDark ? '#06080C' : '#F4F5F7';
-  const headerBg = isDark ? 'rgba(6, 8, 12, 0.85)' : 'rgba(244, 245, 247, 0.85)';
+  const pageBg = isDark ? '#06080C' : 'var(--color-background)';
+  const headerBg = isDark ? 'rgba(6, 8, 12, 0.85)' : 'var(--color-background)';
   const headerBorder = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(25,28,29,0.08)';
 
   return (

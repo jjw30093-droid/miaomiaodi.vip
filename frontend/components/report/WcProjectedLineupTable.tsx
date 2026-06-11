@@ -74,13 +74,13 @@ export default function WcProjectedLineupTable({
 
   const renderTeamTable = (players: LineupPlayer[], teamName: string) => (
     <div className="flex-1 min-w-0">
-      <p className="text-xs font-bold text-zinc-300 mb-2">{teamName}</p>
+      <p className="text-xs font-bold text-stone-700 dark:text-zinc-300 mb-2">{teamName}</p>
       {players.length === 0 ? (
-        <p className="text-xs text-zinc-500">阵容待公布</p>
+        <p className="text-xs text-stone-500 dark:text-zinc-500">阵容待公布</p>
       ) : (
         <table className="w-full text-xs">
           <thead>
-            <tr className="text-zinc-500 border-b border-zinc-800">
+            <tr className="text-stone-500 dark:text-zinc-500 border-b border-zinc-800">
               <th className="text-left pb-1 pr-2 w-8">#</th>
               <th className="text-left pb-1 pr-2 w-12">位置</th>
               <th className="text-left pb-1">球员</th>
@@ -89,10 +89,10 @@ export default function WcProjectedLineupTable({
           <tbody>
             {players.map((p, i) => (
               <tr key={i} className="border-b border-zinc-800/50">
-                <td className="py-1 pr-2 text-zinc-500 font-mono">
+                <td className="py-1 pr-2 text-stone-500 dark:text-zinc-500 font-mono">
                   {p.jersey_number ?? '—'}
                 </td>
-                <td className="py-1 pr-2 text-zinc-400">{posZh(p.position)}</td>
+                <td className="py-1 pr-2 text-stone-500 dark:text-zinc-400">{posZh(p.position)}</td>
                 <td className="py-1 text-zinc-200">{playerName(p)}</td>
               </tr>
             ))}
@@ -103,8 +103,8 @@ export default function WcProjectedLineupTable({
   );
 
   return (
-    <div className="rounded-xl border border-zinc-700/40 bg-zinc-900/60 p-4 mt-4">
-      <h3 className="text-sm font-bold text-zinc-300 mb-3">
+    <div className="rounded-xl border border-stone-200 bg-white dark:border-zinc-700/40 dark:bg-zinc-900/60 p-4 mt-4">
+      <h3 className="text-sm font-bold text-stone-700 dark:text-zinc-300 mb-3">
         ⚽ 预计首发简报
       </h3>
       <div className="flex gap-4 flex-col sm:flex-row">
@@ -112,7 +112,7 @@ export default function WcProjectedLineupTable({
         <div className="w-px bg-zinc-800 hidden sm:block" />
         {renderTeamTable(awayPlayers, awayTeam)}
       </div>
-      <p className="mt-3 text-[10px] text-zinc-500">
+      <p className="mt-3 text-[10px] text-stone-500 dark:text-zinc-500">
         首发为赛前预测阵容，以实际出场为准。
       </p>
     </div>

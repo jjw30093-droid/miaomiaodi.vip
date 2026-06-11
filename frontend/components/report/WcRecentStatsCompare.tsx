@@ -68,26 +68,26 @@ export default function WcRecentStatsCompare({
   const windowLabel = windows[0] ? `近 ${windows[0]} 场均值` : '近期均值';
 
   return (
-    <div className="rounded-xl border border-zinc-700/40 bg-zinc-900/60 p-4 mt-4">
-      <h3 className="text-sm font-bold text-zinc-300 mb-1">
+    <div className="rounded-xl border border-stone-200 bg-white dark:border-zinc-700/40 dark:bg-zinc-900/60 p-4 mt-4">
+      <h3 className="text-sm font-bold text-stone-700 dark:text-zinc-300 mb-1">
         📊 近期数据对比
       </h3>
-      <p className="text-[10px] text-zinc-500 mb-3">{windowLabel}（世界杯预选赛 / 历史大赛）</p>
+      <p className="text-[10px] text-stone-500 dark:text-zinc-500 mb-3">{windowLabel}（世界杯预选赛 / 历史大赛）</p>
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
-            <tr className="text-zinc-400 border-b border-zinc-800">
+            <tr className="text-stone-500 dark:text-zinc-400 border-b border-zinc-800">
               <th className="text-left pb-2 pr-3">指标</th>
               <th className="text-right pb-2 pr-3 text-[#baff00]">{homeTeam}</th>
-              <th className="text-right pb-2 text-zinc-400">{awayTeam}</th>
+              <th className="text-right pb-2 text-stone-500 dark:text-zinc-400">{awayTeam}</th>
             </tr>
           </thead>
           <tbody>
             {rows.map(r => (
               <tr key={r.key} className="border-b border-zinc-800/40">
-                <td className="py-1.5 pr-3 text-zinc-400">{r.label}</td>
+                <td className="py-1.5 pr-3 text-stone-500 dark:text-zinc-400">{r.label}</td>
                 <td className="py-1.5 pr-3 text-right text-[#baff00] font-mono">{fmt(r.home)}</td>
-                <td className="py-1.5 text-right text-zinc-300 font-mono">{fmt(r.away)}</td>
+                <td className="py-1.5 text-right text-stone-700 dark:text-zinc-300 font-mono">{fmt(r.away)}</td>
               </tr>
             ))}
           </tbody>

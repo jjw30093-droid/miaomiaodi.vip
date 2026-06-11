@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { User, Lock, Eye, EyeOff, ArrowRight, MessageCircle } from 'lucide-react';
-import { useTheme } from '@/components/ThemeProvider';
 
 interface PasswordLoginCardProps {
   onSwitchToCode: () => void;
@@ -25,8 +24,6 @@ export const PasswordLoginCard: React.FC<PasswordLoginCardProps> = ({ onSwitchTo
     const params = new URLSearchParams(window.location.search);
     setCallbackUrl(params.get('callbackUrl') || '/');
   }, []);
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
 
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,65 +71,64 @@ export const PasswordLoginCard: React.FC<PasswordLoginCardProps> = ({ onSwitchTo
         )}
 
         <div className="space-y-1">
-          <label suppressHydrationWarning className={`text-xs font-mono uppercase tracking-wider ml-1 ${isDark ? 'text-gray-400' : 'text-black'}`}>极客 ID / 用户名</label>
+          <label className="text-xs font-mono uppercase tracking-wider ml-1 text-stone-500 dark:text-zinc-400">极客 ID / 用户名</label>
           <div className="relative group">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-500 group-focus-within:text-primary-neon transition-colors">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-stone-400 dark:text-zinc-500 group-focus-within:text-primary-neon transition-colors">
               <User size={18} />
             </div>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full bg-black/40 border border-white/10 rounded-xl py-3 pl-11 pr-4 text-white font-bold placeholder-gray-600 focus:outline-none focus:border-primary-neon/50 focus:ring-1 focus:ring-primary-neon/50 transition-all font-mono text-sm shadow-inner"
+              className="w-full bg-white dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 rounded-xl py-3 pl-11 pr-4 text-stone-900 dark:text-white font-bold placeholder-stone-400 dark:placeholder-zinc-500 focus:outline-none focus:border-primary-neon/50 focus:ring-1 focus:ring-primary-neon/50 transition-all font-mono text-sm"
               placeholder="请输入账号"
               required
             />
           </div>
         </div>
-        
+
         <div className="space-y-1">
-          <label suppressHydrationWarning className={`text-xs font-mono uppercase tracking-wider ml-1 ${isDark ? 'text-gray-400' : 'text-black'}`}>密码</label>
+          <label className="text-xs font-mono uppercase tracking-wider ml-1 text-stone-500 dark:text-zinc-400">密码</label>
           <div className="relative group">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-500 group-focus-within:text-primary-neon transition-colors">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-stone-400 dark:text-zinc-500 group-focus-within:text-primary-neon transition-colors">
               <Lock size={18} />
             </div>
             <input
               type={showPassword ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-black/40 border border-white/10 rounded-xl py-3 pl-11 pr-12 text-white font-bold placeholder-gray-600 focus:outline-none focus:border-primary-neon/50 focus:ring-1 focus:ring-primary-neon/50 transition-all font-mono text-sm shadow-inner"
+              className="w-full bg-white dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 rounded-xl py-3 pl-11 pr-12 text-stone-900 dark:text-white font-bold placeholder-stone-400 dark:placeholder-zinc-500 focus:outline-none focus:border-primary-neon/50 focus:ring-1 focus:ring-primary-neon/50 transition-all font-mono text-sm"
               placeholder="••••••••"
               required
             />
-            <button 
-              type="button" 
-              onClick={() => setShowPassword(!showPassword)} 
-              className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-500 hover:text-primary-neon transition-colors"
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute inset-y-0 right-0 pr-4 flex items-center text-stone-400 dark:text-zinc-500 hover:text-primary-neon transition-colors"
             >
               {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
           </div>
         </div>
 
-        <button 
-          type="submit" 
+        <button
+          type="submit"
           disabled={loading}
-          className="mt-2 w-full relative group overflow-hidden rounded-xl bg-gradient-to-r from-primary-neon/20 to-blue-600/20 border border-primary-neon/30 p-3.5 flex items-center justify-center gap-2 hover:from-primary-neon/40 hover:to-blue-600/40 transition-all duration-300 active:scale-[0.98] shadow-[0_0_20px_rgba(0,240,255,0.1)] hover:shadow-[0_0_30px_rgba(0,240,255,0.2)] disabled:opacity-50"
+          className="mt-2 w-full rounded-xl bg-primary-neon hover:bg-red-700 text-white p-3.5 flex items-center justify-center gap-2 transition-colors active:scale-[0.98] shadow-md disabled:opacity-50 font-semibold"
         >
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
-          <span className="font-display font-bold text-white tracking-widest uppercase text-sm drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]">
+          <span className="font-display font-bold tracking-widest uppercase text-sm">
             {loading ? '建立连接中...' : '建立连接'}
           </span>
-          {!loading && <ArrowRight size={16} className="text-primary-neon group-hover:translate-x-1 transition-transform" />}
+          {!loading && <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />}
         </button>
       </form>
 
       {/* Footer Links */}
-      <div className="flex justify-between items-center mt-6 pt-5 border-t border-white/10 relative z-10">
+      <div className="flex justify-between items-center mt-6 pt-5 border-t border-stone-200 dark:border-zinc-700 relative z-10">
         <button
           type="button"
           onClick={onSwitchToSupport}
-          className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-white transition-colors font-mono"
+          className="flex items-center gap-1.5 text-xs text-stone-500 dark:text-zinc-500 hover:text-stone-900 dark:hover:text-white transition-colors font-mono"
         >
           忘记密码？
         </button>
@@ -140,7 +136,7 @@ export const PasswordLoginCard: React.FC<PasswordLoginCardProps> = ({ onSwitchTo
           <button
             type="button"
             onClick={onSwitchToCode}
-            className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-primary-neon transition-colors font-mono"
+            className="flex items-center gap-1.5 text-xs text-stone-500 dark:text-zinc-500 hover:text-primary-neon transition-colors font-mono"
           >
             <MessageCircle size={14} />
             返回微信登录

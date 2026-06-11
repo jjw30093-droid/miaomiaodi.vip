@@ -128,8 +128,8 @@ function CenterContent() {
   const initialPrefs = profile?.preferences || { theme: 'dark', notify_lineup: true, notify_postmatch: false };
 
   const statCards = [
-    { label: '注册天数', value: registeredDays, unit: '天', color: isDark ? '#00F0FF' : '#005faf' },
-    { label: '在线设备', value: onlineDevices, unit: '台', color: isDark ? '#E91E63' : '#b7004d' },
+    { label: '注册天数', value: registeredDays, unit: '天', color: isDark ? '#D4AF37' : '#A16207' },
+    { label: '在线设备', value: onlineDevices, unit: '台', color: 'var(--primary-neon)' },
   ];
 
   return (

@@ -22,6 +22,7 @@ import {
   ChevronDown,
   Filter
 } from 'lucide-react';
+import { BackgroundEffects } from '@/components/BackgroundEffects';
 import StrategyEquityChart from '@/components/StrategyEquityChart';
 import { apiClient } from '@/lib/apiClient';
 import ThemeToggleButton from '@/components/ThemeToggleButton';
@@ -96,7 +97,7 @@ const CompactMatchCard = ({ match, isLoggedIn, isDark, onClick }: { match: Match
   >
     {/* 联赛 + 时间 */}
     <div className="flex items-center justify-between mb-3">
-      <span className={`text-xs font-bold ${isDark ? 'text-[#E91E63]/70' : 'text-[#005faf]'}`}>{leagueZh}</span>
+      <span className={`text-xs font-bold ${isDark ? 'text-[var(--primary-neon)]/70' : 'text-[#005faf]'}`}>{leagueZh}</span>
       <span className={`text-xs font-medium ${isDark ? 'text-white/50' : 'text-[#5b3f43]'}`}>{formatMatchTime(match.time)}</span>
     </div>
     {/* 主队 VS 客队 */}
@@ -226,31 +227,31 @@ const MatchCard = ({ match, onClick, isLoggedIn, isDark }: { match: Match, onCli
   return (
     <div
       onClick={onClick}
-      className={`glass-panel rounded-3xl p-6 mb-5 relative overflow-hidden transition-all duration-300 hover:shadow-[0_4px_20px_rgba(0,0,0,0.3)] border border-white/5 active:scale-[0.98] ${match.display_category === 'ARCHIVE' ? 'opacity-70' : ''}`}
+      className={`glass-panel rounded-3xl p-6 mb-5 relative overflow-hidden transition-all duration-300 hover:shadow-md border border-white/5 active:scale-[0.98] ${match.display_category === 'ARCHIVE' ? 'opacity-70' : ''}`}
     >
-      {/* Decorative Glows */}
-      <div className="absolute top-0 right-0 w-32 h-32 bg-[#E91E63]/5 blur-[50px] -mr-10 -mt-10 rounded-full" />
+      {/* Decorative Glows — theme-only decoration */}
+      <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--primary-neon)]/5 blur-[50px] -mr-10 -mt-10 rounded-full" />
       <div className="absolute bottom-0 left-0 w-32 h-32 bg-secondary-magenta/5 blur-[50px] -ml-10 -mb-10 rounded-full" />
 
       <div className="flex justify-between items-center mb-5 relative z-10">
         <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/5">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#E91E63]" />
-          <span className="text-xs font-black text-[#E91E63] tracking-widest uppercase">{translateLeague(match.league)}</span>
+          <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary-neon)]" />
+          <span className="text-xs font-black text-[var(--primary-neon)] tracking-widest uppercase">{translateLeague(match.league)}</span>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs font-bold text-white/75">{formatMatchTime(match.time)}</span>
-          {isLocked && <Lock size={14} className="text-yellow-500 drop-shadow-[0_0_8px_rgba(234,179,8,0.5)]" />}
+          {isLocked && <Lock size={14} className="text-yellow-500" />}
         </div>
       </div>
 
       <div className="flex justify-between items-center mb-8 relative z-10 px-2">
         <div className="flex flex-col items-center gap-3 w-2/5 text-center">
-          <img src={match.homeTeam.icon || "/logo_meow.jpg"} alt="H" className="w-12 h-12 rounded-full border border-white/10 shadow-[0_0_15px_rgba(255,255,255,0.05)]" />
+          <img src={match.homeTeam.icon || "/logo_meow.jpg"} alt="H" className="w-12 h-12 rounded-full border border-white/10" />
           <span className="font-bold text-sm text-white leading-tight min-h-[3em] flex items-center justify-center">{match.homeTeam.name}</span>
         </div>
         <div className="text-white/75 font-bold text-sm w-1/5 text-center">VS</div>
         <div className="flex flex-col items-center gap-3 w-2/5 text-center">
-          <img src={match.awayTeam.icon || "/logo_meow.jpg"} alt="A" className="w-12 h-12 rounded-full border border-white/10 shadow-[0_0_15_rgba(255,255,255,0.05)]" />
+          <img src={match.awayTeam.icon || "/logo_meow.jpg"} alt="A" className="w-12 h-12 rounded-full border border-white/10" />
           <span className="font-bold text-sm text-white leading-tight min-h-[3em] flex items-center justify-center">{match.awayTeam.name}</span>
         </div>
       </div>
@@ -259,8 +260,8 @@ const MatchCard = ({ match, onClick, isLoggedIn, isDark }: { match: Match, onCli
         <div className="grid grid-cols-3 gap-6 relative z-10">
           <div className="flex flex-col items-center gap-2">
             <span className="text-xs font-black text-white/50 tracking-widest uppercase">主胜</span>
-            <span className="text-2xl font-black text-[#E91E63]">{hProb}%</span>
-            <ProbabilityBar value={hProb} colorClass="bg-[#E91E63]" />
+            <span className="text-2xl font-black text-[var(--primary-neon)]">{hProb}%</span>
+            <ProbabilityBar value={hProb} colorClass="bg-primary-neon" />
           </div>
           <div className="flex flex-col items-center gap-2">
             <span className="text-xs font-black text-white/50 tracking-widest uppercase">平局</span>
@@ -269,7 +270,7 @@ const MatchCard = ({ match, onClick, isLoggedIn, isDark }: { match: Match, onCli
           </div>
           <div className="flex flex-col items-center gap-2">
             <span className="text-xs font-black text-white/50 tracking-widest uppercase">客胜</span>
-            <span className="text-2xl font-black text-secondary-magenta drop-shadow-[0_0_10px_rgba(219,39,119,0.3)]">{aProb}%</span>
+            <span className="text-2xl font-black text-secondary-magenta">{aProb}%</span>
             <ProbabilityBar value={aProb} colorClass="bg-secondary-magenta" />
           </div>
         </div>
@@ -285,7 +286,7 @@ const MatchCard = ({ match, onClick, isLoggedIn, isDark }: { match: Match, onCli
             </div>
           ))}
           <div className="col-span-3 mt-1">
-            <span className="block w-full text-center py-2.5 rounded-full bg-[#E91E63]/10 border border-[#E91E63]/30 text-[#E91E63] text-xs font-black tracking-widest">
+            <span className="block w-full text-center py-2.5 rounded-full bg-[var(--primary-neon)]/10 border border-[var(--primary-neon)]/30 text-[var(--primary-neon)] text-xs font-black tracking-widest">
               加微信开通查看概率
             </span>
           </div>
@@ -468,7 +469,7 @@ export default function FootballLabPage() {
                 </div>
                 <div className="flex flex-col">
                   <h1 className="font-black text-2xl tracking-tight text-zinc-50" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-                    喵弟数据研究室
+                    足球量化研报
                   </h1>
                   <p className="text-xs font-black text-zinc-400 w-full [text-align-last:justify]">miaomiaodi.cc</p>
                 </div>
@@ -493,7 +494,7 @@ export default function FootballLabPage() {
                     transition={{ duration: 0.22, ease: [0.25, 0.46, 0.45, 0.94] }}
                     className="flex-1 min-w-0 relative group"
                   >
-                    <Search size={14} className={`absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none group-focus-within:text-[#E91E63] transition-colors ${isDark ? 'text-white/40' : 'text-black/40'}`} />
+                    <Search size={14} className={`absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none group-focus-within:text-[var(--primary-neon)] transition-colors ${isDark ? 'text-white/40' : 'text-black/40'}`} />
                     <input
                       suppressHydrationWarning
                       autoFocus
@@ -501,7 +502,7 @@ export default function FootballLabPage() {
                       placeholder="搜索俱乐部、联赛..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className={`w-full rounded-full py-2.5 pl-9 pr-4 text-sm font-medium focus:outline-none focus:border-[#E91E63]/40 transition-all ${isDark ? 'bg-white/5 border border-white/10 text-white placeholder-white/40' : 'bg-black/5 border border-black/15 text-black placeholder-black/40'}`}
+                      className={`w-full rounded-full py-2.5 pl-9 pr-4 text-sm font-medium focus:outline-none focus:border-[var(--primary-neon)]/40 transition-all ${isDark ? 'bg-white/5 border border-white/10 text-white placeholder-white/40' : 'bg-black/5 border border-black/15 text-black placeholder-black/40'}`}
                     />
                   </motion.div>
                 ) : (
@@ -566,7 +567,7 @@ export default function FootballLabPage() {
                         suppressHydrationWarning
                         className={`inline-block px-8 py-2.5 font-bold rounded-full active:scale-95 transition-all duration-200 text-sm ${
                           isDark
-                            ? 'bg-[#E91E63]/10 border border-[#E91E63]/50 text-white tracking-widest hover:bg-[#E91E63]/20 hover:border-[#E91E63]/70'
+                            ? 'bg-[var(--primary-neon)]/10 border border-[var(--primary-neon)]/50 text-white tracking-widest hover:bg-[var(--primary-neon)]/20 hover:border-[var(--primary-neon)]/70'
                             : 'bg-gradient-to-r from-[#b7004d] to-[#de2264] text-white shadow-[0px_4px_12px_rgba(183,0,77,0.3)] hover:opacity-90'
                         }`}
                       >
@@ -585,7 +586,7 @@ export default function FootballLabPage() {
                 suppressHydrationWarning
                 className={`flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-full transition-colors ${
                   isDark
-                    ? 'bg-white/5 border border-white/10 hover:bg-white/10 hover:border-[#E91E63]/40'
+                    ? 'bg-white/5 border border-white/10 hover:bg-white/10 hover:border-[var(--primary-neon)]/40'
                     : 'bg-[rgba(210,216,226,0.82)] border border-[rgba(140,150,175,0.25)] shadow-[0_2px_8px_rgba(0,0,0,0.06)] hover:bg-[rgba(200,207,218,0.92)] hover:border-[rgba(140,150,175,0.40)]'
                 }`}
                 aria-label={searchOpen ? '关闭搜索' : '搜索'}
@@ -619,7 +620,7 @@ export default function FootballLabPage() {
                 className={`flex-1 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
                   dateFilter === tab.id
                     ? isDark
-                      ? 'bg-[#E91E63] border-0 text-white'
+                      ? 'bg-primary-neon border-0 text-white'
                       : 'bg-[#d4e3ff] text-[#003567] shadow-sm border-0'
                     : isDark
                       ? 'bg-[#27272a] border border-zinc-700 text-zinc-300'
@@ -644,7 +645,7 @@ export default function FootballLabPage() {
                 className={`w-full flex items-center justify-center gap-1 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
                   leagueFilters.size > 0
                     ? isDark
-                      ? 'bg-[#E91E63] border-0 text-white'
+                      ? 'bg-primary-neon border-0 text-white'
                       : 'bg-[#d4e3ff] text-[#003567] shadow-sm border-0'
                     : isDark
                       ? 'bg-[#27272a] border border-zinc-700 text-zinc-300'
@@ -693,14 +694,14 @@ export default function FootballLabPage() {
                                 suppressHydrationWarning
                                 className={`w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold transition-colors ${isDark ? 'hover:bg-white/5' : 'hover:bg-[#f2f4f5]'}`}
                               >
-                                <span suppressHydrationWarning className={`w-4 h-4 rounded flex items-center justify-center border flex-shrink-0 transition-all ${checked ? isDark ? 'bg-[#E91E63] border-[#E91E63]' : 'bg-[#b7004d] border-[#b7004d]' : isDark ? 'border-white/20 bg-transparent' : 'border-[#8f6f73]/40 bg-transparent'}`}>
+                                <span suppressHydrationWarning className={`w-4 h-4 rounded flex items-center justify-center border flex-shrink-0 transition-all ${checked ? isDark ? 'bg-primary-neon border-primary-neon' : 'bg-[#b7004d] border-[#b7004d]' : isDark ? 'border-white/20 bg-transparent' : 'border-[#8f6f73]/40 bg-transparent'}`}>
                                   {checked && (
                                     <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
                                       <path d="M1 3.5L3.5 6L8 1" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                                     </svg>
                                   )}
                                 </span>
-                                <span suppressHydrationWarning className={checked ? isDark ? 'text-[#E91E63]' : 'text-[#b7004d]' : isDark ? 'text-white/75' : 'text-[#191c1d]'}>{league}</span>
+                                <span suppressHydrationWarning className={checked ? isDark ? 'text-[var(--primary-neon)]' : 'text-[#b7004d]' : isDark ? 'text-white/75' : 'text-[#191c1d]'}>{league}</span>
                               </button>
                             );
                           })
@@ -722,7 +723,7 @@ export default function FootballLabPage() {
                             setShowLeagueDropdown(false);
                           }}
                           suppressHydrationWarning
-                          className={`flex-1 py-1.5 text-xs font-bold rounded-full transition-colors ${isDark ? 'bg-[#E91E63]/10 border border-[#E91E63]/40 text-[#E91E63] hover:bg-[#E91E63]/20' : 'bg-[#b7004d] text-white hover:opacity-90 border-0'}`}
+                          className={`flex-1 py-1.5 text-xs font-bold rounded-full transition-colors ${isDark ? 'bg-[var(--primary-neon)]/10 border border-[var(--primary-neon)]/40 text-[var(--primary-neon)] hover:bg-[var(--primary-neon)]/20' : 'bg-[#b7004d] text-white hover:opacity-90 border-0'}`}
                         >
                           确认{pendingLeagues.size > 0 ? `（${pendingLeagues.size}）` : ''}
                         </button>
@@ -739,35 +740,35 @@ export default function FootballLabPage() {
           {activeTab === 'matches' && (
             loading ? (
               <div className="flex flex-col items-center justify-center py-24 gap-4">
-                <div className="w-10 h-10 border-2 border-[#E91E63]/20 border-t-[#E91E63] rounded-full animate-spin" />
-                <p className="text-xs font-bold text-white/50 tracking-widest animate-pulse uppercase">Syncing Neural Nodes...</p>
+                <div className="w-10 h-10 border-2 border-[var(--primary-neon)]/20 border-t-[var(--primary-neon)] rounded-full animate-spin" />
+                <p className={`text-xs font-bold animate-pulse ${isDark ? 'text-white/50' : 'text-[#5b3f43]'}`}>加载中</p>
               </div>
             ) : error ? (
-              <div className="glass-panel p-10 text-center rounded-3xl border-red-500/20">
+              <div className={`p-10 text-center rounded-3xl ${isDark ? 'glass-panel border-red-500/20' : 'bg-white shadow-sm'}`}>
                 <Info className="w-10 h-10 text-red-500/40 mx-auto mb-4" />
-                <p className="text-sm font-bold text-red-400 mb-6">{error}</p>
-                <button onClick={() => window.location.reload()} className="px-8 py-2 bg-white/5 rounded-full text-xs font-bold border border-white/10">点击重试</button>
+                <p className="text-sm font-bold text-red-400 mb-6">暂时无法加载</p>
+                <button onClick={() => window.location.reload()} className={`px-8 py-2 rounded-full text-xs font-bold border ${isDark ? 'bg-white/5 border-white/10' : 'bg-[#f2f4f5] border-[#e1e3e4]'}`}>点击重试</button>
               </div>
             ) : filteredMatches.length === 0 ? (
               <div className="py-24 text-center opacity-30">
                  <Activity size={48} className="mx-auto mb-6 opacity-20" />
-                 <p className="font-display italic font-bold tracking-widest text-lg">NO QUANT DATA FOUND</p>
+                 <p className="font-bold text-lg">暂无赛事数据</p>
                  <p className="text-xs mt-2 font-medium tracking-tighter">当前时段暂无符合量化标准的预测报告</p>
               </div>
             ) : (
               <>
                 {/* 游客引导横幅 */}
                 {!isLoggedIn && (
-                  <div className="border border-[#E91E63]/30 rounded-xl mb-4 overflow-hidden">
+                  <div className="border border-[var(--primary-neon)]/30 rounded-xl mb-4 overflow-hidden">
                     <button
                       onClick={() => setContactOpen(true)}
-                      className="w-full bg-[#E91E63]/10 dark:bg-[#E91E63]/15 p-3 text-xs font-medium text-zinc-800 dark:text-white text-left"
+                      className="w-full bg-[var(--primary-neon)]/10 p-3 text-xs font-medium text-zinc-800 dark:text-white text-left"
                     >
                       💬 加管理员微信开通账号，查看完整研报
                     </button>
                     <Link
                       href="/login"
-                      className="flex items-center justify-center gap-1.5 w-full py-2.5 bg-white/5 dark:bg-white/5 border-t border-[#E91E63]/20 text-sm font-bold text-[#E91E63]"
+                      className="flex items-center justify-center gap-1.5 w-full py-2.5 bg-white/5 dark:bg-white/5 border-t border-[var(--primary-neon)]/20 text-sm font-bold text-[var(--primary-neon)]"
                     >
                       已有账号？点此登录 →
                     </Link>
@@ -787,7 +788,7 @@ export default function FootballLabPage() {
             <section className="animate-in fade-in duration-500 pb-12">
                <div className="flex items-center justify-between mb-6">
                  <div className="flex items-center gap-2">
-                    <span suppressHydrationWarning className={`w-1.5 h-1.5 rounded-full ${isDark ? 'bg-gray-500 shadow-[0_0_8px_rgba(255,255,255,0.2)]' : 'bg-[#924700]'}`} />
+                    <span suppressHydrationWarning className={`w-1.5 h-1.5 rounded-full ${isDark ? 'bg-gray-500' : 'bg-[#924700]'}`} />
                     <h2 suppressHydrationWarning className={`text-sm font-bold ${isDark ? 'tracking-widest uppercase text-white/80 font-display' : 'text-[#191c1d]'}`}>历史研报</h2>
                   </div>
                   <span suppressHydrationWarning className={`text-xs font-bold uppercase tracking-tighter ${isDark ? 'text-white/50' : 'text-[#5b3f43]'}`}>Total {filteredMatches.length}</span>
@@ -796,7 +797,7 @@ export default function FootballLabPage() {
                {filteredMatches.length === 0 ? (
                  <div className="py-24 text-center opacity-30">
                     <Archive size={48} className="mx-auto mb-6 opacity-20" />
-                    <p suppressHydrationWarning className={`font-bold tracking-widest text-lg uppercase ${isDark ? 'font-display italic' : ''}`}>Archive Vault Empty</p>
+                    <p suppressHydrationWarning className="font-bold text-lg">暂无归档记录</p>
                     <p className="text-xs mt-2 font-medium tracking-tighter">当前没有符合筛选条件的归档记录</p>
                  </div>
                ) : (
@@ -812,8 +813,8 @@ export default function FootballLabPage() {
           {activeTab === 'profile' && (
              <div className="py-24 text-center opacity-30">
                <User size={48} className="mx-auto mb-6 opacity-20" />
-               <p className="font-display italic font-bold tracking-widest text-lg uppercase">User Profile</p>
-               <p className="text-xs mt-2 font-medium tracking-tighter">请先登录实验室查看您的账户状态</p>
+               <p className="font-bold text-lg">个人主页</p>
+               <p className="text-xs mt-2 font-medium tracking-tighter">请先登录查看您的账户状态</p>
             </div>
           )}
         </main>
@@ -826,7 +827,7 @@ export default function FootballLabPage() {
           <nav className="bg-[#09090b] border border-zinc-800 rounded-full px-6 py-3 flex justify-between items-center shadow-[0_-4px_20px_rgba(0,0,0,0.5)] pointer-events-auto">
             <button onClick={() => setActiveTab('matches')} className="flex flex-col items-center gap-0.5 transition-all">
               {activeTab === 'matches' ? (
-                <div className="flex flex-col items-center gap-0.5 bg-[#E91E63] text-white rounded-full px-4 py-1.5">
+                <div className="flex flex-col items-center gap-0.5 bg-primary-neon text-white rounded-full px-4 py-1.5">
                   <Activity size={20} />
                   <span className="text-xs font-bold">赛事</span>
                 </div>
@@ -845,7 +846,7 @@ export default function FootballLabPage() {
             </Link>
             <button onClick={() => setActiveTab('archive')} className="flex flex-col items-center gap-0.5 transition-all">
               {activeTab === 'archive' ? (
-                <div className="flex flex-col items-center gap-0.5 bg-[#E91E63] text-white rounded-full px-4 py-1.5">
+                <div className="flex flex-col items-center gap-0.5 bg-primary-neon text-white rounded-full px-4 py-1.5">
                   <Archive size={20} />
                   <span className="text-xs font-bold">归档</span>
                 </div>
@@ -858,7 +859,7 @@ export default function FootballLabPage() {
             </button>
             <Link href="/center?tab=profile" className="flex flex-col items-center gap-0.5 transition-all">
               {pathname.startsWith('/center') ? (
-                <div className="flex flex-col items-center gap-0.5 bg-[#E91E63] text-white rounded-full px-4 py-1.5">
+                <div className="flex flex-col items-center gap-0.5 bg-primary-neon text-white rounded-full px-4 py-1.5">
                   <User size={20} />
                   <span className="text-xs font-bold">我的</span>
                 </div>

@@ -18,7 +18,7 @@ const MD_COMPONENTS: Record<string, React.FC<any>> = {
     </h1>
   ),
   h2: ({ children }) => (
-    <h2 style={{ fontStyle: 'normal' }} className="font-headline tracking-tight text-xl font-black text-slate-900 dark:text-white mt-9 mb-4 pl-3 border-l-2 border-[color:var(--primary-neon)]/70 dark:border-[#00F0FF]/50 leading-snug">
+    <h2 style={{ fontStyle: 'normal' }} className="font-headline tracking-tight text-xl font-black text-slate-900 dark:text-white mt-9 mb-4 pl-3 border-l-2 border-[color:var(--primary-neon)]/70 leading-snug">
       {children}
     </h2>
   ),
@@ -39,7 +39,7 @@ const MD_COMPONENTS: Record<string, React.FC<any>> = {
   hr: () => <hr className="my-4 border-slate-200 dark:border-white/10" />,
 
   blockquote: ({ children }) => (
-    <blockquote className="my-6 px-4 py-3 bg-slate-50 dark:bg-white/[0.03] rounded-r-xl border-l-2 border-[color:var(--primary-neon)]/60 dark:border-[#00F0FF]/50 text-slate-900 dark:text-white text-[18px] leading-[1.85] not-italic">
+    <blockquote className="my-6 px-4 py-3 bg-slate-50 dark:bg-white/[0.03] rounded-r-xl border-l-2 border-[color:var(--primary-neon)]/60 text-slate-900 dark:text-white text-[18px] leading-[1.85] not-italic">
       {children}
     </blockquote>
   ),
@@ -77,7 +77,7 @@ const MD_COMPONENTS: Record<string, React.FC<any>> = {
   ),
   li: ({ children }) => (
     <li className="flex items-start gap-2.5 text-[18px] text-slate-900 dark:text-white leading-[1.85] break-words">
-      <span className="mt-2.5 w-1.5 h-1.5 rounded-full bg-[color:var(--primary-neon)] dark:bg-[#00F0FF] shrink-0" />
+      <span className="mt-2.5 w-1.5 h-1.5 rounded-full bg-[color:var(--primary-neon)] shrink-0" />
       <span>{children}</span>
     </li>
   ),
@@ -94,7 +94,7 @@ const MD_COMPONENTS: Record<string, React.FC<any>> = {
       return <code className={className}>{children}</code>;
     }
     return (
-      <code className="px-1.5 py-0.5 bg-slate-100 dark:bg-white/10 rounded text-[13px] font-mono text-[color:var(--primary-neon)] dark:text-[#00F0FF]">
+      <code className="px-1.5 py-0.5 bg-slate-100 dark:bg-white/10 rounded text-[13px] font-mono text-[color:var(--primary-neon)]">
         {children}
       </code>
     );
@@ -196,8 +196,8 @@ export default function ReportMarkdown({
           <div className="mx-4 my-6 flex items-center gap-3">
             <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-300/60 dark:via-red-300/40 to-transparent" />
             {!isVip && (
-              <span className="font-headline italic text-xs font-black text-[color:var(--primary-neon)] dark:text-red-500/70 uppercase tracking-[0.2em] shrink-0 px-2 py-0.5 border border-[color:var(--primary-neon)]/40 dark:border-red-300/40 rounded-full">
-                Pro Only
+              <span className="font-headline text-xs font-black text-[color:var(--primary-neon)] dark:text-red-500/70 tracking-wide shrink-0 px-2 py-0.5 border border-[color:var(--primary-neon)]/40 dark:border-red-300/40 rounded-full">
+                会员专享
               </span>
             )}
             <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-300/60 dark:via-red-300/40 to-transparent" />

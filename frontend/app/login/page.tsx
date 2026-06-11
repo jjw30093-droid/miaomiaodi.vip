@@ -10,8 +10,8 @@ import { ArrowLeft } from 'lucide-react';
 import { WeChatCodeCard } from '@/components/WeChatCodeCard';
 import { PasswordLoginCard } from '@/components/PasswordLoginCard';
 import { SupportCard } from '@/components/SupportCard';
-import { useTheme } from '@/components/ThemeProvider';
 import ThemeToggleButton from '@/components/ThemeToggleButton';
+import { useTheme } from '@/components/ThemeProvider';
 
 const _enableWechat = process.env.NEXT_PUBLIC_ENABLE_WECHAT_LOGIN === 'true';
 

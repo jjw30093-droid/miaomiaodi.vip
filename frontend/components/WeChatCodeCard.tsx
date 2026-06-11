@@ -116,7 +116,7 @@ export const WeChatCodeCard = ({
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
 
       {/* 主交互区 */}
-      <div className="flex flex-col items-center bg-black/40 rounded-2xl p-5 border border-white/5 relative z-10 shadow-inner">
+      <div className="flex flex-col items-center bg-stone-50 dark:bg-zinc-800 rounded-2xl p-5 border border-stone-200 dark:border-zinc-700 relative z-10">
 
         {/* 公众号二维码 / 状态图标 */}
         {(status === 'loading' || status === 'pending') ? (
@@ -128,9 +128,9 @@ export const WeChatCodeCard = ({
                 className="w-full h-full object-cover"
               />
             </div>
-            <p className="text-white font-bold text-center leading-relaxed" style={{ fontSize: 12 }}>
+            <p className="text-stone-900 dark:text-white font-bold text-center leading-relaxed" style={{ fontSize: 12 }}>
               微信扫码关注公众号<br />
-              <span className="text-white font-bold tracking-wider">【足球喵喵弟】</span><br />
+              <span className="text-stone-900 dark:text-white font-bold tracking-wider">【足球喵喵弟】</span><br />
               回复下方数字，即可自动登录。
             </p>
           </div>
@@ -151,8 +151,7 @@ export const WeChatCodeCard = ({
 
         {status === 'pending' && code && (
           <div className="relative group mb-5">
-            <div className="absolute inset-0 bg-primary-neon/20 blur-xl rounded-full group-hover:bg-primary-neon/30 transition-all duration-500" />
-            <div className="text-5xl sm:text-6xl font-mono font-black text-primary-neon tracking-[0.3em] pl-[0.3em] drop-shadow-[0_0_20px_rgba(0,240,255,0.8)] relative z-10 select-all">
+            <div className="text-5xl sm:text-6xl font-mono font-black text-primary-neon tracking-[0.3em] pl-[0.3em] select-all">
               {code}
             </div>
           </div>
@@ -162,7 +161,7 @@ export const WeChatCodeCard = ({
         {status === 'confirmed' && (
           <div className="mb-4 text-center">
             <p className="text-[#07C160] text-lg font-bold">验证成功！</p>
-            <p className="text-gray-400 text-sm mt-1 flex items-center gap-1 justify-center">
+            <p className="text-stone-500 dark:text-zinc-400 text-sm mt-1 flex items-center gap-1 justify-center">
               <Loader2 size={14} className="animate-spin" /> 正在跳转…
             </p>
           </div>
@@ -206,29 +205,26 @@ export const WeChatCodeCard = ({
       {/* 等待同步指示器 */}
       {status === 'pending' && (
         <div className="mt-6 mb-2 flex flex-col items-center gap-2 relative z-10">
-          <div className="relative flex items-center justify-center">
-            <Loader2 size={24} className="text-primary-neon animate-spin" />
-            <div className="absolute inset-0 bg-primary-neon/30 blur-md rounded-full animate-pulse" />
-          </div>
-          <p className="text-primary-neon/80 text-xs font-mono animate-pulse tracking-wide">
+          <Loader2 size={24} className="text-primary-neon animate-spin" />
+          <p className="text-stone-500 dark:text-zinc-400 text-xs font-mono tracking-wide">
             等待微信同步验证…
           </p>
         </div>
       )}
 
       {/* 底部链接 */}
-      <div className="flex justify-between items-center mt-6 pt-5 border-t border-white/10 relative z-10">
+      <div className="flex justify-between items-center mt-6 pt-5 border-t border-stone-200 dark:border-zinc-700 relative z-10">
         {onSwitchToPassword && (
           <button
             onClick={onSwitchToPassword}
-            className="flex items-center gap-1.5 text-xs text-white/75 hover:text-white transition-colors font-mono"
+            className="flex items-center gap-1.5 text-xs text-stone-500 dark:text-zinc-500 hover:text-stone-900 dark:hover:text-white transition-colors font-mono"
           >
             <KeyRound size={14} /> 账号密码登录
           </button>
         )}
         <button
           onClick={onSwitchToSupport}
-          className="flex items-center gap-1.5 text-xs text-white/75 hover:text-white transition-colors font-mono"
+          className="flex items-center gap-1.5 text-xs text-stone-500 dark:text-zinc-500 hover:text-stone-900 dark:hover:text-white transition-colors font-mono"
         >
           <HelpCircle size={14} /> 遇到问题？
         </button>

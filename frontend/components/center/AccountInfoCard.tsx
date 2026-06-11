@@ -28,7 +28,7 @@ export default function AccountInfoCard({ profile, isDark }: Props) {
             {row.label}
           </span>
           <span className={`text-[15px] font-bold ${row.mono ? 'font-mono' : ''}`}
-            style={{ color: isDark ? (row.mono ? '#00F0FF' : '#fff') : (row.mono ? '#005faf' : '#191c1d') }}>
+            style={{ color: isDark ? (row.mono ? '#D4AF37' : '#fff') : (row.mono ? 'var(--primary-neon)' : '#191c1d') }}>
             {row.value}
           </span>
         </div>

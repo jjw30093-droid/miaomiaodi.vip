@@ -43,18 +43,18 @@ export default function HeroVipCard({ profile, isDark, apiToken, onProfileUpdate
 
   const roleLabel = role === 'admin' ? '🛡️ Admin' : role === 'vip' ? '⭐ VIP' : '普通用户';
   const roleColor = isDark
-    ? (role === 'admin' ? '#00F0FF' : role === 'vip' ? '#4ade80' : 'rgba(255,255,255,0.4)')
-    : (role === 'admin' ? '#005faf' : role === 'vip' ? '#0f766e' : '#5b3f43');
+    ? (role === 'admin' ? '#D4AF37' : role === 'vip' ? '#D4AF37' : 'rgba(255,255,255,0.4)')
+    : (role === 'admin' ? 'var(--primary-neon)' : role === 'vip' ? '#A16207' : '#5b3f43');
   const roleBg = isDark
-    ? (role === 'admin' ? 'rgba(0,240,255,0.1)' : role === 'vip' ? 'rgba(74,222,128,0.1)' : 'rgba(255,255,255,0.06)')
-    : (role === 'admin' ? 'rgba(0,95,175,0.1)' : role === 'vip' ? 'rgba(15,118,110,0.1)' : 'rgba(91,63,67,0.08)');
+    ? (role === 'admin' ? 'rgba(212,175,55,0.1)' : role === 'vip' ? 'rgba(212,175,55,0.1)' : 'rgba(255,255,255,0.06)')
+    : (role === 'admin' ? 'rgba(200,16,46,0.08)' : role === 'vip' ? 'rgba(161,98,7,0.08)' : 'rgba(91,63,67,0.08)');
   const roleBorder = isDark
-    ? (role === 'admin' ? 'rgba(0,240,255,0.25)' : role === 'vip' ? 'rgba(74,222,128,0.25)' : 'rgba(255,255,255,0.1)')
-    : (role === 'admin' ? 'rgba(0,95,175,0.2)' : role === 'vip' ? 'rgba(15,118,110,0.2)' : 'rgba(91,63,67,0.15)');
+    ? (role === 'admin' ? 'rgba(212,175,55,0.3)' : role === 'vip' ? 'rgba(212,175,55,0.3)' : 'rgba(255,255,255,0.1)')
+    : (role === 'admin' ? 'rgba(200,16,46,0.2)' : role === 'vip' ? 'rgba(161,98,7,0.2)' : 'rgba(91,63,67,0.15)');
 
-  const vipColor = vip.isActive ? (isDark ? '#4ade80' : '#0f766e') : (isDark ? '#f87171' : '#b7004d');
+  const vipColor = vip.isActive ? (isDark ? '#D4AF37' : '#A16207') : (isDark ? '#f87171' : 'var(--primary-neon)');
   const vipGlow = vip.isActive
-    ? (isDark ? 'drop-shadow(0 0 24px rgba(74,222,128,0.35))' : 'none')
+    ? (isDark ? 'drop-shadow(0 0 24px rgba(212,175,55,0.35))' : 'none')
     : (isDark ? 'drop-shadow(0 0 20px rgba(248,113,113,0.3))' : 'none');
 
   // 13.5: /static/ 由 nginx 反代到 FastAPI，直接用相对路径
@@ -128,7 +128,7 @@ export default function HeroVipCard({ profile, isDark, apiToken, onProfileUpdate
       {/* VIP glow backdrop */}
       {vip.isActive && isDark && (
         <div className="absolute inset-0 pointer-events-none"
-          style={{ background: 'radial-gradient(ellipse at 50% 120%, rgba(74,222,128,0.06) 0%, transparent 70%)' }} />
+          style={{ background: 'radial-gradient(ellipse at 50% 120%, rgba(212,175,55,0.06) 0%, transparent 70%)' }} />
       )}
 
       {/* Avatar + Nickname row */}
@@ -137,7 +137,7 @@ export default function HeroVipCard({ profile, isDark, apiToken, onProfileUpdate
           onClick={() => fileRef.current?.click()}
           disabled={uploading}
           className="relative w-16 h-16 rounded-2xl overflow-hidden flex-shrink-0 active:scale-95 transition-all"
-          style={{ border: isDark ? '2px solid rgba(255,255,255,0.12)' : '2px solid rgba(183,0,77,0.2)', background: isDark ? '#12161b' : '#f5f0ed' }}
+          style={{ border: isDark ? '2px solid rgba(255,255,255,0.12)' : '2px solid rgba(200,16,46,0.2)', background: isDark ? '#12161b' : '#f5f0ed' }}
           title="点击更换头像"
         >
           {avatarDisplay ? (
@@ -163,7 +163,7 @@ export default function HeroVipCard({ profile, isDark, apiToken, onProfileUpdate
                 className="flex-1 min-w-0 px-3 py-2 rounded-xl text-[15px] font-bold outline-none"
                 style={{
                   background: isDark ? 'rgba(255,255,255,0.07)' : '#f5f0ed',
-                  border: isDark ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(183,0,77,0.2)',
+                  border: isDark ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(200,16,46,0.2)',
                   color: isDark ? '#fff' : '#191c1d',
                 }}
                 autoFocus
@@ -174,7 +174,7 @@ export default function HeroVipCard({ profile, isDark, apiToken, onProfileUpdate
                 onPointerDown={e => e.preventDefault()}
                 onClick={saveNickname}
                 className="px-3 py-2 rounded-xl text-[13px] font-black"
-                style={{ background: isDark ? '#E91E63' : '#b7004d', color: '#fff' }}>保存</button>
+                style={{ background: 'var(--primary-neon)', color: '#fff' }}>保存</button>
               <button type="button" onPointerDown={e => e.preventDefault()} onClick={() => setEditing(false)} className="px-3 py-2 rounded-xl text-[13px] font-bold"
                 style={{ border: isDark ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(25,28,29,0.15)', color: isDark ? 'rgba(255,255,255,0.5)' : '#5b3f43' }}>取消</button>
             </div>
@@ -205,8 +205,8 @@ export default function HeroVipCard({ profile, isDark, apiToken, onProfileUpdate
       {process.env.NEXT_PUBLIC_ENABLE_VIP_DISPLAY === 'true' && (
         <div className="rounded-2xl p-4 mb-5"
           style={isDark
-            ? { background: vip.isActive ? 'rgba(74,222,128,0.06)' : 'rgba(255,255,255,0.04)', border: `1px solid ${vip.isActive ? 'rgba(74,222,128,0.2)' : 'rgba(255,255,255,0.07)'}` }
-            : { background: vip.isActive ? 'rgba(15,118,110,0.05)' : 'rgba(25,28,29,0.04)', border: `1px solid ${vip.isActive ? 'rgba(15,118,110,0.18)' : 'rgba(25,28,29,0.08)'}` }
+            ? { background: vip.isActive ? 'rgba(212,175,55,0.06)' : 'rgba(255,255,255,0.04)', border: `1px solid ${vip.isActive ? 'rgba(212,175,55,0.2)' : 'rgba(255,255,255,0.07)'}` }
+            : { background: vip.isActive ? 'rgba(161,98,7,0.05)' : 'rgba(25,28,29,0.04)', border: `1px solid ${vip.isActive ? 'rgba(161,98,7,0.18)' : 'rgba(25,28,29,0.08)'}` }
           }
         >
           {vip.isActive ? (
@@ -246,8 +246,8 @@ export default function HeroVipCard({ profile, isDark, apiToken, onProfileUpdate
             onClick={() => document.getElementById('redeem-cdk-row')?.scrollIntoView({ behavior: 'smooth' })}
             className="flex-1 h-11 rounded-2xl font-black text-[15px] italic tracking-tight transition-all active:scale-[0.97]"
             style={isDark
-              ? { background: 'linear-gradient(135deg, #E91E63 0%, #FF00E5 100%)', color: '#fff', boxShadow: '0 4px 20px rgba(233,30,99,0.35)' }
-              : { background: '#b7004d', color: '#fff', boxShadow: '0 4px 16px rgba(183,0,77,0.25)' }
+              ? { background: 'linear-gradient(135deg, #D4AF37 0%, #A16207 100%)', color: '#fff', boxShadow: '0 4px 20px rgba(212,175,55,0.35)' }
+              : { background: 'var(--primary-neon)', color: '#fff', boxShadow: '0 4px 16px rgba(200,16,46,0.25)' }
             }>
             {vip.isActive ? '续费 VIP' : '开通 VIP'}
           </button>
@@ -256,7 +256,7 @@ export default function HeroVipCard({ profile, isDark, apiToken, onProfileUpdate
             className="flex-1 h-11 rounded-2xl font-black text-[15px] italic tracking-tight transition-all active:scale-[0.97]"
             style={isDark
               ? { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: '#fff' }
-              : { background: '#fff', border: '1px solid rgba(183,0,77,0.25)', color: '#b7004d' }
+              : { background: '#fff', border: '1px solid rgba(200,16,46,0.25)', color: 'var(--primary-neon)' }
             }
           >
             兑换 CDK →
@@ -267,9 +267,9 @@ export default function HeroVipCard({ profile, isDark, apiToken, onProfileUpdate
       {msg && (
         <div className="mt-4 text-center py-2 px-4 rounded-xl text-[13px] font-bold"
           style={{
-            background: msg.type === 'ok' ? (isDark ? 'rgba(74,222,128,0.1)' : 'rgba(15,118,110,0.08)') : (isDark ? 'rgba(248,113,113,0.1)' : 'rgba(183,0,77,0.08)'),
-            border: `1px solid ${msg.type === 'ok' ? (isDark ? 'rgba(74,222,128,0.25)' : 'rgba(15,118,110,0.2)') : (isDark ? 'rgba(248,113,113,0.25)' : 'rgba(183,0,77,0.2)')}`,
-            color: msg.type === 'ok' ? (isDark ? '#4ade80' : '#0f766e') : (isDark ? '#f87171' : '#b7004d'),
+            background: msg.type === 'ok' ? (isDark ? 'rgba(74,222,128,0.1)' : 'rgba(15,118,110,0.08)') : (isDark ? 'rgba(248,113,113,0.1)' : 'rgba(200,16,46,0.08)'),
+            border: `1px solid ${msg.type === 'ok' ? (isDark ? 'rgba(74,222,128,0.25)' : 'rgba(15,118,110,0.2)') : (isDark ? 'rgba(248,113,113,0.25)' : 'rgba(200,16,46,0.2)')}`,
+            color: msg.type === 'ok' ? (isDark ? '#4ade80' : '#0f766e') : (isDark ? '#f87171' : 'var(--primary-neon)'),
           }}>
           {msg.text}
         </div>
