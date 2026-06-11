@@ -272,8 +272,8 @@ def generate_wc_report(
         # ── 5b. 人工推荐覆盖（editorial override，优先级高于模型）────────────────
         # 格式：match_id → (市场, 方向描述, 赔率, confidence, inference文本, 备注)
         _AH_ODDS_MAP = {
-            # fixture 19609127 (Mexico vs South Africa) AH -1: Bookmaker Bet365
-            "wc_19609127": 1.77,
+            # fixture 19609127 (Mexico vs South Africa) AH -1: Bookmaker Bet365, synced 2026-06-11
+            "wc_19609127": 1.67,
         }
         PICK_OVERRIDES = {
             "wc_19609127": {

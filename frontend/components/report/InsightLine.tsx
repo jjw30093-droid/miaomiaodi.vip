@@ -14,7 +14,7 @@ export default function InsightLine({ text }: Props) {
     <div className="mt-2 px-3 py-2 rounded-lg
                     bg-slate-100/70 dark:bg-white/[0.04]
                     border border-slate-200/70 dark:border-white/8
-                    text-[13px] italic text-slate-700 dark:text-white/70 leading-relaxed">
+                    text-[14px] text-slate-700 dark:text-white/70 leading-relaxed">
       💡 {text}
     </div>
   );

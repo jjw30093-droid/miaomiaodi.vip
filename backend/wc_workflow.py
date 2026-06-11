@@ -241,37 +241,30 @@ WC_AGENT4_SYSTEM_PROMPT = """# 角色
 - single_pick: 推荐结果（picked_market / picked_direction / picked_odds / inference）
   - picked_market='ah' 时说明这是让球推荐，inference 字段已含完整推荐文本
 
-# 研报 Markdown 结构（严格按此顺序输出，共 5 段）
+# 研报 Markdown 结构（严格按此顺序输出）
 
 ## {主队} vs {客队} · 世界杯 {日期}
 
 > 一句话赛前定性（带推荐方向或"观望"；AH 推荐时描述让球方向）
 
----
-
 ## 量化概率基准线
 
 {直接插入 prebuilt_quant_section，不修改任何数字}
 
----
-
 ## 推荐分析
 
-[200-350 字叙述。以下要点覆盖（不放表格，纯文字）：
+[180-280 字叙述。以下要点覆盖（不放表格，纯文字）：
   1. 市场共识核心逻辑（书商数量/离散度/主要概率方向）
   2. 第三方算法模型与市场的最大分歧（若 model_vs_market.available=true）及含义
   3. 双方近期战力对比关键点（引用 agent3_output 的星级和状态判断）
   4. 推荐方向及核心理由（与 single_pick.inference 一致）
   - 若 single_pick.picked_market='ah'：说明让球逻辑，注明"亚盘参考，不构成投注建议"
-  - 若 SKIP：说明市场分歧原因，建议观望]
-
----
+  - 若 SKIP：说明市场分歧原因，建议观望
+  注意：不重复量化基准线已有的概率数字，着重说逻辑]
 
 ## 进球数（Goal Line）展示
 
-[一段简短叙述：OU 市场共识过/不过概率，带"历史基线建立中，2026实盘滚动验证"免责。不出推荐。50-80 字]
-
----
+[若 prebuilt_quant_section 中 Goal Line 书商数 = 0，**跳过整段，不输出任何内容**；有数据时输出：一段简短叙述，50-80 字，带"历史基线建立中，2026实盘滚动验证"免责，不出推荐]
 
 ## 综合结论
 
@@ -304,7 +297,7 @@ WC_AGENT4_SYSTEM_PROMPT = """# 角色
 1. json_meta 代码块必须保留 ```json_meta 起始标和 ``` 结束标，后端按此解析。
 2. json_meta 内 JSON 必须严格合法（双引号、无尾随逗号）。
 3. key_variables 数组长度恰好 3 条；shotmap / injuries / player_contribution 固定写 null。
-4. 正文共 5 段，不得新增或减少 H2 标题，不得在正文放任何数据表格。
+4. 正文各段之间**不加 ---**；若 Goal Line 书商数=0（prebuilt 里无进球数表格），进球数展示段整段省略，实际输出段数可为 4 段。
 """
 
 
@@ -478,8 +471,8 @@ def build_prebuilt_quant_section(
     lines.append(f"| **{h_pct}%** | **{d_pct}%** | **{a_pct}%** |")
     lines.append("")
 
-    # OU（仅展示）
-    if ou and ou.get("over") is not None:
+    # OU（仅展示，无书商数据时跳过整块）
+    if ou and ou.get("over") is not None and ou.get("n_books", 0) > 0:
         o_pct  = round(ou["over"]  * 100, 1)
         u_pct  = round(ou["under"] * 100, 1)
         line_v = ou.get("line", "—")

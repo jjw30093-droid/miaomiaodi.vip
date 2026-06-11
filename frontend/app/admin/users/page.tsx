@@ -14,6 +14,21 @@ interface User {
   auth_source: string;
 }
 
+interface Unlock {
+  match_id: string;
+  unlock_source: string;
+  unlocked_at: string;
+  expires_at: string | null;
+}
+
+interface WcMatch {
+  match_id: string;
+  home_team: string;
+  away_team: string;
+  starting_at: string;
+  has_report: boolean;
+}
+
 function genPassword(): string {
   const lower = 'abcdefghjkmnpqrstuvwxyz';
   const upper = 'ABCDEFGHJKMNPQRSTUVWXYZ';
@@ -48,6 +63,13 @@ export default function AdminUsersPage() {
   const [resetResult, setResetResult] = useState<{ username: string; password: string } | null>(null);
 
   const [actionMsg, setActionMsg] = useState('');
+
+  // 研报授权弹窗
+  const [unlockTarget, setUnlockTarget] = useState<User | null>(null);
+  const [unlocks, setUnlocks] = useState<Unlock[]>([]);
+  const [wcMatches, setWcMatches] = useState<WcMatch[]>([]);
+  const [unlockLoading, setUnlockLoading] = useState(false);
+  const [grantingId, setGrantingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === 'unauthenticated' || (status === 'authenticated' && (session?.user as any)?.name !== superAdmin)) {
@@ -126,6 +148,41 @@ export default function AdminUsersPage() {
     const data = await res.json();
     setActionMsg(res.ok ? `已删除用户「${user.username}」` : (data.detail || '删除失败'));
     fetchUsers();
+  };
+
+  const openUnlock = async (user: User) => {
+    setUnlockTarget(user);
+    setUnlockLoading(true);
+    const [ul, wm] = await Promise.all([
+      fetch(`/api/v1/admin/users/${user.id}/unlocks`).then(r => r.json()).catch(() => []),
+      fetch('/api/v1/admin/wc-matches').then(r => r.json()).catch(() => []),
+    ]);
+    setUnlocks(Array.isArray(ul) ? ul : []);
+    setWcMatches(Array.isArray(wm) ? wm : []);
+    setUnlockLoading(false);
+  };
+
+  const handleGrant = async (matchId: string) => {
+    if (!unlockTarget) return;
+    setGrantingId(matchId);
+    const res = await fetch(`/api/v1/admin/users/${unlockTarget.id}/unlocks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ match_id: matchId }),
+    });
+    if (res.ok) {
+      const ul = await fetch(`/api/v1/admin/users/${unlockTarget.id}/unlocks`).then(r => r.json()).catch(() => []);
+      setUnlocks(Array.isArray(ul) ? ul : []);
+    }
+    setGrantingId(null);
+  };
+
+  const handleRevoke = async (matchId: string) => {
+    if (!unlockTarget) return;
+    if (!confirm(`确认撤销「${unlockTarget.username}」对 ${matchId} 的研报授权？`)) return;
+    await fetch(`/api/v1/admin/users/${unlockTarget.id}/unlocks/${matchId}`, { method: 'DELETE' });
+    const ul = await fetch(`/api/v1/admin/users/${unlockTarget.id}/unlocks`).then(r => r.json()).catch(() => []);
+    setUnlocks(Array.isArray(ul) ? ul : []);
   };
 
   const openReset = (user: User) => {
@@ -267,6 +324,7 @@ export default function AdminUsersPage() {
                   <p className="text-xs text-slate-400">{u.nickname} · {u.disabled ? '🔴 已停用' : '🟢 正常'} · {u.created_at?.slice(0, 10)}</p>
                 </div>
                 <div className="flex gap-1.5 shrink-0 ml-2">
+                  <button onClick={() => openUnlock(u)} className={btnCls('bg-indigo-50 text-indigo-700 hover:bg-indigo-100')}>研报授权</button>
                   <button onClick={() => openReset(u)} className={btnCls('bg-amber-50 text-amber-700 hover:bg-amber-100')}>重置密码</button>
                   <button onClick={() => handleDisable(u)} className={btnCls(u.disabled ? 'bg-green-50 text-green-700 hover:bg-green-100' : 'bg-slate-100 text-slate-600 hover:bg-slate-200')}>
                     {u.disabled ? '启用' : '停用'}
@@ -281,6 +339,79 @@ export default function AdminUsersPage() {
           </div>
         )}
       </div>
+      {/* 研报授权弹窗 */}
+      {unlockTarget && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4" onClick={() => setUnlockTarget(null)}>
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <p className="font-black text-slate-900">研报授权</p>
+                <p className="text-xs text-slate-500">用户：{unlockTarget.username}</p>
+              </div>
+              <button onClick={() => setUnlockTarget(null)} className="text-slate-400 hover:text-slate-600 text-lg">✕</button>
+            </div>
+
+            {unlockLoading ? (
+              <p className="text-sm text-slate-400 text-center py-8">加载中...</p>
+            ) : (
+              <div className="p-4 flex flex-col gap-4">
+                {/* 已授权列表 */}
+                <div>
+                  <p className="text-xs font-bold text-slate-500 uppercase mb-2">已授权场次（{unlocks.length}）</p>
+                  {unlocks.length === 0 ? (
+                    <p className="text-xs text-slate-400 text-center py-3 bg-slate-50 rounded-xl">暂无授权</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {unlocks.map(u => (
+                        <div key={u.match_id} className="flex items-center justify-between bg-indigo-50 rounded-xl px-3 py-2">
+                          <div>
+                            <p className="text-xs font-mono font-bold text-indigo-800">{u.match_id}</p>
+                            <p className="text-xs text-slate-500">{u.unlock_source} · {u.unlocked_at?.slice(0, 10)}</p>
+                          </div>
+                          <button onClick={() => handleRevoke(u.match_id)} className="text-xs font-bold text-red-500 hover:text-red-700 shrink-0 ml-2">撤销</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 可授权场次 */}
+                <div>
+                  <p className="text-xs font-bold text-slate-500 uppercase mb-2">近期 WC 场次（点击授权）</p>
+                  {wcMatches.length === 0 ? (
+                    <p className="text-xs text-slate-400 text-center py-3 bg-slate-50 rounded-xl">暂无可选场次</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {wcMatches.filter(m => m.has_report).map(m => {
+                        const alreadyGranted = unlocks.some(u => u.match_id === m.match_id);
+                        return (
+                          <div key={m.match_id} className={`flex items-center justify-between rounded-xl px-3 py-2 ${alreadyGranted ? 'bg-green-50' : 'bg-slate-50'}`}>
+                            <div>
+                              <p className="text-xs font-bold text-slate-800">{m.home_team} vs {m.away_team}</p>
+                              <p className="text-xs text-slate-500">{m.starting_at?.slice(0, 10)} · {m.match_id}</p>
+                            </div>
+                            {alreadyGranted ? (
+                              <span className="text-xs text-green-600 font-bold shrink-0 ml-2">已授权</span>
+                            ) : (
+                              <button
+                                onClick={() => handleGrant(m.match_id)}
+                                disabled={grantingId === m.match_id}
+                                className="text-xs font-bold text-indigo-600 hover:text-indigo-800 shrink-0 ml-2 disabled:opacity-40"
+                              >
+                                {grantingId === m.match_id ? '授权中...' : '授权'}
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

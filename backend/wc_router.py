@@ -23,10 +23,12 @@ import json
 import logging
 import os
 import re
+import secrets
 import sqlite3
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from pydantic import BaseModel
 
 # [REUSE-IMPORT] 复用现有 gating 依赖（不改 auth_deps.py / sync_router.py）
 from auth_deps import get_optional_user, CurrentUser  # type: ignore
@@ -165,11 +167,15 @@ def _check_gating(match_id: str, is_free: bool, user: CurrentUser) -> tuple[bool
         try:
             conn = _get_main_conn()
             row = conn.execute("""
-                SELECT 1 FROM user_unlocks u
-                JOIN users us ON us.username = u.username
-                WHERE us.id = ? AND u.match_id = ?
+                SELECT 1 FROM user_unlocks
+                WHERE (user_id = ?
+                       OR (username != '' AND username = (
+                           SELECT username FROM users WHERE id = ? LIMIT 1
+                       )))
+                  AND match_id = ?
+                  AND (expires_at IS NULL OR datetime(expires_at) > datetime('now'))
                 LIMIT 1
-            """, (user.user_id, str(match_id))).fetchone()
+            """, (user.user_id, user.user_id, str(match_id))).fetchone()
             conn.close()
             if row:
                 is_gated = False
@@ -405,3 +411,59 @@ async def get_wc_match_payload(
     )
 
     return payload
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Admin: WC 场次列表 + 单场解锁管理（X-Admin-Token 鉴权，与 auth_router 同模式）
+# ──────────────────────────────────────────────────────────────────────────────
+
+_ADMIN_SECRET_TOKEN = os.environ.get("ADMIN_SECRET_TOKEN", "")
+
+
+def _verify_wc_admin(x_admin_token: str = Header(default="")) -> None:
+    if not _ADMIN_SECRET_TOKEN:
+        raise HTTPException(status_code=503, detail="ADMIN_SECRET_TOKEN 未配置")
+    if not secrets.compare_digest(x_admin_token, _ADMIN_SECRET_TOKEN):
+        raise HTTPException(status_code=401, detail="admin token 无效")
+
+
+class AdminGrantUnlockBody(BaseModel):
+    match_id: str
+
+
+@router.get("/admin/matches")
+async def wc_admin_matches(_: None = Depends(_verify_wc_admin)):
+    """返回近 7 天已完赛 + 未来 14 天 WC 场次，供授权弹窗选择。"""
+    try:
+        conn = _get_wc_conn()
+        rows = conn.execute("""
+            SELECT f.sportmonks_id,
+                   ht.name AS home_team,
+                   at.name AS away_team,
+                   f.starting_at,
+                   f.status,
+                   CASE WHEN r.match_id IS NOT NULL THEN 1 ELSE 0 END AS has_report
+            FROM wc_fixtures f
+            LEFT JOIN wc_teams ht ON ht.sportmonks_id = f.home_team_sportmonks_id
+            LEFT JOIN wc_teams at ON at.sportmonks_id = f.away_team_sportmonks_id
+            LEFT JOIN wc_reports r ON r.match_id = 'wc_' || f.sportmonks_id
+            WHERE f.starting_at >= datetime('now', '-7 days')
+              AND f.starting_at <= datetime('now', '+14 days')
+              AND f.is_placeholder = 0
+            ORDER BY f.starting_at
+        """).fetchall()
+        conn.close()
+        return [
+            {
+                "match_id": f"wc_{r['sportmonks_id']}",
+                "home_team": r["home_team"] or "?",
+                "away_team": r["away_team"] or "?",
+                "starting_at": r["starting_at"],
+                "status": r["status"],
+                "has_report": bool(r["has_report"]),
+            }
+            for r in rows
+        ]
+    except Exception as e:
+        log.error(f"[wc_admin_matches] {e}")
+        raise HTTPException(status_code=500, detail=str(e))

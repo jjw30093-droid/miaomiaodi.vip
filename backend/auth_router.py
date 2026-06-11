@@ -465,7 +465,7 @@ async def admin_create_user(
     request: Request,
     _: None = Depends(_verify_admin),
 ):
-    """管理员建号：创建 role=vip、永久有效的账号。"""
+    """管理员建号：创建 role=registered 普通账号，按需通过单场授权赋予权限。"""
     username = body.username.strip()
     password = body.password
     nickname = (body.nickname or "").strip() or username
@@ -492,7 +492,7 @@ async def admin_create_user(
             """INSERT INTO users
                (openid, username, password_hash, nickname, role, auth_source,
                 vip_expires_at, disabled, register_ip, created_at)
-               VALUES (?, ?, ?, ?, 'vip', 'username', NULL, 0, ?, datetime('now'))""",
+               VALUES (?, ?, ?, ?, 'registered', 'username', NULL, 0, ?, datetime('now'))""",
             (openid_placeholder, username, password_hash, nickname, ip)
         )
         conn.commit()
@@ -516,7 +516,7 @@ async def admin_create_user(
     finally:
         conn.close()
 
-    return {"status": "ok", "user_id": new_user["id"], "username": username, "role": "vip"}
+    return {"status": "ok", "user_id": new_user["id"], "username": username, "role": "registered"}
 
 
 @router.post("/admin/users/{user_id}/reset-password")
@@ -626,6 +626,109 @@ async def admin_delete_user(
         conn.rollback()
         log.error(f"[AdminDeleteUser] DB error: {e}")
         raise HTTPException(status_code=500, detail="删除失败")
+    finally:
+        conn.close()
+
+    return {"status": "ok"}
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Admin: 单场研报授权管理（user_unlocks）
+# ──────────────────────────────────────────────────────────────────────────────
+
+class AdminGrantUnlockRequest(BaseModel):
+    match_id: str
+
+
+@router.get("/admin/users/{user_id}/unlocks")
+async def admin_get_unlocks(
+    user_id: int,
+    _: None = Depends(_verify_admin),
+):
+    """查询某用户的全部单场授权。"""
+    conn = _get_db()
+    try:
+        rows = conn.execute(
+            """SELECT match_id, unlock_source, source_ref, unlocked_at, expires_at
+               FROM user_unlocks
+               WHERE user_id = ? OR (username = (SELECT username FROM users WHERE id = ? LIMIT 1) AND username != '')
+               ORDER BY unlocked_at DESC""",
+            (user_id, user_id),
+        ).fetchall()
+    finally:
+        conn.close()
+    return [dict(r) for r in rows]
+
+
+@router.post("/admin/users/{user_id}/unlocks")
+async def admin_grant_unlock(
+    user_id: int,
+    body: AdminGrantUnlockRequest,
+    request: Request,
+    _: None = Depends(_verify_admin),
+):
+    """给指定用户授权某场比赛研报（单场解锁）。"""
+    ip = _client_ip(request)
+    ua = request.headers.get("user-agent", "")[:512]
+    match_id = body.match_id.strip()
+    if not match_id:
+        raise HTTPException(status_code=422, detail="match_id 不能为空")
+
+    conn = _get_db()
+    try:
+        user_row = conn.execute("SELECT username FROM users WHERE id = ?", (user_id,)).fetchone()
+        if not user_row:
+            raise HTTPException(status_code=404, detail="用户不存在")
+        username = (user_row["username"] or "") or f"uid:{user_id}"
+
+        conn.execute(
+            """INSERT OR IGNORE INTO user_unlocks
+               (username, user_id, match_id, unlock_source, source_ref, expires_at)
+               VALUES (?, ?, ?, 'admin_grant', ?, NULL)""",
+            (username, user_id, match_id, f"admin:{ip}"),
+        )
+        _write_audit_log(conn, "admin_grant_unlock", "admin",
+                         f"user_id={user_id} match_id={match_id}", ip, ua)
+        conn.commit()
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        log.error(f"[AdminGrantUnlock] DB error: {e}")
+        raise HTTPException(status_code=500, detail="授权失败")
+    finally:
+        conn.close()
+
+    return {"status": "ok", "match_id": match_id}
+
+
+@router.delete("/admin/users/{user_id}/unlocks/{match_id:path}")
+async def admin_revoke_unlock(
+    user_id: int,
+    match_id: str,
+    request: Request,
+    _: None = Depends(_verify_admin),
+):
+    """撤销某用户对某场比赛的单场授权。"""
+    ip = _client_ip(request)
+    ua = request.headers.get("user-agent", "")[:512]
+
+    conn = _get_db()
+    try:
+        conn.execute(
+            """DELETE FROM user_unlocks
+               WHERE match_id = ?
+                 AND (user_id = ?
+                      OR (username = (SELECT username FROM users WHERE id = ? LIMIT 1) AND username != ''))""",
+            (match_id, user_id, user_id),
+        )
+        _write_audit_log(conn, "admin_revoke_unlock", "admin",
+                         f"user_id={user_id} match_id={match_id}", ip, ua)
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        log.error(f"[AdminRevokeUnlock] DB error: {e}")
+        raise HTTPException(status_code=500, detail="撤销失败")
     finally:
         conn.close()
 

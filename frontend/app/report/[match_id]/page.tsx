@@ -6,12 +6,10 @@ import { getMatchReport } from '@/lib/fetchReport';
 import ReportMarkdown from '@/components/report/ReportMarkdown';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 import InteractiveShotMapClient from '@/components/InteractiveShotMapClient';
-import PaywallOverlay from '@/components/PaywallOverlay';
 import GlassPickBlock from '@/components/report/GlassPickBlock';
 import PostMatchCompareCard from '@/components/report/PostMatchCompareCard';
 import ReportTabSwitch from '@/components/report/ReportTabSwitch';
 import BeginnerView, { type FormResult } from '@/components/report/BeginnerView';
-import MarketVsModelCard from '@/components/report/MarketVsModelCard';
 import ModelVerdictCard from '@/components/report/ModelVerdictCard';
 import SectionNavBar from '@/components/report/SectionNavBar';
 import InsightLine from '@/components/report/InsightLine';
@@ -87,24 +85,24 @@ function LoginPrompt({ matchId }: { matchId: string }) {
   );
 }
 
+/** 统一卡片容器 class — 浅深单态 */
+const CARD = 'rounded-2xl border border-slate-900/10 dark:border-white/[0.08] bg-white/90 dark:bg-[var(--panel-bg-strong)] shadow-[0_1px_4px_rgba(15,23,42,0.05)] dark:shadow-none';
+
 /** 分区标题行 */
 function SectionLabel({
   icon,
   label,
-  accentClass = 'bg-primary-neon shadow-[0_0_6px_#00F0FF]',
   badge,
 }: {
   icon?: React.ReactNode;
   label: string;
-  accentClass?: string;
+  accentClass?: string; // kept for call-site compat, no longer used
   badge?: React.ReactNode;
 }) {
   return (
     <div className="flex items-center gap-2.5 mb-4">
-      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${accentClass}`} />
-      <span className="text-xs font-black tracking-[0.3em] uppercase text-slate-500
-                       dark:text-base dark:font-black dark:tracking-[0.35em] dark:italic dark:text-white
-                       flex items-center gap-1.5">
+      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-[color:var(--primary-neon)] dark:bg-[#00F0FF]" />
+      <span className="text-sm font-bold tracking-wide text-slate-700 dark:text-white flex items-center gap-1.5">
         {icon}
         {label}
       </span>
@@ -295,8 +293,8 @@ async function ReportContent({
         {/* ── 2. 赛事头部（概率 + AI 分析） ──────────────────────────────── */}
         <section className="space-y-4">
 
-          {/* ① 队名卡：浅色独立白卡 / 深色融入面板 */}
-          <div className="bg-white/85 backdrop-blur-xl dark:bg-[var(--panel-bg-strong)] border border-slate-900/10 dark:border-[var(--panel-border-strong)] rounded-3xl p-5 text-center space-y-2 shadow-[0_4px_24px_rgba(15,23,42,0.06)] dark:shadow-[var(--panel-shadow-strong)]">
+          {/* ① 队名卡 */}
+          <div className={`${CARD} p-5 text-center space-y-2`}>
             <span className="inline-block text-xs font-bold tracking-[0.15em] uppercase px-3 py-1 rounded-full
                              bg-slate-900 text-white
                              dark:bg-white/[0.06] dark:text-white dark:border dark:border-white/15">
@@ -321,10 +319,20 @@ async function ReportContent({
             </p>
           </div>
 
-          {/* ② 核心结论 GlassPickBlock（原 ③ 上移；WDL 三列大数字已删除，被市场对比卡吞并） */}
+          {/* ② 核心结论卡（推荐方向 + coreLogic + 市场对比 mini 表 + 风险行） */}
           {report.inference && (
             hasFullAccess ? (
-              <GlassPickBlock inference={report.inference} />
+              <GlassPickBlock
+                inference={report.inference}
+                coreLogic={report.verdictSummary?.coreLogic}
+                keyRisk={!isWc ? report.keyRisk : undefined}
+                modelHome={report.homeProb}
+                modelDraw={report.drawProb}
+                modelAway={report.awayProb}
+                marketHome={report.marketImpliedProb?.home}
+                marketDraw={report.marketImpliedProb?.draw}
+                marketAway={report.marketImpliedProb?.away}
+              />
             ) : (
               <div className="flex items-start gap-2 bg-[#E91E63]/5 border border-[#E91E63]/20 rounded-xl px-4 py-3">
                 <TrendingUp size={14} className="text-[#E91E63] flex-shrink-0 mt-0.5" />
@@ -341,37 +349,65 @@ async function ReportContent({
             </div>
           )}
 
-          {/* ③ 市场 vs 模型 — 价值差对比 */}
-          {hasFullAccess && (
-            <MarketVsModelCard
-              modelHome={report.homeProb}
-              modelDraw={report.drawProb}
-              modelAway={report.awayProb}
-              marketHome={report.marketImpliedProb?.home}
-              marketDraw={report.marketImpliedProb?.draw}
-              marketAway={report.marketImpliedProb?.away}
-              recommended={verdictDisplay}
-            />
-          )}
-
-          {/* ④ 模型综合判断（WC 不渲染：verdictSummary=null 且 keyVariables 由 AI 正文覆盖）*/}
+          {/* ③ 关键论据卡（能力星级 + 关键变量；WC 不渲染）*/}
           {hasFullAccess && !isWc && (
             <ModelVerdictCard
               homeTeam={homeTeam}
               awayTeam={awayTeam}
               verdictSummary={report.verdictSummary}
               keyVariables={report.keyVariables}
-              keyRisk={report.keyRisk}
-              /* finalPick 三参数留 null：避免与上面 GlassPickBlock 重复展示分析结论 */
+              keyRisk={null}
               pickDirection={null}
               pickOdds={null}
               confidenceStars={null}
             />
           )}
 
-          {/* ⑤ 章节锚点导航条 — 摘要区与论据区的分隔 */}
-          {hasFullAccess && <SectionNavBar hasReview={matchEnded && isVip} />}
         </section>
+
+        {/* ── 5. 长文分析（结论→分析→数据漏斗）──────────────────────────── */}
+        <section id="tactics" className="flex flex-col gap-5">
+          {(report.markdownSections?.ahAnalysis || report.markdownSections?.ouAnalysis || report.markdownSections?.overallComparison) ? (
+            <div className={`${CARD} p-5 overflow-hidden flex flex-col gap-6`}>
+              {report.markdownSections?.ahAnalysis && (
+                <div>
+                  <SectionLabel icon={<BarChart2 size={11} />} label="亚盘深度分析 · AI" />
+                  <ReportMarkdown content={report.markdownSections.ahAnalysis} />
+                </div>
+              )}
+              {report.markdownSections?.ouAnalysis && (
+                <div>
+                  <SectionLabel icon={<BarChart2 size={11} />} label="进球数深度分析 · AI" />
+                  <ReportMarkdown content={report.markdownSections.ouAnalysis} />
+                </div>
+              )}
+              {report.markdownSections?.overallComparison && (
+                <div>
+                  <SectionLabel icon={<BarChart2 size={11} />} label="综合战力对比 · AI" />
+                  <ReportMarkdown content={report.markdownSections.overallComparison} />
+                </div>
+              )}
+            </div>
+          ) : report.markdownSections?.tacticalAnalysis ? (
+            <div className={`${CARD} p-5 overflow-hidden`}>
+              <SectionLabel icon={<BarChart2 size={11} />} label="战术博弈分析 · AI" />
+              <ReportMarkdown content={report.markdownSections.tacticalAnalysis} />
+            </div>
+          ) : !report.markdownContent || report.markdownContent.startsWith('报告内容正在同步中') ? (
+            <div className={`${CARD} p-5 overflow-hidden`}>
+              <SectionLabel icon={<BarChart2 size={11} />} label="AI 神经分析 · 赛前结论" />
+              <PostMatchPlaceholder title="Report · Generating" icon={<FileText size={26} />} />
+            </div>
+          ) : (
+            <div className={`${CARD} p-5 overflow-hidden`}>
+              <SectionLabel icon={<BarChart2 size={11} />} label="AI 神经分析 · 赛前结论" />
+              <ReportMarkdown content={(report.markdownContent ?? '').replace(/^##\s[^\n]*·\s*世界杯[^\n]*\n+/, '')} />
+            </div>
+          )}
+        </section>
+
+        {/* ⑤ 章节锚点导航条 */}
+        {hasFullAccess && <SectionNavBar hasReview={matchEnded && isVip} />}
 
         {/* 免费场标签 */}
         {isFreeMatch && <FreeMatchBanner />}
@@ -381,7 +417,7 @@ async function ReportContent({
           <section id="data" className="flex flex-col gap-5">
             {/* Block A · npxGD 趋势图（联赛专用，WC 无此数据直接跳过）*/}
             {!isWc && (
-            <div className="bg-[var(--panel-bg-strong)] backdrop-blur-xl border border-[var(--panel-border-strong)] rounded-2xl p-5 overflow-hidden shadow-[var(--panel-shadow-strong)]">
+            <div className={`${CARD} p-5 overflow-hidden`}>
               <SectionLabel
                 icon={<TrendingUp size={11} />}
                 label="战力演化趋势 · NPXGD"
@@ -412,7 +448,7 @@ async function ReportContent({
 
             {/* Block B · 射门渗透（联赛）或 WC 攻防统计表 */}
             {!isWc && (
-              <div className="bg-[var(--panel-bg-strong)] backdrop-blur-xl border border-[var(--panel-border-strong)] rounded-2xl p-5 overflow-hidden shadow-[var(--panel-shadow-strong)]">
+              <div className={`${CARD} p-5 overflow-hidden`}>
                 <SectionLabel
                   icon={<Crosshair size={11} />}
                   label="射门渗透分析 · 近5场"
@@ -498,7 +534,7 @@ async function ReportContent({
         {showCharts && report.lineupImpact && !isWc && (
           <section id="lineup" className="flex flex-col gap-5">
             {/* Block E · 阵容攻防贡献表（LineupImpactTable 是唯一入口） */}
-            <div className="bg-[var(--panel-bg-strong)] border border-[var(--panel-border-strong)] rounded-2xl overflow-hidden shadow-[var(--panel-shadow-strong)]">
+            <div className={`${CARD} overflow-hidden`}>
               <div className="px-5 pt-5">
                 <SectionLabel
                   icon={<Activity size={11} />}
@@ -537,7 +573,7 @@ async function ReportContent({
 
             {/* 阵容影响 LLM 解读段（拆段嵌入） */}
             {report.markdownSections?.lineupImpact && hasFullAccess && (
-              <div className="bg-[var(--panel-bg-strong)] backdrop-blur-xl border border-[var(--panel-border-strong)] rounded-2xl p-5 overflow-hidden shadow-[var(--panel-shadow-strong)]">
+              <div className={`${CARD} p-5 overflow-hidden`}>
                 <ReportMarkdown content={report.markdownSections.lineupImpact} />
               </div>
             )}
@@ -561,50 +597,6 @@ async function ReportContent({
           </section>
         )}
 
-        {/* ── 5. 战术深度章节 ─────────────────────────────────────────────── */}
-        <section id="tactics" className="flex flex-col gap-5">
-          {(report.markdownSections?.ahAnalysis || report.markdownSections?.ouAnalysis || report.markdownSections?.overallComparison) ? (
-            // 新格式（AH/OU 导向研报，2026-04-28+）
-            <>
-              {report.markdownSections?.ahAnalysis && (
-                <div className="bg-[var(--panel-bg-strong)] backdrop-blur-xl border border-[var(--panel-border-strong)] rounded-2xl p-5 relative overflow-hidden shadow-[var(--panel-shadow-strong)]">
-                  <SectionLabel icon={<BarChart2 size={11} />} label="亚盘深度分析 · AI" />
-                  <ReportMarkdown content={report.markdownSections.ahAnalysis} />
-                </div>
-              )}
-              {report.markdownSections?.ouAnalysis && (
-                <div className="bg-[var(--panel-bg-strong)] backdrop-blur-xl border border-[var(--panel-border-strong)] rounded-2xl p-5 relative overflow-hidden shadow-[var(--panel-shadow-strong)]">
-                  <SectionLabel icon={<BarChart2 size={11} />} label="进球数深度分析 · AI" />
-                  <ReportMarkdown content={report.markdownSections.ouAnalysis} />
-                </div>
-              )}
-              {report.markdownSections?.overallComparison && (
-                <div className="bg-[var(--panel-bg-strong)] backdrop-blur-xl border border-[var(--panel-border-strong)] rounded-2xl p-5 relative overflow-hidden shadow-[var(--panel-shadow-strong)]">
-                  <SectionLabel icon={<BarChart2 size={11} />} label="综合战力对比 · AI" />
-                  <ReportMarkdown content={report.markdownSections.overallComparison} />
-                </div>
-              )}
-            </>
-          ) : report.markdownSections?.tacticalAnalysis ? (
-            // 旧格式：拆段后渲染 战术博弈分析 段
-            <div className="bg-[var(--panel-bg-strong)] backdrop-blur-xl border border-[var(--panel-border-strong)] rounded-2xl p-5 relative overflow-hidden shadow-[var(--panel-shadow-strong)]">
-              <SectionLabel icon={<BarChart2 size={11} />} label="战术博弈分析 · AI" />
-              <ReportMarkdown content={report.markdownSections.tacticalAnalysis} />
-            </div>
-          ) : !report.markdownContent || report.markdownContent.startsWith('报告内容正在同步中') ? (
-            <div className="bg-[var(--panel-bg-strong)] backdrop-blur-xl border border-[var(--panel-border-strong)] rounded-2xl p-5 relative overflow-hidden shadow-[var(--panel-shadow-strong)]">
-              <SectionLabel icon={<BarChart2 size={11} />} label="AI 神经分析 · 赛前结论" />
-              <PostMatchPlaceholder title="Report · Generating" icon={<FileText size={26} />} />
-            </div>
-          ) : (
-            // Fallback：旧研报无结构化 H2 段，整段渲染原始长文
-            <div className="bg-[var(--panel-bg-strong)] backdrop-blur-xl border border-[var(--panel-border-strong)] rounded-2xl p-5 relative overflow-hidden shadow-[var(--panel-shadow-strong)]">
-              <SectionLabel icon={<BarChart2 size={11} />} label="AI 神经分析 · 赛前结论" />
-              <ReportMarkdown content={report.markdownContent} />
-            </div>
-          )}
-        </section>
-
         {/* ── 6. 赛后复盘区（仅赛后渲染，赛前完全跳过 DOM）─────────────────── */}
         {matchEnded && (
           <section id="review" className="flex flex-col gap-4">
@@ -617,7 +609,7 @@ async function ReportContent({
 
             {/* 非 VIP 引导卡 */}
             {!isVip && (
-              <div className="bg-[var(--panel-bg-strong)] backdrop-blur-xl border border-yellow-500/20 rounded-2xl p-6 flex flex-col items-center gap-3 text-center shadow-[var(--panel-shadow-strong)]">
+              <div className="bg-white/90 dark:bg-[var(--panel-bg-strong)] border border-yellow-500/20 rounded-2xl p-6 flex flex-col items-center gap-3 text-center">
                 <Lock size={24} className="text-yellow-400/60" />
                 <p className="text-sm font-black text-slate-900 dark:text-white">赛后量化复盘 · 仅 VIP 可见</p>
                 <p className="text-xs text-slate-600 dark:text-white font-mono">包含模型回测、实际期望进球对比、AI 审计报告</p>
@@ -640,11 +632,10 @@ async function ReportContent({
                   postMatchShots={report.postMatchShots}
                 />
 
-                <div className="bg-[var(--panel-bg-strong)] backdrop-blur-xl border border-[var(--panel-border-strong)] rounded-2xl p-5 overflow-hidden shadow-[var(--panel-shadow-strong)]">
+                <div className={`${CARD} p-5 overflow-hidden`}>
                   <SectionLabel
                     icon={<Crosshair size={11} />}
                     label="赛后射门分布 · 真实赛场数据"
-                    accentClass="bg-yellow-400 shadow-[0_0_6px_#FACC15]"
                   />
                   {report.postMatchShots ? (
                     <div className="w-full overflow-x-hidden">
@@ -689,12 +680,10 @@ async function ReportContent({
 
                 {/* 球员贡献矩阵已迁移到 #lineup 章节（CollapsibleSection 折叠展示） */}
 
-                <div className="bg-[var(--panel-bg-strong)] backdrop-blur-xl border border-[var(--panel-border-strong)] rounded-2xl p-5 relative overflow-hidden shadow-[var(--panel-shadow-strong)]">
-                  <div className="absolute top-0 left-0 w-40 h-40 bg-yellow-400/5 blur-[60px] rounded-full pointer-events-none" />
+                <div className={`${CARD} p-5 overflow-hidden`}>
                   <SectionLabel
                     icon={<BarChart2 size={11} />}
                     label="赛后量化复盘 · AI 审计"
-                    accentClass="bg-yellow-400 shadow-[0_0_6px_#FACC15]"
                   />
                   {report.postMatchReview ? (
                     <MarkdownRenderer content={report.postMatchReview} />
