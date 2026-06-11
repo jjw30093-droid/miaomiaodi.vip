@@ -6,7 +6,7 @@ import { getMatchReport } from '@/lib/fetchReport';
 import ReportMarkdown from '@/components/report/ReportMarkdown';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 import InteractiveShotMapClient from '@/components/InteractiveShotMapClient';
-import GlassPickBlock, { getPickType } from '@/components/report/GlassPickBlock';
+import GlassPickBlock from '@/components/report/GlassPickBlock';
 import PostMatchCompareCard from '@/components/report/PostMatchCompareCard';
 import ReportTabSwitch from '@/components/report/ReportTabSwitch';
 import BeginnerView, { type FormResult } from '@/components/report/BeginnerView';
@@ -514,7 +514,7 @@ async function ReportContent({
                 marketAwayProb={report.marketImpliedProb?.away ?? report.awayProb}
                 homeTeam={homeTeam}
                 awayTeam={awayTeam}
-                hideWdl={!!report.inference && getPickType(report.inference) === 'WDL'}
+                hideWdl={!!report.inference && !report.inference.includes('让') && !report.inference.toLowerCase().includes('over') && !report.inference.includes('大球') && !report.inference.includes('小球')}
               />
             )}
 
