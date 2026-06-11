@@ -34,6 +34,7 @@ interface Props {
   marketOuOver?:  number | null | undefined;  // OU over 概率 %
   homeTeam: string;
   awayTeam: string;
+  hideWdl?: boolean; // 已有 GlassPickBlock 展示 WDL 对比时去重
 }
 
 function pct(v: number | null | undefined): string {
@@ -51,6 +52,7 @@ export default function WcModelPredictionsCard({
   marketOuOver,
   homeTeam,
   awayTeam,
+  hideWdl = false,
 }: Props) {
   if (!wcCcPredictions) return null;
 
@@ -69,12 +71,17 @@ export default function WcModelPredictionsCard({
   if (modelHome == null && modelDraw == null) return null;
 
   const rows: { label: string; market: string; model: string }[] = [
-    { label: `${homeTeam} 主胜`, market: pct(marketHomeProb), model: pct(modelHome) },
-    { label: '平局',              market: pct(marketDrawProb), model: pct(modelDraw) },
-    { label: `${awayTeam} 客胜`, market: pct(marketAwayProb), model: pct(modelAway) },
+    ...(!hideWdl ? [
+      { label: `${homeTeam} 主胜`, market: pct(marketHomeProb), model: pct(modelHome) },
+      { label: '平局',              market: pct(marketDrawProb), model: pct(modelDraw) },
+      { label: `${awayTeam} 客胜`, market: pct(marketAwayProb), model: pct(modelAway) },
+    ] : []),
     ...(modelOver != null ? [{ label: '大球 (>2.5)', market: pct(marketOuOver), model: pct(modelOver) }] : []),
     ...(modelBtts != null ? [{ label: '双方进球',    market: '—',               model: pct(modelBtts) }] : []),
   ];
+
+  // hideWdl 模式下若无其他行则不渲染
+  if (rows.length === 0) return null;
 
   return (
     <div className="rounded-xl border border-zinc-700/40 bg-zinc-900/60 p-4 mt-4">

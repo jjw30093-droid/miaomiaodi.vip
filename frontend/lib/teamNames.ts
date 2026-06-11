@@ -180,3 +180,19 @@ export function translateMatchLabel(label: string | null | undefined): string {
   }
   return label;
 }
+
+/**
+ * 在任意文本中将所有英文队名替换为中文。
+ * 按 key 长度降序处理，防止 "Korea" 截胡 "Korea Republic"。
+ */
+export function translateTeamsInText(text: string | null | undefined): string {
+  if (!text) return text ?? '';
+  const sorted = Object.keys(TEAM_NAME_ZH).sort((a, b) => b.length - a.length);
+  let result = text;
+  for (const en of sorted) {
+    if (result.includes(en)) {
+      result = result.split(en).join(TEAM_NAME_ZH[en]);
+    }
+  }
+  return result;
+}

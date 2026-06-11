@@ -229,7 +229,7 @@ WC_AGENT4_SYSTEM_PROMPT = """# 角色
 4. **禁止出现** xG / NPXGD / 期望进球 / 射门坐标（WC 无此数据）。
 5. **绝对禁止在正文中放任何表格**（原始攻防对比/模型对标/近期战绩/首发名单均由前端卡片展示）。
 6. **所有市场共识概率数值**原封不动引用 prebuilt_quant_section，不得重算。
-7. 全文使用中文，禁止英文单词（ML→算法模型，Edge→价值边际）。
+7. 全文使用中文，禁止英文单词（ML→算法模型，Edge→价值边际）；**球队名一律使用输入的中文名，禁止输出英文队名**；叙述分歧程度用"各家口径高度一致""各家看法基本一致"等自然语言，禁止"离散度=""书商"等术语，统一用"机构"。
 8. 禁止引用 market-80 历史准确率（54.5% / 61%）。
 
 # 输入数据说明
@@ -254,7 +254,7 @@ WC_AGENT4_SYSTEM_PROMPT = """# 角色
 ## 推荐分析
 
 [180-280 字叙述。以下要点覆盖（不放表格，纯文字）：
-  1. 市场共识核心逻辑（书商数量/离散度/主要概率方向）
+  1. 市场共识核心逻辑（机构数量/各家是否一致/主要概率方向）
   2. 第三方算法模型与市场的最大分歧（若 model_vs_market.available=true）及含义
   3. 双方近期战力对比关键点（引用 agent3_output 的星级和状态判断）
   4. 推荐方向及核心理由（与 single_pick.inference 一致）
@@ -262,9 +262,9 @@ WC_AGENT4_SYSTEM_PROMPT = """# 角色
   - 若 SKIP：说明市场分歧原因，建议观望
   注意：不重复量化基准线已有的概率数字，着重说逻辑]
 
-## 进球数（Goal Line）展示
+## 进球数参考
 
-[若 prebuilt_quant_section 中 Goal Line 书商数 = 0，**跳过整段，不输出任何内容**；有数据时输出：一段简短叙述，50-80 字，带"历史基线建立中，2026实盘滚动验证"免责，不出推荐]
+[若 prebuilt_quant_section 中无进球数表格，**跳过整段，不输出任何内容**；有数据时输出：一段简短叙述，50-80 字，带"进球数模型暂无历史战绩背书，仅供参考，不作推荐"免责，不出推荐]
 
 ## 综合结论
 
@@ -464,27 +464,32 @@ def build_prebuilt_quant_section(
     a_pct  = round(wdl.get("away", 0) * 100, 1)
     n_wdl  = wdl.get("n_books", 0)
     div    = wdl.get("divergence", 0.0)
-    lines.append(f"**市场共识（去水中位，{n_wdl} 家书商，离散度={div:.3f}）**")
+    if div < 0.01:
+        div_desc = "各家口径高度一致"
+    elif div < 0.025:
+        div_desc = "各家看法基本一致"
+    else:
+        div_desc = "各家存在一定分歧"
+    lines.append(f"**市场共识** · 综合 {n_wdl} 家主流机构报价（已剔除水位），{div_desc}")
     lines.append("")
     lines.append(f"| {home_name} 主胜 | 平局 | {away_name} 客胜 |")
     lines.append("|:---:|:---:|:---:|")
     lines.append(f"| **{h_pct}%** | **{d_pct}%** | **{a_pct}%** |")
     lines.append("")
 
-    # OU（仅展示，无书商数据时跳过整块）
+    # OU（仅展示，无数据时跳过整块）
     if ou and ou.get("over") is not None and ou.get("n_books", 0) > 0:
         o_pct  = round(ou["over"]  * 100, 1)
         u_pct  = round(ou["under"] * 100, 1)
         line_v = ou.get("line", "—")
         split  = "（四分盘）" if ou.get("split") == "quarter" else ""
         n_ou   = ou.get("n_books", 0)
-        disc   = ou.get("baseline_disclaimer", "历史基线建立中，2026实盘滚动验证")
-        lines.append(f"**Goal Line {line_v}{split}（仅展示，{n_ou} 家，不出推荐）**")
+        lines.append(f"**进球数参考 · {line_v} 球盘{split}（{n_ou} 家机构，仅作展示）**")
         lines.append("")
-        lines.append(f"| 过{line_v} | 不过{line_v} |")
+        lines.append(f"| 过 {line_v} | 不过 {line_v} |")
         lines.append("|:---:|:---:|")
         lines.append(f"| {o_pct}% | {u_pct}% |")
-        lines.append(f"> ⚠️ {disc}")
+        lines.append("> ⚠️ 进球数模型暂无历史战绩背书，仅供参考，不作推荐")
         lines.append("")
 
     # AH（仅幅度）
@@ -493,16 +498,16 @@ def build_prebuilt_quant_section(
         mag     = ah.get("magnitude", 0)
         n_ah    = ah.get("n_books", 0)
         fav     = home_name if line_ah < 0 else away_name
-        lines.append(f"**市场让球（{n_ah} 家，仅幅度参考）**：{fav} 让 {mag} 球（仅信息，非推荐）")
+        lines.append(f"**让球盘**：主流机构开 {fav} 让 {mag} 球（{n_ah} 家口径，仅供参考）")
         lines.append("")
 
     # 单推
     if single_pick and single_pick.get("inference"):
-        lines.append(f"**推荐**：`{single_pick['inference']}`")
+        lines.append(f"**{single_pick['inference']}**")
         if single_pick.get("caution_text"):
             lines.append(f"> ⚠️ {single_pick['caution_text']}")
     else:
-        lines.append("**推荐**：`【SKIP】观望 — 数据指向不明确`")
+        lines.append("**【观望】数据指向不明确**")
     lines.append("")
 
     return "\n".join(lines)

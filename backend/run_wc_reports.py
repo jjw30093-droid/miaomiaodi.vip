@@ -223,8 +223,9 @@ def generate_wc_report(
             log.error(f"  fixture {fixture_id} not found in wc_fixtures")
             return None
 
-        home_name = fixture.get("home_team_name") or "主队"
-        away_name = fixture.get("away_team_name") or "客队"
+        from wc_team_names import zh_team  # type: ignore
+        home_name = zh_team(fixture.get("home_team_name") or "") or "主队"
+        away_name = zh_team(fixture.get("away_team_name") or "") or "客队"
         match_time = fixture.get("starting_at") or ""
 
         log.info(f"  {home_name} vs {away_name} @ {match_time}")
@@ -282,7 +283,7 @@ def generate_wc_report(
                 "picked_direction":  "home",
                 "picked_odds":       _AH_ODDS_MAP.get(match_id),
                 "picked_confidence": "HIGH",
-                "inference": f"【推荐】{home_name} 让一球 @{_AH_ODDS_MAP.get(match_id, '—')}  · 仅供参考",
+                "inference": f"【推荐】{home_name} 让一球 @{_AH_ODDS_MAP.get(match_id, '—')} · 仅供参考",
                 "caution_text": "亚盘参考，不构成投注建议",
             },
             "wc_19609153": {
@@ -290,7 +291,7 @@ def generate_wc_report(
                 "picked_direction":  "home_win",
                 "picked_odds":       2.62,
                 "picked_confidence": "MID",
-                "inference": f"【推荐】{home_name} 主胜 @2.62  {round(prediction['wdl']['home']*100,1)}% ({prediction['wdl']['home']:.3f}/{prediction['wdl']['draw']:.3f}/{prediction['wdl']['away']:.3f})",
+                "inference": f"【推荐】{home_name} 主胜 @2.62",
                 "caution_text": None,
             },
         }

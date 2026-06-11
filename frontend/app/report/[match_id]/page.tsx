@@ -6,7 +6,7 @@ import { getMatchReport } from '@/lib/fetchReport';
 import ReportMarkdown from '@/components/report/ReportMarkdown';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 import InteractiveShotMapClient from '@/components/InteractiveShotMapClient';
-import GlassPickBlock from '@/components/report/GlassPickBlock';
+import GlassPickBlock, { getPickType } from '@/components/report/GlassPickBlock';
 import PostMatchCompareCard from '@/components/report/PostMatchCompareCard';
 import ReportTabSwitch from '@/components/report/ReportTabSwitch';
 import BeginnerView, { type FormResult } from '@/components/report/BeginnerView';
@@ -30,7 +30,7 @@ import {
 import { MatchTimeDisplay } from '@/components/MatchTimeDisplay';
 import ThemeToggleButton from '@/components/ThemeToggleButton';
 import { translateLeague } from '@/lib/leagueNames';
-import { translateTeam } from '@/lib/teamNames';
+import { translateTeam, translateTeamsInText } from '@/lib/teamNames';
 
 const PlayerContributionTable = nextDynamic(() => import('@/components/PlayerContributionTable'));
 const NpxgTrendChart    = nextDynamic(() => import('@/components/NpxgTrendChart'));
@@ -321,19 +321,27 @@ async function ReportContent({
 
           {/* ② 核心结论卡（推荐方向 + coreLogic + 市场对比 mini 表 + 风险行） */}
           {report.inference && (
-            hasFullAccess ? (
+            hasFullAccess ? (() => {
+              // WC: 模型列接 Sportmonks cc_predictions（真实第三方概率）
+              const wcFt = isWc ? (report as any).wcCcPredictions?.fulltime_result : null;
+              const wcModelHome = wcFt ? (wcFt.predictions?.home ?? wcFt.home ?? null) : null;
+              const wcModelDraw = wcFt ? (wcFt.predictions?.draw ?? wcFt.draw ?? null) : null;
+              const wcModelAway = wcFt ? (wcFt.predictions?.away ?? wcFt.away ?? null) : null;
+              return (
               <GlassPickBlock
-                inference={report.inference}
-                coreLogic={report.verdictSummary?.coreLogic}
-                keyRisk={!isWc ? report.keyRisk : undefined}
-                modelHome={report.homeProb}
-                modelDraw={report.drawProb}
-                modelAway={report.awayProb}
+                inference={translateTeamsInText(report.inference)}
+                coreLogic={translateTeamsInText(report.verdictSummary?.coreLogic)}
+                keyRisk={!isWc ? translateTeamsInText(report.keyRisk) : undefined}
+                modelHome={isWc ? wcModelHome : report.homeProb}
+                modelDraw={isWc ? wcModelDraw : report.drawProb}
+                modelAway={isWc ? wcModelAway : report.awayProb}
                 marketHome={report.marketImpliedProb?.home}
                 marketDraw={report.marketImpliedProb?.draw}
                 marketAway={report.marketImpliedProb?.away}
               />
-            ) : (
+              );
+            })()
+            : (
               <div className="flex items-start gap-2 bg-[#E91E63]/5 border border-[#E91E63]/20 rounded-xl px-4 py-3">
                 <TrendingUp size={14} className="text-[#E91E63] flex-shrink-0 mt-0.5" />
                 <p className="text-xs text-[#E91E63]/80 leading-relaxed">{report.inference}</p>
@@ -501,11 +509,12 @@ async function ReportContent({
             {isWc && (
               <WcModelPredictionsCard
                 wcCcPredictions={(report as any).wcCcPredictions}
-                marketHomeProb={report.homeProb}
-                marketDrawProb={report.drawProb}
-                marketAwayProb={report.awayProb}
+                marketHomeProb={report.marketImpliedProb?.home ?? report.homeProb}
+                marketDrawProb={report.marketImpliedProb?.draw ?? report.drawProb}
+                marketAwayProb={report.marketImpliedProb?.away ?? report.awayProb}
                 homeTeam={homeTeam}
                 awayTeam={awayTeam}
+                hideWdl={!!report.inference && getPickType(report.inference) === 'WDL'}
               />
             )}
 
