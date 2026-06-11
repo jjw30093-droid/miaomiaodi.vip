@@ -414,14 +414,14 @@ async function ReportContent({
           )}
         </section>
 
-        {/* ⑤ 章节锚点导航条 */}
-        {hasFullAccess && <SectionNavBar hasReview={matchEnded && isVip} />}
+        {/* ⑤ 章节锚点导航条（WC 无数据区，不渲染）*/}
+        {hasFullAccess && !isWc && <SectionNavBar hasReview={matchEnded && isVip} />}
 
         {/* 免费场标签 */}
         {isFreeMatch && <FreeMatchBanner />}
 
-        {/* ── 3. 数据论据区（注册用户）────────────────────────────────────── */}
-        {showCharts && (
+        {/* ── 3. 数据论据区（注册用户，WC 不渲染）────────────────────────── */}
+        {showCharts && !isWc && (
           <section id="data" className="flex flex-col gap-5">
             {/* Block A · npxGD 趋势图（联赛专用，WC 无此数据直接跳过）*/}
             {!isWc && (
