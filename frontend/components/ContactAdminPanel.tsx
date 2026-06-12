@@ -3,7 +3,7 @@
 /**
  * ContactAdminPanel
  * 游客详情页底部：扫码联系管理员开通账号
- * 二维码图片：/images/admin-wechat-qr.jpg（管理员上传替换）
+ * 二维码图片：/images/admin-wechat-qr-v2.jpg（管理员上传替换；换图时递增版本号避免 CDN/浏览器缓存吐旧图）
  */
 
 export default function ContactAdminPanel() {
@@ -25,7 +25,7 @@ export default function ContactAdminPanel() {
 
       {/* 二维码 */}
       <img
-        src="/images/admin-wechat-qr.jpg"
+        src="/images/admin-wechat-qr-v2.jpg"
         alt="管理员微信二维码"
         className="w-44 h-44 rounded-2xl object-cover"
         style={{ border: '1px solid rgba(255,255,255,0.10)' }}
