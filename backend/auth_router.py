@@ -104,7 +104,7 @@ def _verify_admin(x_admin_token: str = Header(default="")) -> None:
 def _write_audit_log(conn: sqlite3.Connection, action: str, actor: str, payload: str, ip: str, ua: str) -> None:
     try:
         conn.execute(
-            """INSERT INTO admin_audit_log (action, actor, payload, ip, user_agent, created_at)
+            """INSERT INTO admin_audit_log (action, actor, payload, ip, ua, created_at)
                VALUES (?, ?, ?, ?, ?, datetime('now'))""",
             (action, actor, payload, ip, ua)
         )
