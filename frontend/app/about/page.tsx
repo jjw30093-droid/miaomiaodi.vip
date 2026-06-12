@@ -264,8 +264,8 @@ export default function AboutPage() {
                 <p className="text-xs text-stone-400 dark:text-slate-500 font-mono">扫码关注公众号，获取每日研报推送</p>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src="/images/wechat-qr.jpg"
-                  alt="足球喵喵弟 微信公众号二维码"
+                  src="/images/admin-wechat-qr-v2.jpg"
+                  alt="足球喵喵弟 微信二维码"
                   width={220}
                   height={220}
                   className="rounded-xl border border-stone-200 dark:border-white/10 bg-white p-2"

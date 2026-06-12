@@ -193,7 +193,7 @@ export default function PaywallOverlay() {
                 onClick={() => trackEvent('view_wechat_qr', { source: 'paywall_left_panel' })}
               >
                 <img
-                  src="/images/wechat-qr.jpg"
+                  src="/images/admin-wechat-qr-v2.jpg"
                   alt="主理人微信二维码"
                   className="w-44 h-44 rounded-2xl object-cover mb-6 transition-all hover:scale-105"
                   style={{ border: '1px solid rgba(255,255,255,0.10)' }}

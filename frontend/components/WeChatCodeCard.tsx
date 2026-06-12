@@ -123,8 +123,8 @@ export const WeChatCodeCard = ({
           <div className="flex flex-col items-center mb-3">
             <div className="w-28 h-28 rounded-xl overflow-hidden border border-[#07C160]/30 shadow-[0_0_15px_rgba(7,193,96,0.15)] mb-2">
               <img
-                src="/images/wechat-qr.jpg"
-                alt="关注公众号"
+                src="/images/admin-wechat-qr-v2.jpg"
+                alt="微信二维码"
                 className="w-full h-full object-cover"
               />
             </div>

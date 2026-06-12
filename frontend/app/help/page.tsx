@@ -566,8 +566,8 @@ export default function HelpCenterPage() {
               }}
             >
               <img
-                src="/images/wechat-qr.jpg"
-                alt="足球喵喵弟 公众号二维码"
+                src="/images/admin-wechat-qr-v2.jpg"
+                alt="足球喵喵弟 微信二维码"
                 className="w-full h-full object-cover rounded-lg"
               />
             </div>
