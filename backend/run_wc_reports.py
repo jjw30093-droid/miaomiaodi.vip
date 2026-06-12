@@ -303,6 +303,15 @@ def generate_wc_report(
                 "inference": "【推荐】本场大9角球 @2.25 · 仅供参考",
                 "caution_text": "角球盘参考，不构成投注建议",
             },
+            "wc_19609133": {
+                # fixture 19609133 (USA vs Paraguay) — 方向取管线市场共识（主胜 46.2% @2.17），仅整理用户可见文案
+                "picked_market":     "wdl",
+                "picked_direction":  "home_win",
+                "picked_odds":       2.17,
+                "picked_confidence": "MID",
+                "inference": f"【推荐】{home_name} 主胜 @2.17",
+                "caution_text": None,
+            },
         }
         if match_id in PICK_OVERRIDES:
             override = PICK_OVERRIDES[match_id]
