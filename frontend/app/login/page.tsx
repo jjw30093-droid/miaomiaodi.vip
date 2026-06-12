@@ -6,7 +6,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, FlaskConical, PawPrint } from 'lucide-react';
 import { WeChatCodeCard } from '@/components/WeChatCodeCard';
 import { PasswordLoginCard } from '@/components/PasswordLoginCard';
 import { SupportCard } from '@/components/SupportCard';
@@ -103,7 +103,7 @@ export default function LoginPage() {
           <div className="w-full max-w-md bg-white rounded-[1.5rem] shadow-[0px_12px_32px_rgba(25,28,29,0.08)] relative overflow-hidden p-7">
             {/* Background ghost icon */}
             <div className="absolute -top-8 -right-8 opacity-5 pointer-events-none">
-              <span className="material-symbols-outlined text-[10rem] text-[#b7004d]" style={{ fontVariationSettings: "'FILL' 1" }}>science</span>
+              <FlaskConical size={160} className="text-[#b7004d]" />
             </div>
 
             {/* Header text */}
@@ -187,12 +187,7 @@ export default function LoginPage() {
         {/* Logo + title */}
         <div className="text-center mb-10">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-zinc-900 border border-zinc-800 shadow-[0px_12px_32px_rgba(0,0,0,0.5)] mb-6">
-            <span
-              className="material-symbols-outlined text-3xl text-[#E91E63]"
-              style={{ fontVariationSettings: "'FILL' 1" }}
-            >
-              pets
-            </span>
+            <PawPrint size={30} className="text-[#E91E63]" />
           </div>
           <h1
             className="text-3xl font-bold tracking-tight text-zinc-50 mb-2"

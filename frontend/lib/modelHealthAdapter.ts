@@ -1,4 +1,5 @@
 import type { ModelHealthResponse, EquityFixed } from '@/types/modelHealth';
+import { ArrowUp, CheckCircle2, BarChart3, ReceiptText, type LucideIcon } from 'lucide-react';
 
 export interface ChartLine {
   label: string;
@@ -9,7 +10,7 @@ export interface ChartLine {
 export interface MetricCard {
   label: string;
   value: string;
-  icon: string;
+  Icon: LucideIcon; // lucide SVG 组件，不依赖 Google Fonts 图标字体
   color: string;
   borderCls: string;
 }
@@ -107,28 +108,28 @@ export function adaptModelHealth(data: ModelHealthResponse, isDark: boolean): Ad
     {
       label: '综合收益率',
       value: `+${((compLast - 1) * 100).toFixed(1)}%`,
-      icon: 'arrow_upward',
+      Icon: ArrowUp,
       color: isDark ? '#E91E63' : '#b7004d',
       borderCls: isDark ? 'border-[#E91E63]' : 'border-[#b7004d]',
     },
     {
       label: 'Goals 胜率',
       value: ou_accuracy != null ? `${(ou_accuracy * 100).toFixed(1)}%` : '—',
-      icon: 'check_circle',
+      Icon: CheckCircle2,
       color: isDark ? '#00F0FF' : '#005faf',
       borderCls: isDark ? 'border-[#00F0FF]' : 'border-[#005faf]',
     },
     {
       label: '欧赔 Brier',
       value: brier_wdl != null ? brier_wdl.toFixed(3) : '—',
-      icon: 'analytics',
+      Icon: BarChart3,
       color: isDark ? '#fb923c' : '#924700',
       borderCls: isDark ? 'border-[#fb923c]' : 'border-[#924700]',
     },
     {
       label: '近30日场数',
       value: total_matches > 0 ? total_matches.toLocaleString() : '—',
-      icon: 'receipt_long',
+      Icon: ReceiptText,
       color: isDark ? '#a78bfa' : '#5b3f43',
       borderCls: isDark ? 'border-[#a78bfa]' : 'border-[#5b3f43]',
     },

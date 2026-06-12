@@ -2,16 +2,18 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { Activity, Cpu, Archive, User } from 'lucide-react';
 
 interface Props {
   isDark: boolean;
 }
 
+// 图标用 lucide SVG，不依赖 Google Fonts（国内加载不到字体会裸显英文连字名）
 const NAV_ITEMS = [
-  { href: '/',        iconDark: '⚽', iconLight: 'sports_soccer', label: '赛事'  },
-  { href: '/model',   iconDark: '📊', iconLight: 'analytics',     label: '模型'  },
-  { href: '/archive', iconDark: '📁', iconLight: 'inventory_2',   label: '归档'  },
-  { href: '/center',  iconDark: '👤', iconLight: 'person',        label: '我的'  },
+  { href: '/',        Icon: Activity, label: '赛事' },
+  { href: '/model',   Icon: Cpu,      label: '模型' },
+  { href: '/archive', Icon: Archive,  label: '归档' },
+  { href: '/center',  Icon: User,     label: '我的' },
 ];
 
 export default function BottomNav({ isDark }: Props) {
@@ -27,12 +29,12 @@ export default function BottomNav({ isDark }: Props) {
               <Link key={item.href} href={item.href}>
                 {isActive ? (
                   <div className="flex flex-col items-center gap-0.5 bg-primary-neon text-white rounded-full px-4 py-1.5">
-                    <span className="text-[18px] leading-none">{item.iconDark}</span>
+                    <item.Icon size={18} />
                     <span className="text-[13px] font-bold leading-none">{item.label}</span>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center gap-0.5 text-zinc-400 px-4 py-1.5">
-                    <span className="text-[18px] leading-none">{item.iconDark}</span>
+                    <item.Icon size={18} />
                     <span className="text-[13px] font-bold leading-none">{item.label}</span>
                   </div>
                 )}
@@ -58,12 +60,7 @@ export default function BottomNav({ isDark }: Props) {
                 : 'text-[#005faf] p-2'
             }`}
           >
-            <span
-              className="material-symbols-outlined text-[22px] mb-0.5 leading-none"
-              style={{ fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0" }}
-            >
-              {item.iconLight}
-            </span>
+            <item.Icon size={22} className="mb-0.5" />
             <span className="text-[13px] font-bold leading-none">{item.label}</span>
           </Link>
         );

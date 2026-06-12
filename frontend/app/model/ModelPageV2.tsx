@@ -14,12 +14,14 @@ import SinglePickHero from '@/components/model/SinglePickHero/SinglePickHero';
 import { KpiGridSnapshot } from '@/components/model/KpiGrid';
 import RecentSinglePicksTable from '@/components/model/RecentSinglePicksTable/RecentSinglePicksTable';
 import ModelMetaFooter from '@/components/model/ModelMetaFooter/ModelMetaFooter';
+import { Activity, Cpu, Archive, User } from 'lucide-react';
 
+// 图标用 lucide SVG，不依赖 Google Fonts（国内加载不到字体会裸显英文连字名）
 const NAV_ITEMS = [
-  { href: '/',                   icon: 'sports_soccer', label: '赛事' },
-  { href: '/model',              icon: 'analytics',     label: '模型' },
-  { href: '/archive',            icon: 'inventory_2',   label: '归档' },
-  { href: '/center?tab=profile', icon: 'person',        label: '我的' },
+  { href: '/',                   Icon: Activity, label: '赛事' },
+  { href: '/model',              Icon: Cpu,      label: '模型' },
+  { href: '/archive',            Icon: Archive,  label: '归档' },
+  { href: '/center?tab=profile', Icon: User,     label: '我的' },
 ];
 
 function Skeleton() {
@@ -184,12 +186,7 @@ export default function ModelPageV2() {
                     : { color: NAV_INACTIVE_TEXT }
                 }
               >
-                <span
-                  className="material-symbols-outlined text-[22px] mb-0.5 leading-none"
-                  style={{ fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0" }}
-                >
-                  {item.icon}
-                </span>
+                <item.Icon size={22} className="mb-0.5" />
                 <span className="text-xs font-bold leading-none">{item.label}</span>
               </Link>
             );

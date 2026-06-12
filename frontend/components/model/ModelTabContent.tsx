@@ -14,6 +14,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
+import { ArrowUp, CheckCircle2, BarChart3, ReceiptText, TrendingUp, LineChart, ScatterChart } from 'lucide-react';
 import { useTheme } from '@/components/ThemeProvider';
 import { apiClient } from '@/lib/apiClient';
 import type { ModelHealthResponse } from '@/types/modelHealth';
@@ -36,11 +37,12 @@ export default function ModelTabContent() {
   }, [apiToken]);
 
   // ── Fallback data ──────────────────────────────────────────────────────────
+  // 图标用 lucide SVG，不依赖 Google Fonts（国内加载不到字体会裸显英文连字名）
   const fallbackMetrics = [
-    { label: '综合收益率',   value: '+470.7%', icon: 'arrow_upward', color: '#b7004d', borderCls: 'border-[#b7004d]' },
-    { label: '进球数精度',   value: '65.4%',   icon: 'check_circle', color: '#005faf', borderCls: 'border-[#005faf]' },
-    { label: '欧赔 RPS',    value: '0.128',   icon: 'analytics',    color: '#924700', borderCls: 'border-[#924700]' },
-    { label: '验证期投注数', value: '1,620',   icon: 'receipt_long', color: '#5b3f43', borderCls: 'border-[#5b3f43]' },
+    { label: '综合收益率',   value: '+470.7%', Icon: ArrowUp,      color: '#b7004d', borderCls: 'border-[#b7004d]' },
+    { label: '进球数精度',   value: '65.4%',   Icon: CheckCircle2, color: '#005faf', borderCls: 'border-[#005faf]' },
+    { label: '欧赔 RPS',    value: '0.128',   Icon: BarChart3,    color: '#924700', borderCls: 'border-[#924700]' },
+    { label: '验证期投注数', value: '1,620',   Icon: ReceiptText,  color: '#5b3f43', borderCls: 'border-[#5b3f43]' },
   ];
   const fallbackMetricsDark = [
     { ...fallbackMetrics[0], color: '#E91E63', borderCls: 'border-[#E91E63]' },
@@ -104,7 +106,7 @@ export default function ModelTabContent() {
                   {heroMultiplier}
                 </span>
                 <span className="text-[#E91E63] font-bold flex items-center bg-[#E91E63]/15 border border-[#E91E63]/30 px-2 py-0.5 rounded-md text-sm">
-                  <span className="material-symbols-outlined text-[16px] mr-1">trending_up</span>
+                  <TrendingUp size={16} className="mr-1" />
                   {heroReturnPct}
                 </span>
               </div>
@@ -117,7 +119,7 @@ export default function ModelTabContent() {
                 </span>
               )}
               <div className="bg-white/10 p-2 rounded-lg flex-shrink-0">
-                <span className="material-symbols-outlined text-[#00F0FF]">monitoring</span>
+                <LineChart size={24} className="text-[#00F0FF]" />
               </div>
             </div>
           </div>
@@ -153,7 +155,7 @@ export default function ModelTabContent() {
               <p className="text-xs font-medium text-zinc-300 mb-1">{m.label}</p>
               <div className="flex items-end justify-between">
                 <span className="font-bold text-2xl text-white" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{m.value}</span>
-                <span className="material-symbols-outlined text-sm mb-1" style={{ color: m.color, fontVariationSettings: "'FILL' 1" }}>{m.icon}</span>
+                <m.Icon size={16} className="mb-1" style={{ color: m.color }} />
               </div>
             </div>
           ))}
@@ -181,7 +183,7 @@ export default function ModelTabContent() {
         <section className="bg-white/5 border border-white/10 backdrop-blur-md rounded-xl p-5">
           <div className="flex justify-between items-center mb-3">
             <h3 className="font-bold text-base text-white" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>模型校准</h3>
-            <span className="material-symbols-outlined text-zinc-400">scatter_plot</span>
+            <ScatterChart size={24} className="text-zinc-400" />
           </div>
           <svg viewBox="0 0 100 100" className="w-full h-48 bg-black/30 rounded-lg border border-white/5" preserveAspectRatio="xMidYMid meet">
             <defs>
@@ -217,7 +219,7 @@ export default function ModelTabContent() {
                 {heroMultiplier}
               </span>
               <span className="text-[#b7004d] font-bold flex items-center bg-[#ffd9de] px-2 py-0.5 rounded-md text-sm">
-                <span className="material-symbols-outlined text-[16px] mr-1">trending_up</span>
+                <TrendingUp size={16} className="mr-1" />
                 {heroReturnPct}
               </span>
             </div>
@@ -230,7 +232,7 @@ export default function ModelTabContent() {
               </span>
             )}
             <div className="bg-[#eceeef] p-2 rounded-lg flex-shrink-0">
-              <span className="material-symbols-outlined text-[#005faf]">monitoring</span>
+              <LineChart size={24} className="text-[#005faf]" />
             </div>
           </div>
         </div>
@@ -264,7 +266,7 @@ export default function ModelTabContent() {
             <p className="text-[13px] font-medium text-[#5b3f43] mb-1">{m.label}</p>
             <div className="flex items-end justify-between">
               <span className="font-bold text-2xl text-[#191c1d]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{m.value}</span>
-              <span className="material-symbols-outlined text-sm mb-1" style={{ color: m.color, fontVariationSettings: "'FILL' 1" }}>{m.icon}</span>
+              <m.Icon size={16} className="mb-1" style={{ color: m.color }} />
             </div>
           </div>
         ))}
@@ -292,7 +294,7 @@ export default function ModelTabContent() {
       <section className="bg-white rounded-xl p-5 shadow-[0_1px_4px_rgba(25,28,29,0.08)]">
         <div className="flex justify-between items-center mb-3">
           <h3 className="font-bold text-base text-[#191c1d]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>模型校准</h3>
-          <span className="material-symbols-outlined text-[#5b3f43]">scatter_plot</span>
+          <ScatterChart size={24} className="text-[#5b3f43]" />
         </div>
         <svg viewBox="0 0 100 100" className="w-full h-48 bg-[#f2f4f5] rounded-lg" preserveAspectRatio="xMidYMid meet">
           <line x1="5" y1="95" x2="95" y2="5" stroke="#e4bdc2" strokeDasharray="3" strokeWidth="0.8" />

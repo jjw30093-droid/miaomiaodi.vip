@@ -873,13 +873,13 @@ export default function FootballLabPage() {
           </nav>
         </div>
       ) : (
-        /* Stitch Light Mode Bottom Nav — uses real routing */
+        /* Stitch Light Mode Bottom Nav — uses real routing；图标用 lucide SVG，不依赖 Google Fonts */
         <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-[20px] rounded-t-[1.5rem] shadow-[0px_-8px_24px_rgba(25,28,29,0.06)] flex justify-around items-center px-4 pb-6 pt-2">
           {[
-            { href: '/',                    icon: 'sports_soccer', label: '赛事' },
-            { href: '/model',               icon: 'analytics',     label: '模型' },
-            { href: '/archive',             icon: 'inventory_2',   label: '归档' },
-            { href: '/center?tab=profile',  icon: 'person',        label: '我的' },
+            { href: '/',                    Icon: Activity, label: '赛事' },
+            { href: '/model',               Icon: Cpu,      label: '模型' },
+            { href: '/archive',             Icon: Archive,  label: '归档' },
+            { href: '/center?tab=profile',  Icon: User,     label: '我的' },
           ].map(item => {
             const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href.split('?')[0]);
             return (
@@ -892,12 +892,7 @@ export default function FootballLabPage() {
                     : 'text-[#005faf] p-2'
                 }`}
               >
-                <span
-                  className="material-symbols-outlined text-[22px] mb-0.5 leading-none"
-                  style={{ fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0" }}
-                >
-                  {item.icon}
-                </span>
+                <item.Icon size={22} className="mb-0.5" />
                 <span className="text-xs font-bold leading-none">{item.label}</span>
               </Link>
             );
