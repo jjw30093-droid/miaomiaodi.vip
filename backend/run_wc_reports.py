@@ -294,11 +294,34 @@ def generate_wc_report(
                 "inference": f"【推荐】{home_name} 主胜 @2.62",
                 "caution_text": None,
             },
+            "wc_19609154": {
+                # fixture 19609154 (Canada vs Bosnia) 角球主盘 9 球：Bet365 大 @2.25 / 小 @1.90，synced 2026-06-12
+                "picked_market":     "corners",
+                "picked_direction":  "over",
+                "picked_odds":       2.25,
+                "picked_confidence": "MID",
+                "inference": "【推荐】本场大9角球 @2.25 · 仅供参考",
+                "caution_text": "角球盘参考，不构成投注建议",
+            },
         }
         if match_id in PICK_OVERRIDES:
             override = PICK_OVERRIDES[match_id]
             single_pick = override
             log.info(f"  [OVERRIDE] {match_id} pick → {override['inference']}")
+
+        # ── 5c. 分析师赛前补充情报（仅注入 Agent4 叙事，正文不得自称"补充数据"）──
+        EDITORIAL_NOTES = {
+            # 2026-06-12 加拿大 vs 波黑：角球方向论证素材（用户提供 + SportMonks 角球预测）
+            "wc_19609154": (
+                "加拿大近两场友谊赛边路输出突出：对爱尔兰全场33脚传中、拿到12个角球；"
+                "对乌兹别克斯坦25脚传中、7个角球。"
+                "波黑上一场友谊赛对巴拿马全场合计19个角球，自己拿10个、送给对手9个。"
+                "两队都主打442阵型，进攻重心都压在边路，传中频次高。"
+                "SportMonks 本场角球预测：大9角47.15%、恰好9角11.62%、小9角41.22%，大的一边高出近6个百分点。"
+                "全场角球主盘开在9球：大9 @2.25、小9 @1.90、恰好9 @7.50。"
+            ),
+        }
+        editorial_notes = EDITORIAL_NOTES.get(match_id, "")
 
         # ── 6. 量化基准线（Python 生成，LLM 不得重算） ───────────────────────
         from wc_workflow import build_prebuilt_quant_section  # type: ignore
@@ -348,6 +371,7 @@ def generate_wc_report(
                 "ah_info":                ah_implied or {},
                 "single_pick":            single_pick or {},
                 "prebuilt_quant_section": quant_section,
+                "editorial_notes":        editorial_notes,
                 # ── cc 站增强数据 ──────────────────────────────────────────────
                 "cc_predictions":         cc_data.get("predictions") or {},
                 "predicted_lineup":       cc_data.get("predicted_lineup") or [],

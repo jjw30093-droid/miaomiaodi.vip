@@ -109,6 +109,7 @@ _ZH: dict[str, str] = {
     "Slovenia": "斯洛文尼亚",
     "Albania": "阿尔巴尼亚",
     "Bosnia & Herzegovina": "波黑",
+    "Bosnia and Herzegovina": "波黑",
     "North Macedonia": "北马其顿",
     "Montenegro": "黑山",
     "Wales": "威尔士",

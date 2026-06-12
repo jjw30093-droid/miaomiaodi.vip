@@ -69,6 +69,8 @@ class WcMatchReportState(TypedDict):
 
     prebuilt_quant_section: str  # Python 生成的 WDL/OU/AH 数值段（不让 LLM 重算）
 
+    editorial_notes: str  # 分析师赛前补充情报（人工注入，可为空字符串；仅 Agent4 使用）
+
     # ── cc 站增强数据（可能为空 dict/list，agent 必须容错）──
     cc_predictions:  dict   # Sportmonks 模型预测 {fulltime_result, over_under_2_5, btts, ...}
     predicted_lineup: list  # 预计首发 [{team_sportmonks_id, player_name, player_name_zh,
@@ -228,6 +230,7 @@ WC_AGENT4_SYSTEM_PROMPT = """# 角色
 4. **推荐**由 single_pick 决定，正文必须与 inference 字段完全一致：
    - wdl → 主胜/平局/客胜 + 赔率
    - ah → "{队} 让 N 球 @赔率"，加一句"亚盘参考，不构成投注建议"
+   - corners → "大/小 N 角球 @赔率"，加一句"角球盘参考，不构成投注建议"
    - SKIP → 说清楚为什么不好下，建议观望
 5. 全文中文，球队名用输入提供的中文名，禁止英文单词（包括队名）。
 6. 禁止出现 xG / NPXGD / 期望进球 / 射门坐标。
@@ -242,6 +245,9 @@ WC_AGENT4_SYSTEM_PROMPT = """# 角色
 - prebuilt_quant_section: Python 生成的概率基准线（直接粘贴，不修改任何数字）
 - match_info: 比赛基本信息
 - single_pick: 推荐结果（picked_market / picked_direction / picked_odds / inference）
+- editorial_notes: 你赛前掌握的一手情报（近期友谊赛数据、战术打法、盘口水位等）。
+  非空时这是赛前分析的**核心素材**，必须把其中的具体数字自然写进正文，
+  当作你自己看球积累的判断来说；禁止出现"补充情报""编辑提供""根据提供的数据"等字样。
 
 # 研报结构（严格按顺序）
 
@@ -259,6 +265,8 @@ WC_AGENT4_SYSTEM_PROMPT = """# 角色
   - 先说本场最有说服力的判断依据（盘口走势、双方近况、关键伤停、主客场因素等）
   - 带出双方近期表现的关键事实（具体比分、连胜/连败、明显的攻防优劣）
   - 若有独立预测概率与盘口出入较大，一句话带过，不要展开
+  - 若推荐的是角球等非胜平负玩法，论证就围绕这个玩法展开
+    （打法风格、传中频次、双方角球数据、边路强弱），胜平负格局一句带过即可
   - 最后落到推荐方向和核心逻辑，干脆利落
   - 只说最有力的理由，宁可少写，不写废话]
 
@@ -351,6 +359,7 @@ def _build_wc_agent_context(state: WcMatchReportState, agent_key: str) -> dict:
             "ou_display":             state.get("ou_display", {}),
             "ah_info":                state.get("ah_info", {}),
             "single_pick":            state.get("single_pick", {}),
+            "editorial_notes":        state.get("editorial_notes", ""),
             # ── cc 富数据 ────────────────────────────────────────────────────
             "predicted_lineup_home":  home_starters,
             "predicted_lineup_away":  away_starters,
