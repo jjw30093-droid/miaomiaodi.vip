@@ -19,6 +19,7 @@ async function verifyAdmin(): Promise<string | null> {
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const adminToken = await verifyAdmin();
+  console.log('[unlocks GET] adminToken length:', adminToken?.length, 'first4:', adminToken?.slice(0,4));
   if (!adminToken) return NextResponse.json({ detail: '需要管理员登录' }, { status: 401, headers: NO_CACHE });
 
   const base = process.env.BACKEND_INTERNAL_URL || 'http://127.0.0.1:8000';
