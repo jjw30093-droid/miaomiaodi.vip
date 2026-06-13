@@ -21,7 +21,7 @@ import json
 import sqlite3
 import logging
 import glob
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Header, HTTPException, Depends, Request
@@ -451,7 +451,7 @@ async def sync_match_payload(payload: MatchPayload):
 async def get_match_payload(
     match_id: str,
     request: Request,
-    user: CurrentUser = Depends(get_current_user),
+    user: CurrentUser = Depends(get_optional_user),
 ):
     """
     读取研报复合 Payload（前端图表消费用）。
@@ -461,8 +461,9 @@ async def get_match_payload(
       - npxg_trend / shot_map_data 从 match_payloads 表读取（图表数据）
       - 元数据（队名、图标等）从 report_store 读取
 
-    权限层（2026-04-27 上线前硬隔离）：
-      - GUEST → 401（Depends(get_current_user) 自动拒绝）
+    权限层：
+      - GUEST + ARCHIVE（已结束） → 200，全量数据（无需登录）
+      - GUEST + UPCOMING（未开赛）→ 401 拒绝访问
       - REGISTERED + 付费场 → 200，但 report_markdown 物理清空
       - VIP / 免费场 → 200，全量数据
     """
@@ -535,6 +536,24 @@ async def get_match_payload(
                 status_code=404, detail=f"match_id={match_id} 不存在"
             )
 
+        # ── ARCHIVE 判断：已结束比赛对游客开放 ───────────────────────────────
+        _is_archive = False
+        _match_time_raw = meta["match_time"] if meta else ""
+        if _match_time_raw:
+            for _fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%m-%d %H:%M"):
+                try:
+                    _dt = datetime.strptime(_match_time_raw, _fmt)
+                    if _dt.year == 1900:
+                        _dt = _dt.replace(year=datetime.now().year)
+                    _is_archive = datetime.utcnow() > _dt + timedelta(minutes=120)
+                    break
+                except ValueError:
+                    continue
+
+        # GUEST + 未开赛：拒绝访问（已结束比赛允许游客查看研报）
+        if user.is_guest and not _is_archive:
+            raise HTTPException(status_code=401, detail="请登录后查看比赛研报")
+
         # ── 3b. 首发确认状态：从 match_pipeline 读取 ────────────────────────
         lineup_status = "predicted"
         lineup_confirmed_at = None
@@ -572,8 +591,8 @@ async def get_match_payload(
         is_free_match = bool(meta["is_free"]) if meta else False
         is_gated      = False   # 标记给前端：此字段被权限截断，非"暂无数据"
 
-        # GUEST：概率与 AI 推荐不下发（前端首页已锁，此处补后端物理截断）
-        _hide_probs = user.is_guest
+        # GUEST + UPCOMING：概率与 AI 推荐不下发；ARCHIVE 场次全量返回
+        _hide_probs = user.is_guest and not _is_archive
         _meta_inference = (meta["inference"] if meta else "") if not _hide_probs else ""
         _home_prob = (meta["home_prob"] if meta else None) if not _hide_probs else None
         _away_prob = (meta["away_prob"] if meta else None) if not _hide_probs else None

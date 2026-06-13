@@ -25,6 +25,7 @@ import os
 import re
 import secrets
 import sqlite3
+from datetime import datetime, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
@@ -136,11 +137,25 @@ def _resolve_wc_match_context(wc_conn, fixture_id: int) -> dict:
     return {"stage_scope": None, "kickoff_utc": None}
 
 
-def _check_gating(match_id: str, is_free: bool, user: CurrentUser) -> tuple[bool, str, str]:
+def _wc_is_archive(match_time_str: str) -> bool:
+    """Returns True if WC match kicked off >2h ago (UTC)."""
+    if not match_time_str:
+        return False
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M"):
+        try:
+            dt = datetime.strptime(match_time_str, fmt)
+            return datetime.utcnow() > dt + timedelta(minutes=120)
+        except ValueError:
+            continue
+    return False
+
+
+def _check_gating(match_id: str, is_free: bool, user: CurrentUser, is_archive: bool = False) -> tuple[bool, str, str]:
     """
     返回 (is_gated, access_level, unlock_reason)。
 
-    四步放行逻辑（顺序不可改）：
+    五步放行逻辑（顺序不可改）：
+      0. is_archive → 放行（已结束比赛全部可看）
       1. is_free → 放行
       2. user.is_vip → 放行
       3. REGISTERED + user_unlocks 命中（单场解锁）→ 放行
@@ -155,6 +170,10 @@ def _check_gating(match_id: str, is_free: bool, user: CurrentUser) -> tuple[bool
         access_level = "vip"
     else:
         access_level = "registered"
+
+    # 步骤 0：已结束比赛，所有人可看
+    if is_archive:
+        return False, access_level, "archive_open"
 
     if is_free:
         is_gated = False
@@ -237,12 +256,13 @@ def _build_payload(
     access_level: str,
     unlock_reason: str,
     user: CurrentUser,
+    is_archive: bool = False,
 ) -> dict:
     """
     组装返回给前端的扁平 payload（与联赛 adaptCloudPayload 期望形状对齐）。
     """
     is_free        = bool(report.get("is_free"))
-    _hide_probs    = user.is_guest
+    _hide_probs    = user.is_guest and not is_archive
     _allow_post    = user.is_vip
 
     _payload_extra = report.get("_payload", {})
@@ -394,7 +414,8 @@ async def get_wc_match_payload(
         raise HTTPException(status_code=404, detail=f"{match_id} not found")
 
     is_free = bool(report.get("is_free"))
-    is_gated, access_level, unlock_reason = _check_gating(match_id, is_free, user)
+    is_archive = _wc_is_archive(report.get("match_time") or "")
+    is_gated, access_level, unlock_reason = _check_gating(match_id, is_free, user, is_archive=is_archive)
 
     payload = _build_payload(
         match_id      = match_id,
@@ -403,6 +424,7 @@ async def get_wc_match_payload(
         access_level  = access_level,
         unlock_reason = unlock_reason,
         user          = user,
+        is_archive    = is_archive,
     )
 
     log.info(

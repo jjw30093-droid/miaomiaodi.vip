@@ -338,7 +338,12 @@ export default function FootballLabPage() {
   const [contactOpen, setContactOpen] = useState(false);
 
   const handleCardClick = (id: string) => {
-    if (isLoggedIn) { window.location.href = '/report/' + id; } else { setContactOpen(true); }
+    const match = matches.find(m => m.id === id);
+    if (isLoggedIn || match?.display_category === 'ARCHIVE') {
+      window.location.href = '/report/' + id;
+    } else {
+      setContactOpen(true);
+    }
   };
 
   useEffect(() => {
@@ -803,8 +808,8 @@ export default function FootballLabPage() {
                   </>
                 )}
 
-                {/* 已结束 — 登录用户可见，不受日期/联赛筛选影响 */}
-                {isLoggedIn && recentArchivedMatches.length > 0 && (
+                {/* 已结束 — 所有用户可见，不受日期/联赛筛选影响 */}
+                {recentArchivedMatches.length > 0 && (
                   <section className="mt-8 pb-4">
                     <div suppressHydrationWarning className={`flex items-center gap-2 mb-4 pb-2 border-b ${isDark ? 'border-white/5' : 'border-black/6'}`}>
                       <span suppressHydrationWarning className={`w-1.5 h-1.5 rounded-full ${isDark ? 'bg-white/25' : 'bg-[#8f6f73]'}`} />

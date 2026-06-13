@@ -137,21 +137,40 @@ def _get_wc_cards(user) -> list:
         away_icon = r["away_icon"] or None
 
         if user.is_guest:
-            cards.append({
-                "id": mid,
-                "league": "世界杯",
-                "time": iso_time,
-                "display_category": "GATED",
-                "status": "GATED",
-                "pipeline_status": None,
-                "inference": "",
-                "homeTeam": {"name": r["home_team"] or "", "icon": home_icon, "prob": None},
-                "awayTeam": {"name": r["away_team"] or "", "icon": away_icon, "prob": None},
-                "drawProb": None,
-                "is_daily_free": bool(r["is_free"]),
-                "is_pinned": False,
-                "tournament_type": "wc",
-            })
+            display_category_g, _ = _classify_match(r["match_time"] or "")
+            if display_category_g == "ARCHIVE":
+                cards.append({
+                    "id": mid,
+                    "league": "世界杯",
+                    "time": iso_time,
+                    "display_category": "ARCHIVE",
+                    "status": r["pipeline_status"] or "",
+                    "pipeline_status": r["pipeline_status"],
+                    "inference": r["inference"] or "",
+                    "homeTeam": {"name": r["home_team"] or "", "icon": home_icon, "prob": r["home_prob"]},
+                    "awayTeam": {"name": r["away_team"] or "", "icon": away_icon, "prob": r["away_prob"]},
+                    "drawProb": r["draw_prob"],
+                    "is_daily_free": bool(r["is_free"]),
+                    "is_pinned": False,
+                    "tournament_type": "wc",
+                    "picked_correct": r["picked_correct"],
+                })
+            else:
+                cards.append({
+                    "id": mid,
+                    "league": "世界杯",
+                    "time": iso_time,
+                    "display_category": "GATED",
+                    "status": "GATED",
+                    "pipeline_status": None,
+                    "inference": "",
+                    "homeTeam": {"name": r["home_team"] or "", "icon": home_icon, "prob": None},
+                    "awayTeam": {"name": r["away_team"] or "", "icon": away_icon, "prob": None},
+                    "drawProb": None,
+                    "is_daily_free": bool(r["is_free"]),
+                    "is_pinned": False,
+                    "tournament_type": "wc",
+                })
         else:
             display_category, _ = _classify_match(r["match_time"] or "")
             cards.append({
@@ -219,31 +238,56 @@ async def get_latest_reports(user: CurrentUser = Depends(get_optional_user)):
             mid = str(r["id"])
             is_free = (mid == daily_free_id)
 
-            # ─── GUEST 档：队名 + 队徽 + 时间 + 联赛，其它一律置空 ───
+            # ─── GUEST 档：已结束比赛全量返回；未开赛场次一律置空 ───
             if user.is_guest:
-                _, iso_time = _classify_match(r["match_time"])
-                matches.append({
-                    "id": mid,
-                    "league": r["league"],            # ✓ 联赛名
-                    "time": iso_time,                 # ✓ ISO UTC 时间
-                    "display_category": "GATED",      # 前端识别匿名访问态
-                    "status": "GATED",
-                    "pipeline_status": None,
-                    "inference": "",                  # ✗ 不返
-                    "homeTeam": {
-                        "name": translate_team(r["home_team"]),
-                        "icon": r["home_icon"],
-                        "prob": None,                 # ✗ 不返
-                    },
-                    "awayTeam": {
-                        "name": translate_team(r["away_team"]),
-                        "icon": r["away_icon"],
-                        "prob": None,                 # ✗ 不返
-                    },
-                    "drawProb": None,                 # ✗ 不返
-                    "is_daily_free": False,           # ✗ 不暴露免费场身份
-                    "is_pinned": False,               # ✗ 不返
-                })
+                display_category, iso_time = _classify_match(r["match_time"])
+                if display_category == "ARCHIVE":
+                    matches.append({
+                        "id": mid,
+                        "league": r["league"],
+                        "time": iso_time,
+                        "display_category": "ARCHIVE",
+                        "status": r["pipeline_status"] or r["status"],
+                        "pipeline_status": r["pipeline_status"],
+                        "inference": r["inference"] or "",
+                        "homeTeam": {
+                            "name": translate_team(r["home_team"]),
+                            "icon": r["home_icon"],
+                            "prob": r["home_prob"],
+                        },
+                        "awayTeam": {
+                            "name": translate_team(r["away_team"]),
+                            "icon": r["away_icon"],
+                            "prob": r["away_prob"],
+                        },
+                        "drawProb": r["draw_prob"],
+                        "is_daily_free": False,
+                        "is_pinned": False,
+                        "picked_correct": r["picked_correct"],
+                    })
+                else:
+                    matches.append({
+                        "id": mid,
+                        "league": r["league"],
+                        "time": iso_time,
+                        "display_category": "GATED",
+                        "status": "GATED",
+                        "pipeline_status": None,
+                        "inference": "",
+                        "homeTeam": {
+                            "name": translate_team(r["home_team"]),
+                            "icon": r["home_icon"],
+                            "prob": None,
+                        },
+                        "awayTeam": {
+                            "name": translate_team(r["away_team"]),
+                            "icon": r["away_icon"],
+                            "prob": None,
+                        },
+                        "drawProb": None,
+                        "is_daily_free": False,
+                        "is_pinned": False,
+                    })
                 continue
 
             # ─── REGISTERED / VIP 档：完整字段，登录即看全量 inference ───

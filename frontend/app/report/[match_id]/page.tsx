@@ -153,6 +153,27 @@ async function ReportContent({
   const report = await getMatchReport(matchId);
 
   if (!report) {
+    // 未登录游客访问未开赛场次 → 后端 401 → 显示登录引导
+    const session = await auth();
+    if (!session?.user) {
+      return (
+        <>
+          <header className="sticky top-0 z-40 bg-[var(--header-bg)] backdrop-blur-md border-b border-[var(--header-border)] px-4 py-3 flex items-center gap-3">
+            <Link href="/" className="p-2 -ml-2 text-slate-400 dark:text-white hover:text-primary-neon transition-colors flex-shrink-0 group">
+              <ChevronLeft size={22} className="group-hover:-translate-x-0.5 transition-transform" />
+            </Link>
+            <div className="flex flex-col min-w-0 flex-1">
+              <span className="text-xs font-bold tracking-wide text-primary-neon">足球量化研报</span>
+              <span className="text-sm font-black text-slate-800 dark:text-white leading-tight">比赛研报</span>
+            </div>
+            <ThemeToggleButton />
+          </header>
+          <div className="flex flex-col items-center justify-center py-16 px-4">
+            <LoginPrompt matchId={matchId} />
+          </div>
+        </>
+      );
+    }
     return (
       <>
         {/* ── Header (error state) ──────────────────────────────────────────── */}
@@ -781,11 +802,11 @@ export default async function ReportPage({
       accessLevel = 'vip';
     } else {
       const session = await auth();
-      accessLevel = !session?.user ? 'anonymous' : 'vip';
+      accessLevel = 'vip';
     }
   } else {
     const session = await auth();
-    accessLevel = !session?.user ? 'anonymous' : 'vip';
+    accessLevel = 'vip';
   }
 
   // ── Daily free match ───────────────────────────────────────────────────────
@@ -806,26 +827,6 @@ export default async function ReportPage({
 
       <div className="relative z-10 w-full">
 
-        {accessLevel === 'anonymous' ? (
-          <>
-            {/* 所有游客统一：联系管理员二维码 + 登录链接 */}
-            <header className="sticky top-0 z-40 bg-[var(--header-bg)] backdrop-blur-md border-b border-[var(--header-border)] px-4 py-3 flex items-center gap-3">
-              <Link href="/" className="p-2 -ml-2 text-slate-400 dark:text-white hover:text-primary-neon transition-colors flex-shrink-0 group">
-                <ChevronLeft size={22} className="group-hover:-translate-x-0.5 transition-transform" />
-              </Link>
-              <div className="flex flex-col min-w-0 flex-1">
-                <span className="text-xs font-bold tracking-wide text-primary-neon">
-                  足球量化研报
-                </span>
-                <span className="text-sm font-black text-slate-800 dark:text-white leading-tight">比赛研报</span>
-              </div>
-              <ThemeToggleButton />
-            </header>
-            <div className="flex flex-col items-center justify-center py-16 px-4">
-              <LoginPrompt matchId={matchId} />
-            </div>
-          </>
-        ) : (
           <Suspense
             fallback={
               <div className="flex flex-col">
@@ -857,7 +858,6 @@ export default async function ReportPage({
               isFreeMatch={isFreeMatch}
             />
           </Suspense>
-        )}
 
         {/* 免责声明 */}
         <div className="mt-8 mb-4 mx-auto w-full max-w-2xl px-4">
