@@ -108,11 +108,13 @@ def _get_wc_cards(user) -> list:
                    wr.home_prob, wr.draw_prob, wr.away_prob,
                    wr.inference, wr.pipeline_status, wr.match_status, wr.is_free,
                    ht.image_path AS home_icon,
-                   at_t.image_path AS away_icon
+                   at_t.image_path AS away_icon,
+                   pa.picked_correct
             FROM wc_reports wr
             LEFT JOIN wc_fixtures f ON f.sportmonks_id = wr.fixture_sportmonks_id
             LEFT JOIN wc_teams ht ON ht.sportmonks_id = f.home_team_sportmonks_id
             LEFT JOIN wc_teams at_t ON at_t.sportmonks_id = f.away_team_sportmonks_id
+            LEFT JOIN wc_prediction_audit pa ON pa.match_id = wr.match_id
             WHERE wr.home_team IS NOT NULL
               AND wr.away_team IS NOT NULL
               AND wr.pipeline_status NOT IN ('TEST', 'PLACEHOLDER')
@@ -168,6 +170,7 @@ def _get_wc_cards(user) -> list:
                 "is_daily_free": bool(r["is_free"]),
                 "is_pinned": False,
                 "tournament_type": "wc",
+                "picked_correct": r["picked_correct"] if display_category == "ARCHIVE" else None,
             })
     return cards
 
@@ -198,13 +201,15 @@ async def get_latest_reports(user: CurrentUser = Depends(get_optional_user)):
         # 2) 拉数据
         cursor.execute("""
             SELECT
-                match_id as id, title, home_team, away_team,
-                home_icon, away_icon, home_prob, away_prob, draw_prob,
-                league, match_time, status, inference, pipeline_status,
-                COALESCE(is_pinned, 0) as is_pinned
-            FROM report_store
-            WHERE home_team != 'Home' AND away_team != 'Away'
-            ORDER BY match_time DESC
+                rs.match_id as id, rs.title, rs.home_team, rs.away_team,
+                rs.home_icon, rs.away_icon, rs.home_prob, rs.away_prob, rs.draw_prob,
+                rs.league, rs.match_time, rs.status, rs.inference, rs.pipeline_status,
+                COALESCE(rs.is_pinned, 0) as is_pinned,
+                pa.picked_correct
+            FROM report_store rs
+            LEFT JOIN prediction_audit pa ON CAST(pa.match_id AS TEXT) = CAST(rs.match_id AS TEXT)
+            WHERE rs.home_team != 'Home' AND rs.away_team != 'Away'
+            ORDER BY rs.match_time DESC
             LIMIT 150
         """)
         rows = cursor.fetchall()
@@ -265,6 +270,7 @@ async def get_latest_reports(user: CurrentUser = Depends(get_optional_user)):
                 "drawProb": r["draw_prob"],
                 "is_daily_free": is_free,
                 "is_pinned": bool(r["is_pinned"]),
+                "picked_correct": r["picked_correct"] if display_category == "ARCHIVE" else None,
             })
 
         # ── 合并世界杯卡片（从 worldcup.db 拉取，失败静默）────────────────

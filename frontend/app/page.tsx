@@ -51,6 +51,7 @@ interface Match {
   drawProb?: number | null;
   inference?: string;
   is_daily_free?: boolean;
+  picked_correct?: number | null;  // 1=命中 0=未中 null=未结算/未出
 }
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
@@ -83,6 +84,7 @@ const CompactMatchCard = ({ match, isLoggedIn, isDark, onClick }: { match: Match
   const hPct    = Math.round(hPctRaw ?? 0);
   const aPct    = Math.round(aPctRaw ?? 0);
   const leagueZh = translateLeague(match.league);
+  const isWin = match.picked_correct === 1;
 
   return (
   <button
@@ -91,14 +93,23 @@ const CompactMatchCard = ({ match, isLoggedIn, isDark, onClick }: { match: Match
     suppressHydrationWarning
     className={`relative w-full rounded-2xl px-5 py-4 text-left active:scale-[0.99] transition-all ${
       isDark
-        ? `glass-panel hover:bg-white/5 ${match.display_category === 'ARCHIVE' ? 'opacity-60' : ''}`
-        : `bg-white shadow-[0px_4px_16px_rgba(25,28,29,0.06)] hover:shadow-[0px_8px_24px_rgba(25,28,29,0.10)] ${match.display_category === 'ARCHIVE' ? 'opacity-60' : ''}`
+        ? `glass-panel hover:bg-white/5 ${match.display_category === 'ARCHIVE' ? 'opacity-75' : ''}`
+        : `bg-white shadow-[0px_4px_16px_rgba(25,28,29,0.06)] hover:shadow-[0px_8px_24px_rgba(25,28,29,0.10)] ${match.display_category === 'ARCHIVE' ? 'opacity-80' : ''}`
     }`}
   >
     {/* 联赛 + 时间 */}
     <div className="flex items-center justify-between mb-3">
       <span className={`text-xs font-bold ${isDark ? 'text-[var(--primary-neon)]/70' : 'text-[#005faf]'}`}>{leagueZh}</span>
-      <span className={`text-xs font-medium ${isDark ? 'text-white/50' : 'text-[#5b3f43]'}`}>{formatMatchTime(match.time)}</span>
+      <div className="flex items-center gap-1.5">
+        {isWin && (
+          <span suppressHydrationWarning className={`text-[10px] font-black px-1.5 py-0.5 rounded-full leading-tight ${
+            isDark
+              ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+              : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+          }`}>✓ 赢</span>
+        )}
+        <span className={`text-xs font-medium ${isDark ? 'text-white/50' : 'text-[#5b3f43]'}`}>{formatMatchTime(match.time)}</span>
+      </div>
     </div>
     {/* 主队 VS 客队 */}
     <div className="flex items-center justify-between gap-2">
@@ -422,6 +433,13 @@ export default function FootballLabPage() {
 
     return list.sort((a, b) => parseUTC(a.time).getTime() - parseUTC(b.time).getTime());
   }, [matches, searchQuery, dateFilter, leagueFilters, activeTab]);
+
+  // 已结束比赛（不受日期/联赛筛选影响，按时间倒序展示最近完赛场次）
+  const recentArchivedMatches = useMemo(() => {
+    return matches
+      .filter(m => m.display_category === 'ARCHIVE')
+      .sort((a, b) => b.time.localeCompare(a.time));
+  }, [matches]);
 
   const ELITE_MATCH = filteredMatches[0];
   const OTHER_MATCHES = filteredMatches.slice(1);
@@ -749,37 +767,57 @@ export default function FootballLabPage() {
                 <p className="text-sm font-bold text-red-400 mb-6">暂时无法加载</p>
                 <button onClick={() => window.location.reload()} className={`px-8 py-2 rounded-full text-xs font-bold border ${isDark ? 'bg-white/5 border-white/10' : 'bg-[#f2f4f5] border-[#e1e3e4]'}`}>点击重试</button>
               </div>
-            ) : filteredMatches.length === 0 ? (
-              <div className="py-24 text-center opacity-30">
-                 <Activity size={48} className="mx-auto mb-6 opacity-20" />
-                 <p className="font-bold text-lg">暂无赛事数据</p>
-                 <p className="text-xs mt-2 font-medium tracking-tighter">当前时段暂无符合量化标准的预测报告</p>
-              </div>
             ) : (
               <>
-                {/* 游客引导横幅 */}
-                {!isLoggedIn && (
-                  <div className="border border-[var(--primary-neon)]/30 rounded-xl mb-4 overflow-hidden">
-                    <button
-                      onClick={() => setContactOpen(true)}
-                      className="w-full bg-[var(--primary-neon)]/10 p-3 text-xs font-medium text-zinc-800 dark:text-white text-left"
-                    >
-                      💬 加管理员微信开通账号，查看完整研报
-                    </button>
-                    <Link
-                      href="/login"
-                      className="flex items-center justify-center gap-1.5 w-full py-2.5 bg-white/5 dark:bg-white/5 border-t border-[var(--primary-neon)]/20 text-sm font-bold text-[var(--primary-neon)]"
-                    >
-                      已有账号？点此登录 →
-                    </Link>
+                {/* 即将开赛列表 */}
+                {filteredMatches.length === 0 ? (
+                  <div className="py-16 text-center opacity-30">
+                    <Activity size={48} className="mx-auto mb-6 opacity-20" />
+                    <p className="font-bold text-lg">暂无赛事数据</p>
+                    <p className="text-xs mt-2 font-medium tracking-tighter">当前时段暂无符合量化标准的预测报告</p>
                   </div>
+                ) : (
+                  <>
+                    {/* 游客引导横幅 */}
+                    {!isLoggedIn && (
+                      <div className="border border-[var(--primary-neon)]/30 rounded-xl mb-4 overflow-hidden">
+                        <button
+                          onClick={() => setContactOpen(true)}
+                          className="w-full bg-[var(--primary-neon)]/10 p-3 text-xs font-medium text-zinc-800 dark:text-white text-left"
+                        >
+                          💬 加管理员微信开通账号，查看完整研报
+                        </button>
+                        <Link
+                          href="/login"
+                          className="flex items-center justify-center gap-1.5 w-full py-2.5 bg-white/5 dark:bg-white/5 border-t border-[var(--primary-neon)]/20 text-sm font-bold text-[var(--primary-neon)]"
+                        >
+                          已有账号？点此登录 →
+                        </Link>
+                      </div>
+                    )}
+                    <div className="flex flex-col gap-3">
+                      {[...filteredMatches].sort((a, b) => (a.time > b.time ? 1 : -1)).map(m => (
+                        <CompactMatchCard key={m.id} match={m} isLoggedIn={isLoggedIn} isDark={isDark} onClick={() => handleCardClick(m.id)} />
+                      ))}
+                    </div>
+                  </>
                 )}
 
-                <div className="flex flex-col gap-3">
-                  {[...filteredMatches].sort((a, b) => (a.time > b.time ? 1 : -1)).map(m => (
-                    <CompactMatchCard key={m.id} match={m} isLoggedIn={isLoggedIn} isDark={isDark} onClick={() => handleCardClick(m.id)} />
-                  ))}
-                </div>
+                {/* 已结束 — 登录用户可见，不受日期/联赛筛选影响 */}
+                {isLoggedIn && recentArchivedMatches.length > 0 && (
+                  <section className="mt-8 pb-4">
+                    <div suppressHydrationWarning className={`flex items-center gap-2 mb-4 pb-2 border-b ${isDark ? 'border-white/5' : 'border-black/6'}`}>
+                      <span suppressHydrationWarning className={`w-1.5 h-1.5 rounded-full ${isDark ? 'bg-white/25' : 'bg-[#8f6f73]'}`} />
+                      <h2 suppressHydrationWarning className={`text-sm font-bold ${isDark ? 'tracking-widest uppercase text-white/50 font-display' : 'text-[#5b3f43]'}`}>已结束</h2>
+                      <span suppressHydrationWarning className={`text-xs font-bold ml-auto ${isDark ? 'text-white/25' : 'text-[#8f6f73]/60'}`}>{recentArchivedMatches.length} 场</span>
+                    </div>
+                    <div className="flex flex-col gap-3">
+                      {recentArchivedMatches.map(m => (
+                        <CompactMatchCard key={m.id} match={m} isLoggedIn={isLoggedIn} isDark={isDark} onClick={() => handleCardClick(m.id)} />
+                      ))}
+                    </div>
+                  </section>
+                )}
               </>
             )
           )}
