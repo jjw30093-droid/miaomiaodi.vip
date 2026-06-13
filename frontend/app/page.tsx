@@ -93,28 +93,31 @@ const CompactMatchCard = ({ match, isLoggedIn, isDark, onClick }: { match: Match
     suppressHydrationWarning
     className={`relative w-full rounded-2xl px-5 py-4 text-left active:scale-[0.99] transition-all ${
       isDark
-        ? `glass-panel hover:bg-white/5 ${match.display_category === 'ARCHIVE' ? 'opacity-45' : ''}`
-        : `bg-white shadow-[0px_4px_16px_rgba(25,28,29,0.06)] hover:shadow-[0px_8px_24px_rgba(25,28,29,0.10)] ${match.display_category === 'ARCHIVE' ? 'opacity-50' : ''}`
+        ? 'glass-panel hover:bg-white/5'
+        : 'bg-white shadow-[0px_4px_16px_rgba(25,28,29,0.06)] hover:shadow-[0px_8px_24px_rgba(25,28,29,0.10)]'
     }`}
   >
-    {/* 联赛 + 时间 */}
-    <div className="flex items-center justify-between mb-3">
-      <span className={`text-xs font-bold ${isDark ? 'text-[var(--primary-neon)]/70' : 'text-[#005faf]'}`}>{leagueZh}</span>
-      <span className={`text-xs font-medium ${isDark ? 'text-white/50' : 'text-[#5b3f43]'}`}>{formatMatchTime(match.time)}</span>
-    </div>
-    {/* 主队 VS 客队 */}
-    <div className="flex items-center justify-between gap-2">
-      <div className="flex items-center gap-3 flex-1 min-w-0">
-        <img src={match.homeTeam.icon || "/logo_meow.jpg"} alt="H" className={`w-10 h-10 rounded-full shrink-0 ${isDark ? 'border border-white/10' : 'border border-[#e1e3e4]'}`} />
-        <span className={`text-base font-bold truncate ${isDark ? 'text-white' : 'text-[#191c1d]'}`}>{match.homeTeam.name}</span>
+    {/* 内容层 — ARCHIVE 时整体变暗，命中印章不在此层 */}
+    <div className={match.display_category === 'ARCHIVE' ? (isDark ? 'opacity-45' : 'opacity-50') : undefined}>
+      {/* 联赛 + 时间 */}
+      <div className="flex items-center justify-between mb-3">
+        <span className={`text-xs font-bold ${isDark ? 'text-[var(--primary-neon)]/70' : 'text-[#005faf]'}`}>{leagueZh}</span>
+        <span className={`text-xs font-medium ${isDark ? 'text-white/50' : 'text-[#5b3f43]'}`}>{formatMatchTime(match.time)}</span>
       </div>
-      <span className={`text-sm font-bold shrink-0 px-2 ${isDark ? 'text-white/40' : 'text-[#5b3f43]'}`}>VS</span>
-      <div className="flex items-center gap-3 flex-1 min-w-0 justify-end">
-        <span className={`text-base font-bold truncate text-right ${isDark ? 'text-white' : 'text-[#191c1d]'}`}>{match.awayTeam.name}</span>
-        <img src={match.awayTeam.icon || "/logo_meow.jpg"} alt="A" className={`w-10 h-10 rounded-full shrink-0 ${isDark ? 'border border-white/10' : 'border border-[#e1e3e4]'}`} />
+      {/* 主队 VS 客队 */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <img src={match.homeTeam.icon || "/logo_meow.jpg"} alt="H" className={`w-10 h-10 rounded-full shrink-0 ${isDark ? 'border border-white/10' : 'border border-[#e1e3e4]'}`} />
+          <span className={`text-base font-bold truncate ${isDark ? 'text-white' : 'text-[#191c1d]'}`}>{match.homeTeam.name}</span>
+        </div>
+        <span className={`text-sm font-bold shrink-0 px-2 ${isDark ? 'text-white/40' : 'text-[#5b3f43]'}`}>VS</span>
+        <div className="flex items-center gap-3 flex-1 min-w-0 justify-end">
+          <span className={`text-base font-bold truncate text-right ${isDark ? 'text-white' : 'text-[#191c1d]'}`}>{match.awayTeam.name}</span>
+          <img src={match.awayTeam.icon || "/logo_meow.jpg"} alt="A" className={`w-10 h-10 rounded-full shrink-0 ${isDark ? 'border border-white/10' : 'border border-[#e1e3e4]'}`} />
+        </div>
       </div>
     </div>
-    {/* 命中印章 — 绝对定位叠在卡片右侧居中 */}
+    {/* 命中印章 — 绝对定位，不在内容层内，保持全亮 */}
     {isWin && (
       <span suppressHydrationWarning className={`absolute right-4 top-1/2 -translate-y-1/2 text-sm font-black px-3 py-1.5 rounded-full pointer-events-none border-2 ${
         isDark
