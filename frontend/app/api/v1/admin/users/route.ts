@@ -27,9 +27,11 @@ async function verifyAdmin() {
   return adminToken;
 }
 
+const NO_CACHE = { 'Cache-Control': 'no-store, no-cache' };
+
 export async function GET(req: Request) {
   const adminToken = await verifyAdmin();
-  if (!adminToken) return NextResponse.json({ detail: '需要管理员登录' }, { status: 401 });
+  if (!adminToken) return NextResponse.json({ detail: '需要管理员登录' }, { status: 401, headers: NO_CACHE });
 
   const backendBase = process.env.BACKEND_INTERNAL_URL || 'http://127.0.0.1:8000';
   const upstream = await fetch(`${backendBase}/api/v1/admin/users`, {
@@ -37,12 +39,12 @@ export async function GET(req: Request) {
     cache: 'no-store',
   });
   const data = await upstream.json().catch(() => ({}));
-  return NextResponse.json(data, { status: upstream.status });
+  return NextResponse.json(data, { status: upstream.status, headers: NO_CACHE });
 }
 
 export async function POST(req: Request) {
   const adminToken = await verifyAdmin();
-  if (!adminToken) return NextResponse.json({ detail: '需要管理员登录' }, { status: 401 });
+  if (!adminToken) return NextResponse.json({ detail: '需要管理员登录' }, { status: 401, headers: NO_CACHE });
 
   const body = await req.json().catch(() => ({}));
   const backendBase = process.env.BACKEND_INTERNAL_URL || 'http://127.0.0.1:8000';
@@ -53,5 +55,5 @@ export async function POST(req: Request) {
     cache: 'no-store',
   });
   const data = await upstream.json().catch(() => ({}));
-  return NextResponse.json(data, { status: upstream.status });
+  return NextResponse.json(data, { status: upstream.status, headers: NO_CACHE });
 }

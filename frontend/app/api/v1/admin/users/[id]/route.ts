@@ -9,6 +9,8 @@ import { auth } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
+const NO_CACHE = { 'Cache-Control': 'no-store, no-cache' };
+
 async function verifyAdmin(): Promise<string | null> {
   const session = await auth();
   const adminUser = process.env.SUPER_ADMIN_USER;
@@ -20,7 +22,7 @@ async function verifyAdmin(): Promise<string | null> {
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const adminToken = await verifyAdmin();
-  if (!adminToken) return NextResponse.json({ detail: '需要管理员登录' }, { status: 401 });
+  if (!adminToken) return NextResponse.json({ detail: '需要管理员登录' }, { status: 401, headers: NO_CACHE });
 
   const backendBase = process.env.BACKEND_INTERNAL_URL || 'http://127.0.0.1:8000';
   const upstream = await fetch(`${backendBase}/api/v1/admin/users/${id}`, {
@@ -29,13 +31,13 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     cache: 'no-store',
   });
   const data = await upstream.json().catch(() => ({}));
-  return NextResponse.json(data, { status: upstream.status });
+  return NextResponse.json(data, { status: upstream.status, headers: NO_CACHE });
 }
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const adminToken = await verifyAdmin();
-  if (!adminToken) return NextResponse.json({ detail: '需要管理员登录' }, { status: 401 });
+  if (!adminToken) return NextResponse.json({ detail: '需要管理员登录' }, { status: 401, headers: NO_CACHE });
 
   const url = new URL(req.url);
   const action = url.pathname.split('/').pop(); // reset-password or disable
@@ -48,5 +50,5 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     cache: 'no-store',
   });
   const data = await upstream.json().catch(() => ({}));
-  return NextResponse.json(data, { status: upstream.status });
+  return NextResponse.json(data, { status: upstream.status, headers: NO_CACHE });
 }

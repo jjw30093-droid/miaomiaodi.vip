@@ -7,6 +7,8 @@ import { auth } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
+const NO_CACHE = { 'Cache-Control': 'no-store, no-cache' };
+
 async function verifyAdmin(): Promise<string | null> {
   const session = await auth();
   const adminUser = process.env.SUPER_ADMIN_USER;
@@ -17,20 +19,20 @@ async function verifyAdmin(): Promise<string | null> {
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const adminToken = await verifyAdmin();
-  if (!adminToken) return NextResponse.json({ detail: '需要管理员登录' }, { status: 401 });
+  if (!adminToken) return NextResponse.json({ detail: '需要管理员登录' }, { status: 401, headers: NO_CACHE });
 
   const base = process.env.BACKEND_INTERNAL_URL || 'http://127.0.0.1:8000';
   const upstream = await fetch(`${base}/api/v1/admin/users/${id}/unlocks`, {
     headers: { 'X-Admin-Token': adminToken },
     cache: 'no-store',
   });
-  return NextResponse.json(await upstream.json().catch(() => []), { status: upstream.status });
+  return NextResponse.json(await upstream.json().catch(() => []), { status: upstream.status, headers: NO_CACHE });
 }
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const adminToken = await verifyAdmin();
-  if (!adminToken) return NextResponse.json({ detail: '需要管理员登录' }, { status: 401 });
+  if (!adminToken) return NextResponse.json({ detail: '需要管理员登录' }, { status: 401, headers: NO_CACHE });
 
   const body = await req.json().catch(() => ({}));
   const base = process.env.BACKEND_INTERNAL_URL || 'http://127.0.0.1:8000';
@@ -40,5 +42,5 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     body: JSON.stringify(body),
     cache: 'no-store',
   });
-  return NextResponse.json(await upstream.json().catch(() => ({})), { status: upstream.status });
+  return NextResponse.json(await upstream.json().catch(() => ({})), { status: upstream.status, headers: NO_CACHE });
 }

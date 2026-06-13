@@ -13,14 +13,16 @@ async function verifyAdmin(): Promise<string | null> {
   return process.env.ADMIN_SECRET_TOKEN || null;
 }
 
+const NO_CACHE = { 'Cache-Control': 'no-store, no-cache' };
+
 export async function GET() {
   const adminToken = await verifyAdmin();
-  if (!adminToken) return NextResponse.json({ detail: '需要管理员登录' }, { status: 401 });
+  if (!adminToken) return NextResponse.json({ detail: '需要管理员登录' }, { status: 401, headers: NO_CACHE });
 
   const base = process.env.BACKEND_INTERNAL_URL || 'http://127.0.0.1:8000';
   const upstream = await fetch(`${base}/api/v1/wc/admin/matches`, {
     headers: { 'X-Admin-Token': adminToken },
     cache: 'no-store',
   });
-  return NextResponse.json(await upstream.json().catch(() => []), { status: upstream.status });
+  return NextResponse.json(await upstream.json().catch(() => []), { status: upstream.status, headers: NO_CACHE });
 }

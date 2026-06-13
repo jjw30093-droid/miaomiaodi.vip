@@ -6,6 +6,8 @@ import { auth } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
+const NO_CACHE = { 'Cache-Control': 'no-store, no-cache' };
+
 async function verifyAdmin(): Promise<string | null> {
   const session = await auth();
   const adminUser = process.env.SUPER_ADMIN_USER;
@@ -27,5 +29,5 @@ export async function DELETE(
     headers: { 'X-Admin-Token': adminToken },
     cache: 'no-store',
   });
-  return NextResponse.json(await upstream.json().catch(() => ({})), { status: upstream.status });
+  return NextResponse.json(await upstream.json().catch(() => ({})), { status: upstream.status, headers: NO_CACHE });
 }

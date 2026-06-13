@@ -8,6 +8,8 @@ import { auth } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
+const NO_CACHE = { 'Cache-Control': 'no-store, no-cache' };
+
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string; action: string }> }
@@ -15,11 +17,11 @@ export async function POST(
   const session = await auth();
   const adminUser = process.env.SUPER_ADMIN_USER;
   if (!adminUser || !session?.user || (session.user as any).name !== adminUser) {
-    return NextResponse.json({ detail: '需要管理员登录' }, { status: 401 });
+    return NextResponse.json({ detail: '需要管理员登录' }, { status: 401, headers: NO_CACHE });
   }
   const adminToken = process.env.ADMIN_SECRET_TOKEN;
   if (!adminToken) {
-    return NextResponse.json({ detail: '服务端未配置 ADMIN_SECRET_TOKEN' }, { status: 503 });
+    return NextResponse.json({ detail: '服务端未配置 ADMIN_SECRET_TOKEN' }, { status: 503, headers: NO_CACHE });
   }
 
   const { id, action } = await params;
@@ -32,5 +34,5 @@ export async function POST(
     cache: 'no-store',
   });
   const data = await upstream.json().catch(() => ({}));
-  return NextResponse.json(data, { status: upstream.status });
+  return NextResponse.json(data, { status: upstream.status, headers: NO_CACHE });
 }
