@@ -320,6 +320,9 @@ async def get_latest_reports(user: CurrentUser = Depends(get_optional_user)):
         # ── 合并世界杯卡片（从 worldcup.db 拉取，失败静默）────────────────
         wc_cards = _get_wc_cards(user)
         if wc_cards:
+            # 去重：wc_19609130 和 report_store 里的 19609130 是同一场，保留 WC 卡
+            wc_numeric_ids = {c["id"][3:] for c in wc_cards if c["id"].startswith("wc_")}
+            matches = [m for m in matches if str(m["id"]) not in wc_numeric_ids]
             matches = wc_cards + matches
             # 按 match_time 排序（WC 6 月场次自然排前）
             def _sort_key(m: dict) -> str:
