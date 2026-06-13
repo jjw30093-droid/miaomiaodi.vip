@@ -93,8 +93,8 @@ const CompactMatchCard = ({ match, isLoggedIn, isDark, onClick }: { match: Match
     suppressHydrationWarning
     className={`relative w-full rounded-2xl px-5 py-4 text-left active:scale-[0.99] transition-all ${
       isDark
-        ? `glass-panel hover:bg-white/5 ${match.display_category === 'ARCHIVE' ? 'opacity-75' : ''}`
-        : `bg-white shadow-[0px_4px_16px_rgba(25,28,29,0.06)] hover:shadow-[0px_8px_24px_rgba(25,28,29,0.10)] ${match.display_category === 'ARCHIVE' ? 'opacity-80' : ''}`
+        ? `glass-panel hover:bg-white/5 ${match.display_category === 'ARCHIVE' ? 'opacity-45' : ''}`
+        : `bg-white shadow-[0px_4px_16px_rgba(25,28,29,0.06)] hover:shadow-[0px_8px_24px_rgba(25,28,29,0.10)] ${match.display_category === 'ARCHIVE' ? 'opacity-50' : ''}`
     }`}
   >
     {/* 联赛 + 时间 */}
@@ -106,7 +106,7 @@ const CompactMatchCard = ({ match, isLoggedIn, isDark, onClick }: { match: Match
             isDark
               ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
               : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
-          }`}>✓ 赢</span>
+          }`}>命中</span>
         )}
         <span className={`text-xs font-medium ${isDark ? 'text-white/50' : 'text-[#5b3f43]'}`}>{formatMatchTime(match.time)}</span>
       </div>
@@ -439,10 +439,10 @@ export default function FootballLabPage() {
     return list.sort((a, b) => parseUTC(a.time).getTime() - parseUTC(b.time).getTime());
   }, [matches, searchQuery, dateFilter, leagueFilters, activeTab]);
 
-  // 已结束比赛（不受日期/联赛筛选影响，按时间倒序展示最近完赛场次）
+  // 已结束比赛：仅世界杯场次，按时间倒序
   const recentArchivedMatches = useMemo(() => {
     return matches
-      .filter(m => m.display_category === 'ARCHIVE')
+      .filter(m => m.display_category === 'ARCHIVE' && m.id.startsWith('wc_'))
       .sort((a, b) => b.time.localeCompare(a.time));
   }, [matches]);
 
