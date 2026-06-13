@@ -9,8 +9,14 @@ export const dynamic = 'force-dynamic';
 async function verifyAdmin(): Promise<string | null> {
   const session = await auth();
   const adminUser = process.env.SUPER_ADMIN_USER;
-  if (!adminUser || !session?.user || (session.user as any).name !== adminUser) return null;
-  return process.env.ADMIN_SECRET_TOKEN || null;
+  const userName = (session?.user as any)?.name ?? null;
+  const adminToken = process.env.ADMIN_SECRET_TOKEN || null;
+  console.log('[wc-matches] verifyAdmin:', {
+    hasSession: !!session, userName, adminUserSet: !!adminUser,
+    adminTokenSet: !!adminToken, nameMatch: !!adminUser && userName === adminUser,
+  });
+  if (!adminUser || !session?.user || userName !== adminUser) return null;
+  return adminToken;
 }
 
 const NO_CACHE = { 'Cache-Control': 'no-store, no-cache' };
