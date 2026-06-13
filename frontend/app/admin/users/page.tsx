@@ -379,7 +379,9 @@ export default function AdminUsersPage() {
                 <div>
                   <p className="text-xs font-bold text-slate-500 uppercase mb-2">近期 WC 场次（点击授权）</p>
                   {wcMatches.length === 0 ? (
-                    <p className="text-xs text-slate-400 text-center py-3 bg-slate-50 rounded-xl">暂无可选场次</p>
+                    <p className="text-xs text-slate-400 text-center py-3 bg-slate-50 rounded-xl">近 7 天内暂无 WC 场次</p>
+                  ) : wcMatches.filter(m => m.has_report).length === 0 ? (
+                    <p className="text-xs text-slate-400 text-center py-3 bg-slate-50 rounded-xl">场次已就绪，研报尚未生成，暂不可授权</p>
                   ) : (
                     <div className="space-y-1.5">
                       {wcMatches.filter(m => m.has_report).map(m => {
