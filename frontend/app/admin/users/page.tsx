@@ -150,11 +150,18 @@ export default function AdminUsersPage() {
     fetchUsers();
   };
 
+  const apiToken = (session?.user as any)?.apiToken as string | undefined;
+
+  const _authHeaders = (extra?: Record<string, string>) => ({
+    ...(apiToken ? { 'Authorization': `Bearer ${apiToken}` } : {}),
+    ...extra,
+  });
+
   const openUnlock = async (user: User) => {
     setUnlockTarget(user);
     setUnlockLoading(true);
     const [ul, wm] = await Promise.all([
-      fetch(`/api/v1/admin/users/${user.id}/unlocks`).then(r => r.json()).catch(() => []),
+      fetch(`/api/v1/admin/users/${user.id}/unlocks`, { headers: _authHeaders() }).then(r => r.json()).catch(() => []),
       fetch('/api/v1/admin/wc-matches').then(r => r.json()).catch(() => []),
     ]);
     setUnlocks(Array.isArray(ul) ? ul : []);
@@ -167,11 +174,11 @@ export default function AdminUsersPage() {
     setGrantingId(matchId);
     const res = await fetch(`/api/v1/admin/users/${unlockTarget.id}/unlocks`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: _authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ match_id: matchId }),
     });
     if (res.ok) {
-      const ul = await fetch(`/api/v1/admin/users/${unlockTarget.id}/unlocks`).then(r => r.json()).catch(() => []);
+      const ul = await fetch(`/api/v1/admin/users/${unlockTarget.id}/unlocks`, { headers: _authHeaders() }).then(r => r.json()).catch(() => []);
       setUnlocks(Array.isArray(ul) ? ul : []);
     }
     setGrantingId(null);
@@ -180,8 +187,8 @@ export default function AdminUsersPage() {
   const handleRevoke = async (matchId: string) => {
     if (!unlockTarget) return;
     if (!confirm(`确认撤销「${unlockTarget.username}」对 ${matchId} 的研报授权？`)) return;
-    await fetch(`/api/v1/admin/users/${unlockTarget.id}/unlocks/${matchId}`, { method: 'DELETE' });
-    const ul = await fetch(`/api/v1/admin/users/${unlockTarget.id}/unlocks`).then(r => r.json()).catch(() => []);
+    await fetch(`/api/v1/admin/users/${unlockTarget.id}/unlocks/${matchId}`, { method: 'DELETE', headers: _authHeaders() });
+    const ul = await fetch(`/api/v1/admin/users/${unlockTarget.id}/unlocks`, { headers: _authHeaders() }).then(r => r.json()).catch(() => []);
     setUnlocks(Array.isArray(ul) ? ul : []);
   };
 

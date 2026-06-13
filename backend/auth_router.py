@@ -94,11 +94,32 @@ def _get_db() -> sqlite3.Connection:
     return conn
 
 
-def _verify_admin(x_admin_token: str = Header(default="")) -> None:
+def _verify_admin(
+    x_admin_token: str = Header(default=""),
+    authorization: str = Header(default=""),
+) -> None:
+    # Path 1: X-Admin-Token（Next.js 代理注入）
+    if ADMIN_SECRET_TOKEN and x_admin_token and secrets.compare_digest(x_admin_token, ADMIN_SECRET_TOKEN):
+        return
+    # Path 2: 超管 JWT Bearer（浏览器直连时）
+    if authorization.startswith("Bearer "):
+        from jose import jwt as _jose_jwt
+        from auth_deps import SUPER_ADMIN_JWT_SECRET, JWT_SECRET, JWT_ALGORITHM
+        token = authorization.removeprefix("Bearer ").strip()
+        try:
+            try:
+                _unverified = _jose_jwt.get_unverified_claims(token)
+            except Exception:
+                _unverified = {}
+            secret = SUPER_ADMIN_JWT_SECRET if _unverified.get("user_id") == 0 and SUPER_ADMIN_JWT_SECRET else JWT_SECRET
+            payload = _jose_jwt.decode(token, secret, algorithms=[JWT_ALGORITHM])
+            if payload.get("role") == "super_admin":
+                return
+        except Exception:
+            pass
     if not ADMIN_SECRET_TOKEN:
         raise HTTPException(status_code=503, detail="ADMIN_SECRET_TOKEN 未配置")
-    if not secrets.compare_digest(x_admin_token, ADMIN_SECRET_TOKEN):
-        raise HTTPException(status_code=401, detail="Admin token 无效")
+    raise HTTPException(status_code=401, detail="Admin token 无效")
 
 
 def _write_audit_log(conn: sqlite3.Connection, action: str, actor: str, payload: str, ip: str, ua: str) -> None:
