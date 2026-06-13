@@ -100,16 +100,7 @@ const CompactMatchCard = ({ match, isLoggedIn, isDark, onClick }: { match: Match
     {/* 联赛 + 时间 */}
     <div className="flex items-center justify-between mb-3">
       <span className={`text-xs font-bold ${isDark ? 'text-[var(--primary-neon)]/70' : 'text-[#005faf]'}`}>{leagueZh}</span>
-      <div className="flex items-center gap-1.5">
-        {isWin && (
-          <span suppressHydrationWarning className={`text-xs font-black px-2 py-0.5 rounded-full leading-tight ${
-            isDark
-              ? 'bg-red-500/15 text-red-400 border border-red-500/30'
-              : 'bg-red-50 text-red-600 border border-red-200'
-          }`}>命中</span>
-        )}
-        <span className={`text-xs font-medium ${isDark ? 'text-white/50' : 'text-[#5b3f43]'}`}>{formatMatchTime(match.time)}</span>
-      </div>
+      <span className={`text-xs font-medium ${isDark ? 'text-white/50' : 'text-[#5b3f43]'}`}>{formatMatchTime(match.time)}</span>
     </div>
     {/* 主队 VS 客队 */}
     <div className="flex items-center justify-between gap-2">
@@ -123,6 +114,14 @@ const CompactMatchCard = ({ match, isLoggedIn, isDark, onClick }: { match: Match
         <img src={match.awayTeam.icon || "/logo_meow.jpg"} alt="A" className={`w-10 h-10 rounded-full shrink-0 ${isDark ? 'border border-white/10' : 'border border-[#e1e3e4]'}`} />
       </div>
     </div>
+    {/* 命中印章 — 绝对定位叠在卡片右侧居中 */}
+    {isWin && (
+      <span suppressHydrationWarning className={`absolute right-4 top-1/2 -translate-y-1/2 text-sm font-black px-3 py-1.5 rounded-full pointer-events-none border-2 ${
+        isDark
+          ? 'bg-red-500/10 text-red-400 border-red-500/50'
+          : 'bg-red-50 text-red-600 border-red-400'
+      }`}>命中</span>
+    )}
   </button>
   );
 };
