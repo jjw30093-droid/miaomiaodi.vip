@@ -102,10 +102,10 @@ const CompactMatchCard = ({ match, isLoggedIn, isDark, onClick }: { match: Match
       <span className={`text-xs font-bold ${isDark ? 'text-[var(--primary-neon)]/70' : 'text-[#005faf]'}`}>{leagueZh}</span>
       <div className="flex items-center gap-1.5">
         {isWin && (
-          <span suppressHydrationWarning className={`text-[10px] font-black px-1.5 py-0.5 rounded-full leading-tight ${
+          <span suppressHydrationWarning className={`text-xs font-black px-2 py-0.5 rounded-full leading-tight ${
             isDark
-              ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
-              : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+              ? 'bg-red-500/15 text-red-400 border border-red-500/30'
+              : 'bg-red-50 text-red-600 border border-red-200'
           }`}>命中</span>
         )}
         <span className={`text-xs font-medium ${isDark ? 'text-white/50' : 'text-[#5b3f43]'}`}>{formatMatchTime(match.time)}</span>
