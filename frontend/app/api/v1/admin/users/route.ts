@@ -11,10 +11,18 @@ export const dynamic = 'force-dynamic';
 async function verifyAdmin() {
   const session = await auth();
   const adminUser = process.env.SUPER_ADMIN_USER;
-  if (!adminUser || !session?.user || (session.user as any).name !== adminUser) {
+  const adminToken = process.env.ADMIN_SECRET_TOKEN;
+  const userName = (session?.user as any)?.name ?? null;
+  console.log('[Admin] verifyAdmin:', {
+    hasSession: !!session,
+    userName,
+    adminUserSet: !!adminUser,
+    adminTokenSet: !!adminToken,
+    nameMatch: !!adminUser && userName === adminUser,
+  });
+  if (!adminUser || !session?.user || userName !== adminUser) {
     return null;
   }
-  const adminToken = process.env.ADMIN_SECRET_TOKEN;
   if (!adminToken) return null;
   return adminToken;
 }
