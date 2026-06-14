@@ -258,7 +258,9 @@ async function ReportContent({
   const verdictDisplay = (() => {
     if (report.inference) {
       const rest = report.inference.replace(/【[^】]+】/, '').trim();
-      const label = rest.split('@')[0].trim().split(/\s+/)[0];
+      // 完整方向标签（与 GlassPickBlock / BeginnerView 一致），不截首词，
+      // 否则 "2.25 小球" 会被截成 "2.25"。
+      const label = rest.split('@')[0].trim();
       if (label) return label;
     }
     return verdict === 'HOME DOMINANCE' ? '主队优势'

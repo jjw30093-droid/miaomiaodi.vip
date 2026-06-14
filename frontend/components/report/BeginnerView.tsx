@@ -46,7 +46,9 @@ function parseInference(inf?: string): {
   const confMatch = inf.match(/【(HIGH|MEDIUM|LOW)】/i);
   const confidence = (confMatch?.[1]?.toUpperCase() as 'HIGH' | 'MEDIUM' | 'LOW') ?? null;
   const rest = inf.replace(/【[^】]+】/, '').trim();
-  const direction = rest.split('@')[0].trim().split(/\s+/)[0] ?? '';
+  // @ 前的完整方向标签（与 GlassPickBlock 一致）。不能再 split(/\s+/)[0] 截首词，
+  // 否则 "2.25 小球" 这类带空格的大小球方向会被截成 "2.25"，丢掉 小球/大球。
+  const direction = rest.split('@')[0].trim();
   const oddsMatch = rest.match(/@\s*([\d.]+)/);
   // pickProb：去掉所有括号内容后取第一个 X%，避免 WDL 括号 (H%/D%/A%) 和 OU 括号 (>X) 干扰
   const noParens = rest.replace(/\([^)]+\)/g, '');
