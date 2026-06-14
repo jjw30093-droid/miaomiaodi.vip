@@ -129,68 +129,40 @@ def _get_wc_cards(user) -> list:
     except Exception:
         return []
 
+    # 复用 wc_router 详情页同一套放行逻辑，保证卡片与详情页口径一致（单一真源）。
+    # gated（GUEST + REGISTERED 未授权）→ 卡片也隐藏 pick(inference) + 概率，只留队名/预览。
+    from wc_router import _check_gating  # 局部 import 防模块加载期循环依赖
+
     cards = []
     for r in rows:
         mid = str(r["match_id"])
-        _, iso_time = _classify_match(r["match_time"] or "")
+        display_category, iso_time = _classify_match(r["match_time"] or "")
+        is_arch = display_category == "ARCHIVE"
         home_icon = r["home_icon"] or None
         away_icon = r["away_icon"] or None
 
-        if user.is_guest:
-            display_category_g, _ = _classify_match(r["match_time"] or "")
-            if display_category_g == "ARCHIVE":
-                cards.append({
-                    "id": mid,
-                    "league": "世界杯",
-                    "time": iso_time,
-                    "display_category": "ARCHIVE",
-                    "status": r["pipeline_status"] or "",
-                    "pipeline_status": r["pipeline_status"],
-                    "inference": r["inference"] or "",
-                    "homeTeam": {"name": r["home_team"] or "", "icon": home_icon, "prob": r["home_prob"]},
-                    "awayTeam": {"name": r["away_team"] or "", "icon": away_icon, "prob": r["away_prob"]},
-                    "drawProb": r["draw_prob"],
-                    "is_daily_free": bool(r["is_free"]),
-                    "is_pinned": False,
-                    "tournament_type": "wc",
-                    "picked_correct": r["picked_correct"],
-                })
-            else:
-                cards.append({
-                    "id": mid,
-                    "league": "世界杯",
-                    "time": iso_time,
-                    "display_category": "GATED",
-                    "status": "GATED",
-                    "pipeline_status": None,
-                    "inference": "",
-                    "homeTeam": {"name": r["home_team"] or "", "icon": home_icon, "prob": None},
-                    "awayTeam": {"name": r["away_team"] or "", "icon": away_icon, "prob": None},
-                    "drawProb": None,
-                    "is_daily_free": bool(r["is_free"]),
-                    "is_pinned": False,
-                    "tournament_type": "wc",
-                })
-        else:
-            display_category, _ = _classify_match(r["match_time"] or "")
-            cards.append({
-                "id": mid,
-                "league": "世界杯",
-                "time": iso_time,
-                "display_category": display_category,
-                "status": r["pipeline_status"] or "",
-                "pipeline_status": r["pipeline_status"],
-                "inference": r["inference"] or "",
-                "homeTeam": {"name": r["home_team"] or "", "icon": home_icon,
-                             "prob": r["home_prob"]},
-                "awayTeam": {"name": r["away_team"] or "", "icon": away_icon,
-                             "prob": r["away_prob"]},
-                "drawProb": r["draw_prob"],
-                "is_daily_free": bool(r["is_free"]),
-                "is_pinned": False,
-                "tournament_type": "wc",
-                "picked_correct": r["picked_correct"] if display_category == "ARCHIVE" else None,
-            })
+        try:
+            gated, _acc, _ = _check_gating(mid, bool(r["is_free"]), user, is_archive=is_arch)
+        except Exception:
+            gated = not is_arch  # fail-closed：除已结束外一律视为 gated，不泄露 pick
+        show = not gated
+
+        cards.append({
+            "id": mid,
+            "league": "世界杯",
+            "time": iso_time,
+            "display_category": display_category if (show or is_arch) else "GATED",
+            "status": (r["pipeline_status"] or "") if show else "GATED",
+            "pipeline_status": r["pipeline_status"] if show else None,
+            "inference": (r["inference"] or "") if show else "",
+            "homeTeam": {"name": r["home_team"] or "", "icon": home_icon, "prob": r["home_prob"] if show else None},
+            "awayTeam": {"name": r["away_team"] or "", "icon": away_icon, "prob": r["away_prob"] if show else None},
+            "drawProb": r["draw_prob"] if show else None,
+            "is_daily_free": bool(r["is_free"]),
+            "is_pinned": False,
+            "tournament_type": "wc",
+            "picked_correct": r["picked_correct"] if is_arch else None,
+        })
     return cards
 
 

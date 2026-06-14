@@ -262,7 +262,9 @@ def _build_payload(
     组装返回给前端的扁平 payload（与联赛 adaptCloudPayload 期望形状对齐）。
     """
     is_free        = bool(report.get("is_free"))
-    _hide_probs    = user.is_guest and not is_archive
+    # 完全锁死推荐：gated 用户（GUEST + REGISTERED 未授权）一并隐藏 pick(inference) + 概率。
+    # is_gated 已由 _check_gating 计算（archive/free/vip/unlock/entitlement 任一放行则为 False）。
+    _hide_probs    = is_gated
     _allow_post    = user.is_vip
 
     _payload_extra = report.get("_payload", {})
