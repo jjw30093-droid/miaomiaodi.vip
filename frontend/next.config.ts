@@ -25,16 +25,16 @@ const nextConfig: NextConfig = {
   },
   rewrites: async () => {
     const backend = process.env.BACKEND_INTERNAL_URL || 'http://localhost:8000';
-    return [
-      {
-        source: '/api/v1/:path*',
-        destination: `${backend}/api/v1/:path*`,
-      },
-      {
-        source: '/api/py/:path*',
-        destination: `${backend}/api/v1/:path*`,
-      },
-    ];
+    // fallback 模式：所有 route handlers（含动态路由 [id]）优先，
+    // 没有匹配的才透传到 FastAPI。afterFiles 默认模式会让动态 route handler 输给 rewrite。
+    return {
+      beforeFiles: [],
+      afterFiles: [],
+      fallback: [
+        { source: '/api/v1/:path*', destination: `${backend}/api/v1/:path*` },
+        { source: '/api/py/:path*', destination: `${backend}/api/v1/:path*` },
+      ],
+    };
   },
 };
 
