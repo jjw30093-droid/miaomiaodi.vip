@@ -51,7 +51,8 @@ interface Match {
   drawProb?: number | null;
   inference?: string;
   is_daily_free?: boolean;
-  picked_correct?: number | null;  // 1=命中 0=未中 null=未结算/未出
+  picked_correct?: number | null;  // 1=命中 0=未中 -1=走水 null=未结算/未出
+  tournament_type?: string;        // 'wc' = 世界杯卡片（未中/走水标签仅 WC 显示）
 }
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
@@ -84,7 +85,14 @@ const CompactMatchCard = ({ match, isLoggedIn, isDark, onClick }: { match: Match
   const hPct    = Math.round(hPctRaw ?? 0);
   const aPct    = Math.round(aPctRaw ?? 0);
   const leagueZh = translateLeague(match.league);
-  const isWin = match.picked_correct === 1;
+  // 结算标签：命中（全部卡片，沿用原行为）；未中/走水仅 WC 卡片显示，避免改动联赛卡的既有展示
+  const pc = match.picked_correct;
+  const isWcCard = match.tournament_type === 'wc';
+  const resultStamp =
+      pc === 1             ? { text: '命中', cls: isDark ? 'bg-red-500/10 text-red-400 border-red-500/50'  : 'bg-red-50 text-red-600 border-red-400' }
+    : (isWcCard && pc === 0)  ? { text: '未中', cls: isDark ? 'bg-white/[0.04] text-white/40 border-white/15' : 'bg-zinc-100 text-zinc-400 border-zinc-300' }
+    : (isWcCard && pc === -1) ? { text: '走水', cls: isDark ? 'bg-sky-500/10 text-sky-300 border-sky-500/40'  : 'bg-sky-50 text-sky-600 border-sky-300' }
+    : null;
 
   return (
   <button
@@ -117,13 +125,9 @@ const CompactMatchCard = ({ match, isLoggedIn, isDark, onClick }: { match: Match
         </div>
       </div>
     </div>
-    {/* 命中印章 — 绝对定位，不在内容层内，保持全亮 */}
-    {isWin && (
-      <span suppressHydrationWarning className={`absolute right-4 top-1/2 -translate-y-1/2 text-sm font-black px-3 py-1.5 rounded-full pointer-events-none border-2 ${
-        isDark
-          ? 'bg-red-500/10 text-red-400 border-red-500/50'
-          : 'bg-red-50 text-red-600 border-red-400'
-      }`}>命中</span>
+    {/* 结算印章 — 绝对定位，不在内容层内，保持全亮（命中/未中/走水） */}
+    {resultStamp && (
+      <span suppressHydrationWarning className={`absolute right-4 top-1/2 -translate-y-1/2 text-sm font-black px-3 py-1.5 rounded-full pointer-events-none border-2 ${resultStamp.cls}`}>{resultStamp.text}</span>
     )}
   </button>
   );
