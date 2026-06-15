@@ -284,14 +284,22 @@ def _build_payload(
                 "away": round(away_p * 100, 1),
             }
 
-    # 概率字段（GUEST 清空）
-    # DB 存储为小数（0-1），adaptCloudPayload 期望百分制（0-100），乘以 100 对齐联赛格式
+    # 概率字段（gated 用户清空）。
+    # WC 研报概率有两套历史标度：手动 seed / 现有 live 报存 0-100（如 87.0），
+    # run_wc_reports 管线存 0-1 小数（如 0.503）。按值域自适应转百分制——
+    # 避免 0-100 的 87.0 被再 ×100 放大成 8700%（新手版 WDL 三种结果横条曾因此显示错误）。
+    # 阈值 1.5：真实概率小数 ≤1.0、百分制单项 ≥2，区间 (1.0,1.5] 无真实取值，可安全分界。
+    # （market_implied 恒为 0-1，仍单独 ×100，见上方。）
+    def _to_pct(v):
+        if v is None:
+            return None
+        return round(v * 100, 1) if v <= 1.5 else round(v, 1)
     _hp = report.get("home_prob")
     _dp = report.get("draw_prob")
     _ap = report.get("away_prob")
-    home_prob = round(_hp * 100, 1) if (_hp is not None and not _hide_probs) else None
-    draw_prob = round(_dp * 100, 1) if (_dp is not None and not _hide_probs) else None
-    away_prob = round(_ap * 100, 1) if (_ap is not None and not _hide_probs) else None
+    home_prob = _to_pct(_hp) if not _hide_probs else None
+    draw_prob = _to_pct(_dp) if not _hide_probs else None
+    away_prob = _to_pct(_ap) if not _hide_probs else None
     inference = (report.get("inference") or "") if not _hide_probs else ""
 
     # 赛后复盘（仅 VIP）
