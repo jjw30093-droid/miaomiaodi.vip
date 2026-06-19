@@ -1,6 +1,8 @@
 import os
 import json
 import sqlite3
+import re
+import time
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, HTTPException, Depends
 from typing import Optional
@@ -8,12 +10,15 @@ from minio_service import MinioUploader, process_markdown_images
 from db import get_conn
 from name_translator import translate_team
 from auth_deps import get_optional_user, get_current_user, CurrentUser
+from pick_parser import compute_picked_correct
 router = APIRouter(prefix="/api/v1", tags=["Premium Reports"])
 
 DB_PATH    = os.environ.get("DB_PATH") or "/home/ubuntu/app/backend/football_uk.db"
 WC_DB_PATH = os.environ.get("WC_DB_PATH", os.path.join(os.path.dirname(os.path.abspath(__file__)), "worldcup.db"))
 _THIS_DIR  = os.path.dirname(os.path.abspath(__file__))
 REPORTS_DIR = os.environ.get("REPORTS_DIR", os.path.join(_THIS_DIR, "reports"))
+_CC_SCORE_CACHE_TTL = 300
+_CC_SCORE_CACHE: dict[int, tuple[float, tuple[int | None, int | None]]] = {}
 
 # 单例 MinIO 服务
 minio_uploader = MinioUploader()
@@ -93,6 +98,215 @@ def _classify_match(match_time_str: str) -> tuple[str, str]:
     return category, iso_time
 
 
+_CN_AH_LINES: list[tuple[str, float]] = [
+    ("两球半三球", 2.75),
+    ("两球半/三球", 2.75),
+    ("球半两球", 1.75),
+    ("球半/两球", 1.75),
+    ("半球一球", 0.75),
+    ("半一", 0.75),
+    ("三球半", 3.5),
+    ("三球", 3.0),
+    ("两球半", 2.5),
+    ("两球", 2.0),
+    ("一球半", 1.5),
+    ("球半", 1.5),
+    ("一球", 1.0),
+    ("半球", 0.5),
+    ("平手", 0.0),
+]
+
+
+def _parse_wc_pick_from_inference(
+    inference: str | None,
+    home_team: str | None,
+    away_team: str | None,
+) -> dict | None:
+    """
+    从 WC 首页推荐短句兜底解析主推荐。
+    用于 audit 行缺失但比分已入库时，给卡片补“命中/未中/走水”标签。
+    """
+    if not inference:
+        return None
+    text = inference.strip()
+    if not text or "TEST" in text.upper():
+        return None
+
+    if "小球" in text:
+        return {"market": "ou", "direction": "under", "ou_line": _extract_ou_line(text)}
+    if "大球" in text:
+        return {"market": "ou", "direction": "over", "ou_line": _extract_ou_line(text)}
+    if "主胜" in text:
+        return {"market": "wdl", "direction": "home_win"}
+    if "客胜" in text:
+        return {"market": "wdl", "direction": "away_win"}
+    if "平局" in text or re.search(r"(^|[【\s])平\s*@", text):
+        return {"market": "wdl", "direction": "draw"}
+
+    ah_line = _extract_ah_home_line(text, home_team, away_team)
+    if ah_line is None:
+        return None
+
+    if "主让" in text or "主队让" in text:
+        return {"market": "ah", "direction": "ah_home", "ah_line": ah_line}
+    if "客让" in text or "客队让" in text:
+        return {"market": "ah", "direction": "ah_away", "ah_line": ah_line}
+    if "主受" in text or "主队受" in text:
+        return {"market": "ah", "direction": "ah_home", "ah_line": ah_line}
+    if "客受" in text or "客队受" in text:
+        return {"market": "ah", "direction": "ah_away", "ah_line": ah_line}
+
+    # 兼容“巴拿马 受让0.25”这类短句：用队名判断受让方。
+    if "受让" in text or "受 " in text:
+        prefix = re.split(r"受让|受\s*", text, maxsplit=1)[0]
+        if away_team and away_team in prefix:
+            return {"market": "ah", "direction": "ah_away", "ah_line": ah_line}
+        if home_team and home_team in prefix:
+            return {"market": "ah", "direction": "ah_home", "ah_line": ah_line}
+
+    return None
+
+
+def _extract_ou_line(text: str) -> float | None:
+    m = re.search(r"(?:小球|大球|[≤>])\s*[（(]?\s*[≤>]?\s*(\d+(?:\.\d+)?)", text)
+    if m:
+        return float(m.group(1))
+    return None
+
+
+def _extract_ah_home_line(
+    text: str,
+    home_team: str | None = None,
+    away_team: str | None = None,
+) -> float | None:
+    value = _extract_ah_value(text)
+    if value is None:
+        return None
+
+    # compute_picked_correct 需要“主队让球线”：主让/客受为正，客让/主受为负。
+    if "客让" in text or "客队让" in text or "主受" in text or "主队受" in text:
+        return -value
+    if "主让" in text or "主队让" in text or "客受" in text or "客队受" in text:
+        return value
+
+    if "受让" in text or "受 " in text:
+        prefix = re.split(r"受让|受\s*", text, maxsplit=1)[0]
+        if away_team and away_team in prefix:
+            return value
+        if home_team and home_team in prefix:
+            return -value
+
+    return None
+
+
+def _extract_ah_value(text: str) -> float | None:
+    m = re.search(r"(?:主让|客让|主队让|客队让|主受让?|客受让?|主队受让?|客队受让?|受让)\s*(\d+(?:\.\d+)?)", text)
+    if m:
+        return float(m.group(1))
+    for label, value in _CN_AH_LINES:
+        if label in text:
+            return value
+    return None
+
+
+def _get_cc_fixture_score(fixture_id: int | None) -> tuple[int | None, int | None]:
+    """VIP 本地库缺比分时，从 cc 内部 API 取单场比分；失败静默降级。"""
+    if not fixture_id:
+        return None, None
+
+    now = time.time()
+    cached = _CC_SCORE_CACHE.get(int(fixture_id))
+    if cached and now - cached[0] < _CC_SCORE_CACHE_TTL:
+        return cached[1]
+
+    score: tuple[int | None, int | None] = (None, None)
+    try:
+        from cc_client import get_worldcup_match  # 局部 import：cc 不可用时列表接口仍可降级
+
+        data = get_worldcup_match(int(fixture_id))
+        fixture = data.get("fixture") if isinstance(data, dict) else None
+        if isinstance(fixture, dict):
+            score = (_coerce_score(fixture.get("home_score")), _coerce_score(fixture.get("away_score")))
+    except Exception:
+        score = (None, None)
+
+    _CC_SCORE_CACHE[int(fixture_id)] = (now, score)
+    return score
+
+
+def _coerce_score(value) -> int | None:
+    if value is None or value == "":
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _resolve_card_picked_correct(
+    row: sqlite3.Row,
+    score_override: tuple[int | None, int | None] | None = None,
+) -> int | None:
+    """卡片结算标签兜底：audit 优先；audit 空时用比分 + 推荐短句现场计算。"""
+    if row["picked_correct"] is not None:
+        return row["picked_correct"]
+
+    home_score = _coerce_score(row["home_score"])
+    away_score = _coerce_score(row["away_score"])
+    if score_override:
+        home_score = home_score if home_score is not None else _coerce_score(score_override[0])
+        away_score = away_score if away_score is not None else _coerce_score(score_override[1])
+    if home_score is None or away_score is None:
+        return None
+
+    market = row["picked_market"]
+    direction = row["picked_direction"]
+    ah_line = None
+    ou_line = None
+
+    if not market or not direction:
+        parsed = _parse_wc_pick_from_inference(
+            row["inference"],
+            row["home_team"],
+            row["away_team"],
+        )
+        if not parsed:
+            return None
+        market = parsed.get("market")
+        direction = parsed.get("direction")
+        ah_line = parsed.get("ah_line")
+        ou_line = parsed.get("ou_line")
+
+    if market == "btts":
+        yes = home_score > 0 and away_score > 0
+        return 1 if (direction == "yes") == yes else 0
+    if market == "wtn":
+        if home_score == away_score:
+            return -1
+        actual = "home" if home_score > away_score else "away"
+        return 1 if direction == actual else 0
+    if market == "corners":
+        return None
+
+    if market == "ah" and ah_line is None:
+        ah_line = _extract_ah_home_line(
+            row["inference"] or "",
+            row["home_team"],
+            row["away_team"],
+        )
+    if market == "ou" and ou_line is None:
+        ou_line = _extract_ou_line(row["inference"] or "")
+
+    return compute_picked_correct(
+        picked_market=market,
+        picked_direction=direction,
+        hs=home_score,
+        as_=away_score,
+        ah_line=ah_line,
+        ou_line=ou_line,
+    )
+
+
 def _get_wc_cards(user) -> list:
     """
     从 worldcup.db.wc_reports 拉取世界杯比赛卡片，混入 /reports/latest。
@@ -105,11 +319,13 @@ def _get_wc_cards(user) -> list:
         # JOIN wc_fixtures → wc_teams 取队徽 image_path
         rows = conn.execute("""
             SELECT wr.match_id, wr.home_team, wr.away_team, wr.match_time,
+                   wr.fixture_sportmonks_id,
                    wr.home_prob, wr.draw_prob, wr.away_prob,
                    wr.inference, wr.pipeline_status, wr.match_status, wr.is_free,
+                   f.home_score, f.away_score,
                    ht.image_path AS home_icon,
                    at_t.image_path AS away_icon,
-                   pa.picked_correct
+                   pa.picked_market, pa.picked_direction, pa.picked_correct
             FROM wc_reports wr
             LEFT JOIN wc_fixtures f ON f.sportmonks_id = wr.fixture_sportmonks_id
             LEFT JOIN wc_teams ht ON ht.sportmonks_id = f.home_team_sportmonks_id
@@ -140,6 +356,14 @@ def _get_wc_cards(user) -> list:
         is_arch = display_category == "ARCHIVE"
         home_icon = r["home_icon"] or None
         away_icon = r["away_icon"] or None
+        score_override = None
+        if (
+            is_arch
+            and r["picked_correct"] is None
+            and (r["home_score"] is None or r["away_score"] is None)
+        ):
+            score_override = _get_cc_fixture_score(r["fixture_sportmonks_id"])
+        picked_correct = _resolve_card_picked_correct(r, score_override) if is_arch else None
 
         try:
             gated, _acc, _ = _check_gating(mid, bool(r["is_free"]), user, is_archive=is_arch)
@@ -161,7 +385,7 @@ def _get_wc_cards(user) -> list:
             "is_daily_free": bool(r["is_free"]),
             "is_pinned": False,
             "tournament_type": "wc",
-            "picked_correct": r["picked_correct"] if is_arch else None,
+            "picked_correct": picked_correct,
         })
     return cards
 

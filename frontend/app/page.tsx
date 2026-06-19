@@ -52,8 +52,10 @@ interface Match {
   inference?: string;
   is_daily_free?: boolean;
   picked_correct?: number | null;  // 1=命中 0=未中 -1=走水 null=未结算/未出
-  tournament_type?: string;        // 'wc' = 世界杯卡片（未中/走水标签仅 WC 显示）
+  tournament_type?: string;
 }
+
+const MATCH_PAGE_SIZE = 10;
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
@@ -85,13 +87,12 @@ const CompactMatchCard = ({ match, isLoggedIn, isDark, onClick }: { match: Match
   const hPct    = Math.round(hPctRaw ?? 0);
   const aPct    = Math.round(aPctRaw ?? 0);
   const leagueZh = translateLeague(match.league);
-  // 结算标签：命中（全部卡片，沿用原行为）；未中/走水仅 WC 卡片显示，避免改动联赛卡的既有展示
+  // 结算标签：1=命中 0=未中 -1=走水 null=未结算/未出
   const pc = match.picked_correct;
-  const isWcCard = match.tournament_type === 'wc';
   const resultStamp =
       pc === 1             ? { text: '命中', cls: isDark ? 'bg-red-500/10 text-red-400 border-red-500/50'  : 'bg-red-50 text-red-600 border-red-400' }
-    : (isWcCard && pc === 0)  ? { text: '未中', cls: isDark ? 'bg-white/[0.04] text-white/40 border-white/15' : 'bg-zinc-100 text-zinc-400 border-zinc-300' }
-    : (isWcCard && pc === -1) ? { text: '走水', cls: isDark ? 'bg-sky-500/10 text-sky-300 border-sky-500/40'  : 'bg-sky-50 text-sky-600 border-sky-300' }
+    : pc === 0             ? { text: '未中', cls: isDark ? 'bg-white/[0.04] text-white/40 border-white/15' : 'bg-zinc-100 text-zinc-400 border-zinc-300' }
+    : pc === -1            ? { text: '走水', cls: isDark ? 'bg-sky-500/10 text-sky-300 border-sky-500/40'  : 'bg-sky-50 text-sky-600 border-sky-300' }
     : null;
 
   return (
@@ -342,6 +343,8 @@ export default function FootballLabPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [contactOpen, setContactOpen] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(MATCH_PAGE_SIZE);
+  const loadMoreRef = React.useRef<HTMLDivElement | null>(null);
 
   const handleCardClick = (id: string) => {
     const match = matches.find(m => m.id === id);
@@ -451,6 +454,42 @@ export default function FootballLabPage() {
       .filter(m => m.display_category === 'ARCHIVE' && m.id.startsWith('wc_'))
       .sort((a, b) => b.time.localeCompare(a.time));
   }, [matches]);
+
+  useEffect(() => {
+    setVisibleCount(MATCH_PAGE_SIZE);
+  }, [activeTab, dateFilter, leagueFilters, searchQuery]);
+
+  const homeVisibleMatches = useMemo(() => {
+    return filteredMatches.slice(0, visibleCount);
+  }, [filteredMatches, visibleCount]);
+
+  const homeVisibleArchivedMatches = useMemo(() => {
+    const remaining = Math.max(0, visibleCount - filteredMatches.length);
+    return recentArchivedMatches.slice(0, remaining);
+  }, [filteredMatches.length, recentArchivedMatches, visibleCount]);
+
+  const archiveVisibleMatches = useMemo(() => {
+    return filteredMatches.slice(0, visibleCount);
+  }, [filteredMatches, visibleCount]);
+
+  const currentFeedTotal = activeTab === 'archive'
+    ? filteredMatches.length
+    : filteredMatches.length + recentArchivedMatches.length;
+  const hasMoreMatches = visibleCount < currentFeedTotal;
+
+  useEffect(() => {
+    if (!hasMoreMatches || loading) return;
+    const el = loadMoreRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver((entries) => {
+      if (!entries[0]?.isIntersecting) return;
+      setVisibleCount(prev => Math.min(prev + MATCH_PAGE_SIZE, currentFeedTotal));
+    }, { rootMargin: '260px 0px' });
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [currentFeedTotal, hasMoreMatches, loading, visibleCount]);
 
   const ELITE_MATCH = filteredMatches[0];
   const OTHER_MATCHES = filteredMatches.slice(1);
@@ -807,7 +846,7 @@ export default function FootballLabPage() {
                       </div>
                     )}
                     <div className="flex flex-col gap-3">
-                      {[...filteredMatches].sort((a, b) => (a.time > b.time ? 1 : -1)).map(m => (
+                      {homeVisibleMatches.map(m => (
                         <CompactMatchCard key={m.id} match={m} isLoggedIn={isLoggedIn} isDark={isDark} onClick={() => handleCardClick(m.id)} />
                       ))}
                     </div>
@@ -815,7 +854,7 @@ export default function FootballLabPage() {
                 )}
 
                 {/* 已结束 — 所有用户可见，不受日期/联赛筛选影响 */}
-                {recentArchivedMatches.length > 0 && (
+                {homeVisibleArchivedMatches.length > 0 && (
                   <section className="mt-8 pb-4">
                     <div suppressHydrationWarning className={`flex items-center gap-2 mb-4 pb-2 border-b ${isDark ? 'border-white/5' : 'border-black/6'}`}>
                       <span suppressHydrationWarning className={`w-1.5 h-1.5 rounded-full ${isDark ? 'bg-white/25' : 'bg-[#8f6f73]'}`} />
@@ -823,11 +862,17 @@ export default function FootballLabPage() {
                       <span suppressHydrationWarning className={`text-xs font-bold ml-auto ${isDark ? 'text-white/25' : 'text-[#8f6f73]/60'}`}>{recentArchivedMatches.length} 场</span>
                     </div>
                     <div className="flex flex-col gap-3">
-                      {recentArchivedMatches.map(m => (
+                      {homeVisibleArchivedMatches.map(m => (
                         <CompactMatchCard key={m.id} match={m} isLoggedIn={isLoggedIn} isDark={isDark} onClick={() => handleCardClick(m.id)} />
                       ))}
                     </div>
                   </section>
+                )}
+
+                {hasMoreMatches && (
+                  <div ref={loadMoreRef} className="py-8 flex justify-center">
+                    <div className="w-6 h-6 border-2 border-[var(--primary-neon)]/20 border-t-[var(--primary-neon)] rounded-full animate-spin" />
+                  </div>
                 )}
               </>
             )
@@ -851,9 +896,14 @@ export default function FootballLabPage() {
                  </div>
                ) : (
                  <div className="grid grid-cols-2 gap-4">
-                   {filteredMatches.map(m => (
+                   {archiveVisibleMatches.map(m => (
                      <CompactMatchCard key={m.id} match={m} isLoggedIn={isLoggedIn} isDark={isDark} onClick={() => handleCardClick(m.id)} />
                    ))}
+                 </div>
+               )}
+               {hasMoreMatches && (
+                 <div ref={loadMoreRef} className="py-8 flex justify-center">
+                   <div className="w-6 h-6 border-2 border-[var(--primary-neon)]/20 border-t-[var(--primary-neon)] rounded-full animate-spin" />
                  </div>
                )}
             </section>
