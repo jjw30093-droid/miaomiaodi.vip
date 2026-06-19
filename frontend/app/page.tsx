@@ -476,6 +476,9 @@ export default function FootballLabPage() {
     ? filteredMatches.length
     : filteredMatches.length + recentArchivedMatches.length;
   const hasMoreMatches = visibleCount < currentFeedTotal;
+  const loadMoreMatches = React.useCallback(() => {
+    setVisibleCount(prev => Math.min(prev + MATCH_PAGE_SIZE, currentFeedTotal));
+  }, [currentFeedTotal]);
 
   useEffect(() => {
     if (!hasMoreMatches || loading) return;
@@ -484,12 +487,44 @@ export default function FootballLabPage() {
 
     const observer = new IntersectionObserver((entries) => {
       if (!entries[0]?.isIntersecting) return;
-      setVisibleCount(prev => Math.min(prev + MATCH_PAGE_SIZE, currentFeedTotal));
+      loadMoreMatches();
     }, { rootMargin: '260px 0px' });
 
     observer.observe(el);
     return () => observer.disconnect();
-  }, [currentFeedTotal, hasMoreMatches, loading, visibleCount]);
+  }, [hasMoreMatches, loadMoreMatches, loading, visibleCount]);
+
+  useEffect(() => {
+    if (!hasMoreMatches || loading) return;
+
+    let ticking = false;
+    const checkNearBottom = () => {
+      ticking = false;
+      const doc = document.documentElement;
+      const scrollTop = window.scrollY || doc.scrollTop || document.body.scrollTop || 0;
+      const viewportHeight = window.innerHeight || doc.clientHeight;
+      const scrollHeight = Math.max(doc.scrollHeight, document.body.scrollHeight);
+      if (scrollHeight - (scrollTop + viewportHeight) < 560) {
+        loadMoreMatches();
+      }
+    };
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      window.requestAnimationFrame(checkNearBottom);
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('wheel', onScroll, { passive: true });
+    window.addEventListener('touchmove', onScroll, { passive: true });
+    checkNearBottom();
+
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('wheel', onScroll);
+      window.removeEventListener('touchmove', onScroll);
+    };
+  }, [hasMoreMatches, loadMoreMatches, loading, visibleCount]);
 
   const ELITE_MATCH = filteredMatches[0];
   const OTHER_MATCHES = filteredMatches.slice(1);
@@ -870,8 +905,22 @@ export default function FootballLabPage() {
                 )}
 
                 {hasMoreMatches && (
-                  <div ref={loadMoreRef} className="py-8 flex justify-center">
-                    <div className="w-6 h-6 border-2 border-[var(--primary-neon)]/20 border-t-[var(--primary-neon)] rounded-full animate-spin" />
+                  <div ref={loadMoreRef} className="py-8 flex flex-col items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={loadMoreMatches}
+                      suppressHydrationWarning
+                      className={`px-5 py-2.5 rounded-full text-sm font-bold border transition-all active:scale-95 ${
+                        isDark
+                          ? 'bg-white/5 border-white/10 text-white/75'
+                          : 'bg-white border-[#e1e3e4] text-[#191c1d] shadow-sm'
+                      }`}
+                    >
+                      加载更多比赛
+                    </button>
+                    <span suppressHydrationWarning className={`text-xs font-medium ${isDark ? 'text-white/30' : 'text-[#8f6f73]/70'}`}>
+                      已显示 {Math.min(visibleCount, currentFeedTotal)} / {currentFeedTotal} 场
+                    </span>
                   </div>
                 )}
               </>
@@ -902,8 +951,22 @@ export default function FootballLabPage() {
                  </div>
                )}
                {hasMoreMatches && (
-                 <div ref={loadMoreRef} className="py-8 flex justify-center">
-                   <div className="w-6 h-6 border-2 border-[var(--primary-neon)]/20 border-t-[var(--primary-neon)] rounded-full animate-spin" />
+                 <div ref={loadMoreRef} className="py-8 flex flex-col items-center gap-2">
+                   <button
+                     type="button"
+                     onClick={loadMoreMatches}
+                     suppressHydrationWarning
+                     className={`px-5 py-2.5 rounded-full text-sm font-bold border transition-all active:scale-95 ${
+                       isDark
+                         ? 'bg-white/5 border-white/10 text-white/75'
+                         : 'bg-white border-[#e1e3e4] text-[#191c1d] shadow-sm'
+                     }`}
+                   >
+                     加载更多比赛
+                   </button>
+                   <span suppressHydrationWarning className={`text-xs font-medium ${isDark ? 'text-white/30' : 'text-[#8f6f73]/70'}`}>
+                     已显示 {Math.min(visibleCount, currentFeedTotal)} / {currentFeedTotal} 场
+                   </span>
                  </div>
                )}
             </section>
