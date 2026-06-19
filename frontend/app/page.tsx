@@ -55,6 +55,15 @@ interface Match {
   tournament_type?: string;
 }
 
+interface LatestReportsPage {
+  items: Match[];
+  total: number;
+  limit: number;
+  offset: number;
+  next_offset: number | null;
+  has_more: boolean;
+}
+
 const MATCH_PAGE_SIZE = 10;
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
@@ -341,9 +350,12 @@ export default function FootballLabPage() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [contactOpen, setContactOpen] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(MATCH_PAGE_SIZE);
+  const [hasMoreMatches, setHasMoreMatches] = useState(false);
+  const [nextOffset, setNextOffset] = useState<number | null>(0);
+  const [feedTotal, setFeedTotal] = useState(0);
   const loadMoreRef = React.useRef<HTMLDivElement | null>(null);
 
   const handleCardClick = (id: string) => {
@@ -355,27 +367,61 @@ export default function FootballLabPage() {
     }
   };
 
-  useEffect(() => {
-    if (status === 'loading') return; // 等 session 落定再请求
-    const fetchData = async () => {
-      try {
+  const normalizeMatches = React.useCallback((items: Match[]) => {
+    return (items || []).map(m => ({
+      ...m,
+      homeTeam: { ...m.homeTeam, name: translateTeam(m.homeTeam.name) },
+      awayTeam: { ...m.awayTeam, name: translateTeam(m.awayTeam.name) },
+    }));
+  }, []);
+
+  const fetchReportPage = React.useCallback(async (offset = 0, append = false) => {
+    try {
+      if (append) {
+        setLoadingMore(true);
+      } else {
         setLoading(true);
-        const data = await apiClient.get<Match[]>('/reports/latest', { token: apiToken });
-        const translated = (data || []).map(m => ({
-          ...m,
-          homeTeam: { ...m.homeTeam, name: translateTeam(m.homeTeam.name) },
-          awayTeam: { ...m.awayTeam, name: translateTeam(m.awayTeam.name) },
-        }));
-        setMatches(translated);
-      } catch (e) {
-        console.error('API Error:', e);
-        setError('服务连接超时，请检查网络。');
-      } finally {
+        setError(null);
+      }
+
+      const data = await apiClient.get<LatestReportsPage>('/reports/latest', {
+        token: apiToken,
+        params: { paged: true, limit: MATCH_PAGE_SIZE, offset },
+      });
+      const translated = normalizeMatches(data.items || []);
+
+      setMatches(prev => {
+        if (!append) return translated;
+        const seen = new Set(prev.map(m => m.id));
+        const merged = [...prev];
+        translated.forEach(m => {
+          if (!seen.has(m.id)) merged.push(m);
+        });
+        return merged;
+      });
+      setFeedTotal(data.total || 0);
+      setNextOffset(data.next_offset);
+      setHasMoreMatches(Boolean(data.has_more));
+    } catch (e) {
+      console.error('API Error:', e);
+      if (!append) setError('服务连接超时，请检查网络。');
+    } finally {
+      if (append) {
+        setLoadingMore(false);
+      } else {
         setLoading(false);
       }
-    };
-    fetchData();
-  }, [apiToken, status]);
+    }
+  }, [apiToken, normalizeMatches]);
+
+  useEffect(() => {
+    if (status === 'loading') return; // 等 session 落定再请求
+    setMatches([]);
+    setNextOffset(0);
+    setFeedTotal(0);
+    setHasMoreMatches(false);
+    fetchReportPage(0, false);
+  }, [fetchReportPage, status]);
 
   const availableLeagues = useMemo(() => {
     // 用中文显示名 dedupe（J. League East/West → "J联赛" 合并为一项）
@@ -455,30 +501,23 @@ export default function FootballLabPage() {
       .sort((a, b) => b.time.localeCompare(a.time));
   }, [matches]);
 
-  useEffect(() => {
-    setVisibleCount(MATCH_PAGE_SIZE);
-  }, [activeTab, dateFilter, leagueFilters, searchQuery]);
-
   const homeVisibleMatches = useMemo(() => {
-    return filteredMatches.slice(0, visibleCount);
-  }, [filteredMatches, visibleCount]);
+    return filteredMatches;
+  }, [filteredMatches]);
 
   const homeVisibleArchivedMatches = useMemo(() => {
-    const remaining = Math.max(0, visibleCount - filteredMatches.length);
-    return recentArchivedMatches.slice(0, remaining);
-  }, [filteredMatches.length, recentArchivedMatches, visibleCount]);
+    return recentArchivedMatches;
+  }, [recentArchivedMatches]);
 
   const archiveVisibleMatches = useMemo(() => {
-    return filteredMatches.slice(0, visibleCount);
-  }, [filteredMatches, visibleCount]);
+    return filteredMatches;
+  }, [filteredMatches]);
 
-  const currentFeedTotal = activeTab === 'archive'
-    ? filteredMatches.length
-    : filteredMatches.length + recentArchivedMatches.length;
-  const hasMoreMatches = visibleCount < currentFeedTotal;
+  const currentFeedTotal = feedTotal || matches.length;
   const loadMoreMatches = React.useCallback(() => {
-    setVisibleCount(prev => Math.min(prev + MATCH_PAGE_SIZE, currentFeedTotal));
-  }, [currentFeedTotal]);
+    if (!hasMoreMatches || nextOffset == null || loading || loadingMore) return;
+    fetchReportPage(nextOffset, true);
+  }, [fetchReportPage, hasMoreMatches, loading, loadingMore, nextOffset]);
 
   useEffect(() => {
     if (!hasMoreMatches || loading) return;
@@ -492,7 +531,7 @@ export default function FootballLabPage() {
 
     observer.observe(el);
     return () => observer.disconnect();
-  }, [hasMoreMatches, loadMoreMatches, loading, visibleCount]);
+  }, [hasMoreMatches, loadMoreMatches, loading, loadingMore]);
 
   useEffect(() => {
     if (!hasMoreMatches || loading) return;
@@ -524,7 +563,7 @@ export default function FootballLabPage() {
       window.removeEventListener('wheel', onScroll);
       window.removeEventListener('touchmove', onScroll);
     };
-  }, [hasMoreMatches, loadMoreMatches, loading, visibleCount]);
+  }, [hasMoreMatches, loadMoreMatches, loading, loadingMore]);
 
   const ELITE_MATCH = filteredMatches[0];
   const OTHER_MATCHES = filteredMatches.slice(1);
@@ -909,6 +948,7 @@ export default function FootballLabPage() {
                     <button
                       type="button"
                       onClick={loadMoreMatches}
+                      disabled={loadingMore}
                       suppressHydrationWarning
                       className={`px-5 py-2.5 rounded-full text-sm font-bold border transition-all active:scale-95 ${
                         isDark
@@ -916,10 +956,10 @@ export default function FootballLabPage() {
                           : 'bg-white border-[#e1e3e4] text-[#191c1d] shadow-sm'
                       }`}
                     >
-                      加载更多比赛
+                      {loadingMore ? '加载中' : '加载更多比赛'}
                     </button>
                     <span suppressHydrationWarning className={`text-xs font-medium ${isDark ? 'text-white/30' : 'text-[#8f6f73]/70'}`}>
-                      已显示 {Math.min(visibleCount, currentFeedTotal)} / {currentFeedTotal} 场
+                      已加载 {matches.length} / {currentFeedTotal} 场
                     </span>
                   </div>
                 )}
@@ -955,6 +995,7 @@ export default function FootballLabPage() {
                    <button
                      type="button"
                      onClick={loadMoreMatches}
+                     disabled={loadingMore}
                      suppressHydrationWarning
                      className={`px-5 py-2.5 rounded-full text-sm font-bold border transition-all active:scale-95 ${
                        isDark
@@ -962,10 +1003,10 @@ export default function FootballLabPage() {
                          : 'bg-white border-[#e1e3e4] text-[#191c1d] shadow-sm'
                      }`}
                    >
-                     加载更多比赛
+                     {loadingMore ? '加载中' : '加载更多比赛'}
                    </button>
                    <span suppressHydrationWarning className={`text-xs font-medium ${isDark ? 'text-white/30' : 'text-[#8f6f73]/70'}`}>
-                     已显示 {Math.min(visibleCount, currentFeedTotal)} / {currentFeedTotal} 场
+                     已加载 {matches.length} / {currentFeedTotal} 场
                    </span>
                  </div>
                )}

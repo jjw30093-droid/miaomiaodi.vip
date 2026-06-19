@@ -4,7 +4,7 @@ import sqlite3
 import re
 import time
 from datetime import datetime, timedelta, timezone
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import Optional
 from minio_service import MinioUploader, process_markdown_images
 from db import get_conn
@@ -339,7 +339,6 @@ def _get_wc_cards(user) -> list:
               AND wr.home_team NOT LIKE 'TBD%'
               AND wr.away_team NOT LIKE 'TBD%'
             ORDER BY wr.match_time DESC
-            LIMIT 120
         """).fetchall()
         conn.close()
     except Exception:
@@ -391,7 +390,12 @@ def _get_wc_cards(user) -> list:
 
 
 @router.get("/reports/latest")
-async def get_latest_reports(user: CurrentUser = Depends(get_optional_user)):
+async def get_latest_reports(
+    limit: Optional[int] = Query(default=None, ge=1, le=50),
+    offset: int = Query(default=0, ge=0),
+    paged: bool = Query(default=False),
+    user: CurrentUser = Depends(get_optional_user),
+):
     """
     获取首页展示的全部研报。三档脱敏：
       - GUEST（未登录）：仅 id + 队名 + 队徽 + time + league，其它字段一律置空/默认
@@ -425,7 +429,6 @@ async def get_latest_reports(user: CurrentUser = Depends(get_optional_user)):
             LEFT JOIN prediction_audit pa ON CAST(pa.match_id AS TEXT) = CAST(rs.match_id AS TEXT)
             WHERE rs.home_team != 'Home' AND rs.away_team != 'Away'
             ORDER BY rs.match_time DESC
-            LIMIT 150
         """)
         rows = cursor.fetchall()
 
@@ -520,10 +523,38 @@ async def get_latest_reports(user: CurrentUser = Depends(get_optional_user)):
             wc_numeric_ids = {c["id"][3:] for c in wc_cards if c["id"].startswith("wc_")}
             matches = [m for m in matches if str(m["id"]) not in wc_numeric_ids]
             matches = wc_cards + matches
-            # 按 match_time 排序（WC 6 月场次自然排前）
-            def _sort_key(m: dict) -> str:
-                return m.get("time") or ""
-            matches.sort(key=_sort_key, reverse=True)
+
+        # 首页分页顺序：未开赛/锁定场按时间升序，已结束场按时间倒序。
+        # 旧调用保持 list 返回；paged=true 时返回分页元数据。
+        def _time_key(m: dict) -> float:
+            dt = _parse_match_time((m.get("time") or "").replace("T", " ").replace("Z", ""))
+            return dt.timestamp() if dt else 0.0
+
+        def _home_feed_key(m: dict):
+            category = m.get("display_category")
+            ts = _time_key(m)
+            if category in ("UPCOMING", "GATED"):
+                return (0, ts)
+            return (1, -ts)
+
+        matches.sort(key=_home_feed_key)
+
+        if paged:
+            page_limit = limit or 10
+            page = matches[offset: offset + page_limit]
+            next_offset = offset + len(page)
+            has_more = next_offset < len(matches)
+            return {
+                "items": page,
+                "total": len(matches),
+                "limit": page_limit,
+                "offset": offset,
+                "next_offset": next_offset if has_more else None,
+                "has_more": has_more,
+            }
+
+        if limit is not None:
+            return matches[offset: offset + limit]
 
         return matches
     except Exception as e:
