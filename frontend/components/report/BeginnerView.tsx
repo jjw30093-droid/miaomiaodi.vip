@@ -1,10 +1,10 @@
 'use client';
 
-import { Star, ChevronRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { MatchTimeDisplay } from '@/components/MatchTimeDisplay';
 import { switchToProTab } from './ReportTabSwitch';
 import { translateLeague } from '@/lib/leagueNames';
-import { translateTeam } from '@/lib/teamNames';
+import { translateTeamsInText } from '@/lib/teamNames';
 import RecentStatCard from './RecentStatCard';
 import type { BestRecentStat } from '@/types/report';
 
@@ -37,14 +37,14 @@ interface Props {
 // ── inference parsing ──────────────────────────────────────────────────────
 // '【HIGH】主胜 @1.91 75.1%  (75.1%/18.6%/6.3%)'
 function parseInference(inf?: string): {
-  confidence: 'HIGH' | 'MEDIUM' | 'LOW' | null;
+  confidence: string | null;
   direction:  string;
   odds:       string;
   pickProb:   number | null;   // 预测方向的模型概率（非 WDL 三分布）
 } {
   if (!inf) return { confidence: null, direction: '', odds: '', pickProb: null };
-  const confMatch = inf.match(/【(HIGH|MEDIUM|LOW)】/i);
-  const confidence = (confMatch?.[1]?.toUpperCase() as 'HIGH' | 'MEDIUM' | 'LOW') ?? null;
+  const confMatch = inf.match(/【([^】]+)】/);
+  const confidence = confMatch?.[1] ?? null;
   const rest = inf.replace(/【[^】]+】/, '').trim();
   // @ 前的完整方向标签（与 GlassPickBlock 一致）。不能再 split(/\s+/)[0] 截首词，
   // 否则 "2.25 小球" 这类带空格的大小球方向会被截成 "2.25"，丢掉 小球/大球。
@@ -60,7 +60,15 @@ function parseInference(inf?: string): {
     pickProb: probMatch ? parseFloat(probMatch[1]) : null,
   };
 }
-const STARS_FROM_CONF: Record<'HIGH' | 'MEDIUM' | 'LOW', number> = { HIGH: 5, MEDIUM: 3, LOW: 2 };
+
+function formatConfidence(confidence: string | null): string {
+  if (!confidence) return '—';
+  const raw = confidence.toUpperCase();
+  if (raw === 'HIGH') return '高';
+  if (raw === 'MEDIUM' || raw === 'MID') return '中';
+  if (raw === 'LOW') return '谨慎';
+  return confidence.replace(/把握/g, '');
+}
 
 // AH/OU 预测类型判断（与 GlassPickBlock.getPickType 保持同步）
 function getPickType(text: string | null | undefined): 'AH' | 'OU' | 'WDL' {
@@ -72,7 +80,8 @@ function getPickType(text: string | null | undefined): 'AH' | 'OU' | 'WDL' {
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
-const formEmoji = (r: FormResult) => r === 'W' ? '✅' : r === 'L' ? '❌' : '🟰';
+const formLabel = (r: FormResult) => r === 'W' ? '胜' : r === 'L' ? '负' : '平';
+const CARD = 'rounded-lg border border-slate-200 dark:border-white/15 bg-white dark:bg-slate-950 shadow-sm dark:shadow-none';
 
 // ────────────────────────────────────────────────────────────────────────────
 export default function BeginnerView({
@@ -86,9 +95,10 @@ export default function BeginnerView({
   bestRecentStat,
 }: Props) {
   const parsed       = parseInference(inference);
-  const pickLabel    = translateTeam(parsed.direction);
+  const pickLabel    = translateTeamsInText(parsed.direction);
   const pickType     = getPickType(inference);
-  const stars        = parsed.confidence ? STARS_FROM_CONF[parsed.confidence] : 0;
+  const strengthLabel = formatConfidence(parsed.confidence);
+  const pickTypeLabel = pickType === 'AH' ? '让球方向' : pickType === 'OU' ? '进球数方向' : '赛果方向';
   const hasProbs     = homeProb != null && awayProb != null;
   const dProb        = hasProbs
     ? (drawProb ?? Math.max(0, Math.round(100 - (homeProb as number) - (awayProb as number))))
@@ -105,167 +115,120 @@ export default function BeginnerView({
   const oneLiner = beginnerSummary?.trim()
     ? beginnerSummary
     : (parsed.direction
-        ? `本场预测方向：${pickLabel}${parsed.odds ? `，市场价格 @${parsed.odds}` : ''}${stars ? `，信心 ${stars}星` : ''}。`
+        ? `本场推荐方向：${pickLabel}${parsed.odds ? `，参考价格 @${parsed.odds}` : ''}${parsed.confidence ? `，推荐强度：${strengthLabel}` : ''}。`
         : '本场分析数据准备中…');
 
   return (
     <div className="px-4 pt-4 pb-10 max-w-2xl mx-auto flex flex-col gap-4 overflow-x-hidden">
 
       {/* ─── ① 对阵卡 + 双方近5场战绩 ─────────────────────────────── */}
-      <section className="bg-white/85 backdrop-blur-xl dark:bg-[var(--panel-bg-strong)]
-                          border border-slate-900/10 dark:border-[var(--panel-border-strong)]
-                          rounded-3xl p-5 text-center space-y-3
-                          shadow-[0_4px_24px_rgba(15,23,42,0.06)] dark:shadow-[var(--panel-shadow-strong)]">
-        {league && (
-          <span className="inline-block text-xs font-bold tracking-[0.15em] uppercase px-3 py-1 rounded-full
-                           bg-slate-900 text-white
-                           dark:bg-white/[0.06] dark:text-white dark:border dark:border-white/15">
-            {translateLeague(league)}
-            {matchTime && <span className="ml-2 opacity-70 normal-case tracking-wider">· <MatchTimeDisplay utcStr={matchTime} /></span>}
-          </span>
-        )}
-        <div className="flex items-center justify-center gap-3">
-          {homeIcon && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={homeIcon} alt={homeTeam} width={44} height={44}
-              className="object-contain flex-shrink-0 ring-1 ring-black/8 rounded-full bg-white p-0.5" />
-          )}
-          <h2 className="text-xl font-black text-slate-900 dark:text-white leading-tight">
-            {homeTeam}
-            <span className="mx-2 text-sm font-semibold text-slate-500 dark:text-white/60">vs</span>
-            {awayTeam}
-          </h2>
-          {awayIcon && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={awayIcon} alt={awayTeam} width={44} height={44}
-              className="object-contain flex-shrink-0 ring-1 ring-black/8 rounded-full bg-white p-0.5" />
+      <section className={`${CARD} p-5`}>
+        <div className="flex items-start justify-between gap-3 mb-5">
+          <div className="text-[15px] font-bold text-slate-800 dark:text-slate-100">
+            {league ? translateLeague(league) : '比赛研报'}
+          </div>
+          {matchTime && (
+            <div className="text-right text-[14px] font-bold text-slate-700 dark:text-slate-200">
+              <MatchTimeDisplay utcStr={matchTime} />
+            </div>
           )}
         </div>
 
+        <div className="grid grid-cols-[minmax(0,1fr)_36px_minmax(0,1fr)] items-center gap-3">
+          <TeamBlock name={homeTeam} icon={homeIcon} />
+          <div className="text-center text-[15px] font-bold text-slate-500 dark:text-slate-300">vs</div>
+          <TeamBlock name={awayTeam} icon={awayIcon} />
+        </div>
+
         {(homeRecentForm?.length || awayRecentForm?.length) ? (
-          <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-900/8 dark:border-white/8 mt-3">
+          <div className="grid grid-cols-2 gap-3 pt-4 border-t border-slate-200 dark:border-white/15 mt-5">
             <FormColumn label={homeTeam} form={homeRecentForm ?? []} />
             <FormColumn label={awayTeam} form={awayRecentForm ?? []} />
           </div>
         ) : null}
       </section>
 
-      {/* ─── ② 🎯 分析卡（首屏视觉重心）────────────────────────────── */}
+      {/* ─── ② 推荐方向（首屏视觉重心）────────────────────────────── */}
       {parsed.direction ? (
-        <section className="relative overflow-hidden rounded-3xl p-6
-          bg-gradient-to-br from-[#E91E63]/8 via-white to-white
-          dark:from-[#00F0FF]/8 dark:via-[#06080C] dark:to-[#06080C]
-          border-2 border-[#E91E63]/30 dark:border-[#00F0FF]/30
-          shadow-[0_8px_32px_rgba(233,30,99,0.12)] dark:shadow-[0_0_32px_rgba(0,240,255,0.12)]">
-          <div className="absolute -top-16 -right-16 w-44 h-44 rounded-full bg-[#E91E63]/10 dark:bg-[#00F0FF]/10 blur-3xl pointer-events-none" />
-
-          <div className="relative flex items-center justify-between gap-2 mb-3">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-black tracking-[0.25em] uppercase
-                               text-[#E91E63] dark:text-[#00F0FF]">🎯 模型分析</span>
-              <span className="text-xs font-bold px-1.5 py-0.5 rounded-full
-                               bg-[#E91E63]/10 text-[#E91E63] dark:bg-[#00F0FF]/10 dark:text-[#00F0FF]
-                               border border-[#E91E63]/20 dark:border-[#00F0FF]/20">
-                {pickType === 'AH' ? '亚盘' : pickType === 'OU' ? '进球数' : '赛果'}
-              </span>
+        <section className="rounded-lg border-2 border-slate-900 dark:border-white bg-white dark:bg-slate-950 shadow-sm p-5">
+          <div className="flex items-start justify-between gap-3 border-b border-slate-200 dark:border-white/15 pb-3">
+            <div>
+              <p className="text-[16px] font-bold text-slate-950 dark:text-white">推荐方向</p>
+              <p className="mt-1 text-[13px] font-bold text-slate-600 dark:text-slate-300">{pickTypeLabel}</p>
             </div>
             {pipelineStatus === 'FINAL_REPORT_READY' && (
-              <span className="inline-flex items-center gap-1 text-xs font-black tracking-widest uppercase
-                               px-2 py-0.5 rounded-full
-                               bg-emerald-500/15 text-emerald-700 border border-emerald-500/30
-                               dark:bg-emerald-400/10 dark:text-emerald-300 dark:border-emerald-400/30">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                T-30 闭盘定稿
+              <span className="text-[13px] font-bold text-emerald-700 dark:text-emerald-300">
+                已定稿
               </span>
             )}
           </div>
 
-          <div className="relative flex items-end justify-between gap-3">
-            <div className="min-w-0">
-              <div className="text-[32px] sm:text-4xl font-black tracking-tighter text-slate-900 dark:text-white leading-none">
-                {pickLabel}
-              </div>
+          <div className="pt-4">
+            <div className="text-[36px] font-black text-slate-950 dark:text-white leading-tight break-words">
+              {pickLabel}
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-3">
               {parsed.odds && (
-                <div className="flex items-baseline gap-1.5 mt-2.5">
-                  <span className="text-xs font-bold text-slate-500 dark:text-white/50 uppercase tracking-widest">参考市场价格</span>
-                  <span className="text-[18px] font-black text-[#E91E63] dark:text-[#00F0FF]">
-                    @{parsed.odds}
-                  </span>
+                <div className="rounded-md bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-white/15 px-3 py-2">
+                  <p className="text-[13px] font-bold text-slate-600 dark:text-slate-300">参考价格</p>
+                  <p className="mt-1 text-[18px] font-black text-slate-950 dark:text-white">@{parsed.odds}</p>
                 </div>
               )}
-            </div>
-            <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-              {stars > 0 && (
-                <div className="flex items-center gap-0.5">
-                  {[1, 2, 3, 4, 5].map(i => (
-                    <Star key={i} size={14}
-                      className={i <= stars ? 'fill-[#FFB800] text-[#FFB800]' : 'text-slate-300 dark:text-white/15'} />
-                  ))}
-                </div>
-              )}
-              {(recentHitRate14d != null) && (
-                <div className="text-right">
-                  <span className="text-xs font-bold text-slate-500 dark:text-white/50 tracking-wider mr-1">近14天命中率</span>
-                  <span className="text-[14px] font-black text-slate-900 dark:text-white tabular-nums">
+              <div className="rounded-md bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-white/15 px-3 py-2">
+                <p className="text-[13px] font-bold text-slate-600 dark:text-slate-300">推荐强度</p>
+                <p className="mt-1 text-[18px] font-black text-slate-950 dark:text-white">{strengthLabel}</p>
+              </div>
+              {recentHitRate14d != null && (
+                <div className="rounded-md bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-white/15 px-3 py-2 col-span-2">
+                  <p className="text-[13px] font-bold text-slate-600 dark:text-slate-300">
+                    近14天同类样本
+                    {recentHitRate14dN != null ? `（${recentHitRate14dN}场）` : ''}
+                  </p>
+                  <p className="mt-1 text-[18px] font-black text-slate-950 dark:text-white">
                     {recentHitRate14d.toFixed(1)}%
-                  </span>
+                  </p>
                 </div>
               )}
             </div>
+            <p className="mt-4 text-[17px] leading-[1.75] text-slate-950 dark:text-white">
+              {oneLiner}
+            </p>
           </div>
         </section>
       ) : (
-        <section className="rounded-3xl p-6 text-center
-                            bg-white/60 dark:bg-white/[0.03]
-                            border border-slate-200 dark:border-white/10">
-          <p className="text-sm font-bold text-slate-600 dark:text-white/60">模型分析数据准备中…</p>
+        <section className={`${CARD} p-5 text-center`}>
+          <p className="text-[16px] font-bold text-slate-700 dark:text-slate-200">分析数据准备中</p>
         </section>
       )}
 
       {/* ─── ③ 概率横条图（AH/OU/WDL 动态切换）───────────────────── */}
       {(pickType === 'WDL' ? hasProbs : parsed.pickProb != null) && (
-        <section className="bg-white/85 backdrop-blur-xl dark:bg-[var(--panel-bg-strong)]
-                            border border-slate-900/10 dark:border-[var(--panel-border-strong)]
-                            rounded-2xl p-5">
-          <p className="text-xs font-black tracking-[0.25em] uppercase text-slate-700 dark:text-white/80 mb-4">
-            {pickType === 'AH' ? '📊 亚盘覆盖概率' : pickType === 'OU' ? '📊 进球数概率' : '📊 三种结果概率'}
+        <section className={`${CARD} p-5`}>
+          <p className="text-[18px] font-bold text-slate-950 dark:text-white mb-4 border-b border-slate-200 dark:border-white/15 pb-3">
+            {pickType === 'AH' ? '让球概率参考' : pickType === 'OU' ? '进球数概率参考' : '三种结果概率'}
           </p>
           <div className="space-y-3">
             {pickType === 'OU' ? (
               <>
                 <ProbBar label="大球" value={overProb as number}
-                  activeClass="bg-[#005faf] dark:bg-[#00F0FF]"
-                  activeText="text-[#005faf] dark:text-[#00F0FF]"
                   highlight={parsed.direction.includes('大球')} />
                 <ProbBar label="小球" value={+((100 - (overProb as number)).toFixed(1))}
-                  activeClass="bg-[#b7004d] dark:bg-[#FF00E5]"
-                  activeText="text-[#b7004d] dark:text-[#FF00E5]"
                   highlight={parsed.direction.includes('小球')} />
               </>
             ) : pickType === 'AH' ? (
               <>
-                <ProbBar label="主队覆盖" value={ahHomeCover as number}
-                  activeClass="bg-[#005faf] dark:bg-[#00F0FF]"
-                  activeText="text-[#005faf] dark:text-[#00F0FF]"
+                <ProbBar label="主队方向" value={ahHomeCover as number}
                   highlight={parsed.direction.includes('主让')} />
-                <ProbBar label="客队覆盖" value={+((100 - (ahHomeCover as number)).toFixed(1))}
-                  activeClass="bg-[#b7004d] dark:bg-[#FF00E5]"
-                  activeText="text-[#b7004d] dark:text-[#FF00E5]"
+                <ProbBar label="客队方向" value={+((100 - (ahHomeCover as number)).toFixed(1))}
                   highlight={parsed.direction.includes('客让')} />
               </>
             ) : (
               <>
                 <ProbBar label="主胜" value={homeProb as number}
-                  activeClass="bg-[#005faf] dark:bg-[#00F0FF]"
-                  activeText="text-[#005faf] dark:text-[#00F0FF]"
                   highlight={parsed.direction.includes('主胜')} />
                 <ProbBar label="平局" value={dProb as number}
-                  activeClass="bg-slate-500 dark:bg-white/50"
-                  activeText="text-slate-700 dark:text-white"
                   highlight={parsed.direction === '平局' || parsed.direction === '平'} />
                 <ProbBar label="客胜" value={awayProb as number}
-                  activeClass="bg-[#b7004d] dark:bg-[#FF00E5]"
-                  activeText="text-[#b7004d] dark:text-[#FF00E5]"
                   highlight={parsed.direction.includes('客胜')} />
               </>
             )}
@@ -273,35 +236,19 @@ export default function BeginnerView({
         </section>
       )}
 
-      {/* ─── ④ 💡 一句话解读 ────────────────────────────────────── */}
-      <section className="bg-gradient-to-br from-amber-50 to-white
-                          dark:from-amber-500/5 dark:to-transparent
-                          border border-amber-200/60 dark:border-amber-400/20
-                          rounded-2xl p-4">
-        <div className="flex items-start gap-2.5">
-          <span className="text-lg leading-none mt-0.5">💡</span>
-          <p className="flex-1 text-[15px] leading-relaxed text-slate-800 dark:text-white/90">{oneLiner}</p>
-        </div>
-      </section>
-
-      {/* ─── ⑤ 📊 近期战绩卡（Spread/进球数择优）─────────────────── */}
+      {/* ─── ④ 近期战绩卡 ─────────────────── */}
       <RecentStatCard stat={bestRecentStat} />
 
-      {/* ─── ⑥ → 切换到专业版 CTA ───────────────────────────────── */}
+      {/* ─── ⑤ 切换到专业版 CTA ───────────────────────────────── */}
       <button
         type="button"
         onClick={switchToProTab}
-        className="group flex items-center justify-between p-5 rounded-2xl text-left
-                   bg-gradient-to-r from-slate-900 to-slate-800 text-white
-                   dark:from-[#00F0FF]/10 dark:to-[#00F0FF]/5 dark:border dark:border-[#00F0FF]/30
-                   shadow-[0_4px_16px_rgba(15,23,42,0.18)] dark:shadow-none
-                   active:scale-[0.99] transition-transform">
+        className={`${CARD} group flex w-full items-center justify-between gap-4 p-5 text-left active:scale-[0.99] transition-transform`}>
         <div className="min-w-0">
-          <p className="text-xs font-black tracking-[0.3em] uppercase text-white/50 dark:text-[#00F0FF]/70 mb-1">想看完整数据分析？</p>
-          <p className="text-base font-black text-white dark:text-[#00F0FF]">查看专业版</p>
-          <p className="text-xs text-white/60 dark:text-white/50 mt-0.5">射门图 · 阵容对比 · 球员矩阵 · 深度研报</p>
+          <p className="text-[17px] font-bold text-slate-950 dark:text-white">查看完整研报</p>
+          <p className="text-[14px] text-slate-700 dark:text-slate-200 mt-1">盘口变化、过程数据、风险点都在完整研报里。</p>
         </div>
-        <ChevronRight size={28} className="text-white/70 dark:text-[#00F0FF]/70 group-hover:translate-x-1 transition-transform flex-shrink-0" />
+        <ChevronRight size={24} className="text-slate-700 dark:text-slate-200 group-hover:translate-x-1 transition-transform flex-shrink-0" />
       </button>
 
     </div>
@@ -310,45 +257,71 @@ export default function BeginnerView({
 
 // ── Subcomponents ──────────────────────────────────────────────────────────
 
+function TeamBlock({ name, icon }: { name: string; icon?: string | null }) {
+  return (
+    <div className="min-w-0 flex flex-col items-center gap-2 text-center">
+      {icon && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={icon}
+          alt={name}
+          width={48}
+          height={48}
+          className="h-12 w-12 object-contain flex-shrink-0 rounded-full bg-white p-1 ring-1 ring-slate-200"
+        />
+      )}
+      <p className="max-w-full text-[20px] font-black leading-tight text-slate-950 dark:text-white break-words">
+        {name}
+      </p>
+    </div>
+  );
+}
+
 function FormColumn({ label, form }: { label: string; form: FormResult[] }) {
   if (!form.length) {
     return (
       <div className="text-center">
-        <p className="text-xs text-slate-500 dark:text-white/40 mb-1.5 truncate">{label}</p>
-        <p className="text-xs text-slate-400 dark:text-white/30">近期战绩待同步</p>
+        <p className="text-[13px] font-bold text-slate-700 dark:text-slate-200 mb-1.5 truncate">{label}</p>
+        <p className="text-[13px] text-slate-500 dark:text-slate-300">近期战绩待同步</p>
       </div>
     );
   }
   return (
     <div className="text-center">
-      <p className="text-xs font-bold text-slate-500 dark:text-white/50 mb-1.5 truncate uppercase tracking-wider">{label} · 近5场</p>
-      <div className="flex items-center justify-center gap-1 text-[16px] leading-none">
-        {form.map((r, i) => <span key={i}>{formEmoji(r)}</span>)}
+      <p className="text-[13px] font-bold text-slate-700 dark:text-slate-200 mb-2 truncate">{label} · 近5场</p>
+      <div className="flex items-center justify-center gap-1">
+        {form.map((r, i) => (
+          <span
+            key={i}
+            className="inline-flex h-7 w-7 items-center justify-center rounded border border-slate-200 dark:border-white/15 bg-slate-50 dark:bg-slate-900 text-[13px] font-bold text-slate-900 dark:text-white"
+          >
+            {formLabel(r)}
+          </span>
+        ))}
       </div>
     </div>
   );
 }
 
 function ProbBar({
-  label, value, activeClass, activeText, highlight,
-}: { label: string; value: number; activeClass: string; activeText: string; highlight?: boolean }) {
+  label, value, highlight,
+}: { label: string; value: number; highlight?: boolean }) {
   return (
     <div>
       <div className="flex items-center justify-between mb-1.5">
-        <span className={`text-sm font-black ${highlight ? activeText : 'text-slate-700 dark:text-white/70'}`}>
+        <span className="text-[15px] font-bold text-slate-900 dark:text-white">
           {label}
           {highlight && (
-            <span className="ml-2 text-xs font-black tracking-widest px-1.5 py-0.5 rounded-full
-                             bg-[#E91E63]/15 text-[#E91E63] dark:bg-[#00F0FF]/15 dark:text-[#00F0FF] uppercase">
-              最优
+            <span className="ml-2 text-[13px] font-bold px-2 py-0.5 rounded bg-slate-900 text-white dark:bg-white dark:text-slate-950">
+              推荐
             </span>
           )}
         </span>
-        <span className={`text-sm font-black tabular-nums ${activeText}`}>{value.toFixed(1)}%</span>
+        <span className="text-[15px] font-black tabular-nums text-slate-950 dark:text-white">{value.toFixed(1)}%</span>
       </div>
-      <div className="h-2.5 w-full rounded-full overflow-hidden bg-slate-200 dark:bg-white/8">
+      <div className="h-3 w-full rounded-full overflow-hidden bg-slate-200 dark:bg-slate-800">
         <div
-          className={`h-full rounded-full ${highlight ? activeClass : 'bg-slate-300 dark:bg-white/15'} transition-all duration-700`}
+          className={`h-full rounded-full ${highlight ? 'bg-slate-900 dark:bg-white' : 'bg-slate-400 dark:bg-slate-500'} transition-all duration-700`}
           style={{ width: `${Math.min(100, value)}%` }}
         />
       </div>
