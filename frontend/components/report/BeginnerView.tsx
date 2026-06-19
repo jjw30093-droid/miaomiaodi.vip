@@ -107,8 +107,10 @@ export default function BeginnerView({
   const overProb: number | null = pickType === 'OU' && parsed.pickProb != null
     ? +(parsed.direction.includes('大球') ? parsed.pickProb : 100 - parsed.pickProb).toFixed(1)
     : null;
+  const isAhHomeDirection = parsed.direction.includes('主让') || parsed.direction.includes('主受') || parsed.direction.includes('主队');
+  const isAhAwayDirection = parsed.direction.includes('客让') || parsed.direction.includes('客受') || parsed.direction.includes('客队');
   const ahHomeCover: number | null = pickType === 'AH' && parsed.pickProb != null
-    ? +(parsed.direction.includes('主让') ? parsed.pickProb : 100 - parsed.pickProb).toFixed(1)
+    ? +(isAhHomeDirection ? parsed.pickProb : 100 - parsed.pickProb).toFixed(1)
     : null;
 
   // 一句话解读 fallback
@@ -218,9 +220,9 @@ export default function BeginnerView({
             ) : pickType === 'AH' ? (
               <>
                 <ProbBar label="主队方向" value={ahHomeCover as number}
-                  highlight={parsed.direction.includes('主让')} />
+                  highlight={isAhHomeDirection} />
                 <ProbBar label="客队方向" value={+((100 - (ahHomeCover as number)).toFixed(1))}
-                  highlight={parsed.direction.includes('客让')} />
+                  highlight={isAhAwayDirection} />
               </>
             ) : (
               <>
