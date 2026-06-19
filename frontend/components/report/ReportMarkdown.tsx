@@ -13,60 +13,60 @@ import { chunkMarkdown } from '@/lib/markdownChunker';
 // ─────────────────────────────────────────────────────────────
 const MD_COMPONENTS: Record<string, React.FC<any>> = {
   h1: ({ children }) => (
-    <h1 style={{ fontStyle: 'normal' }} className="font-headline tracking-tight text-2xl font-black text-slate-900 dark:text-white mt-4 mb-6 leading-tight">
+    <h1 style={{ fontStyle: 'normal' }} className="font-headline tracking-tight text-2xl font-black text-slate-950 dark:text-white mt-4 mb-6 leading-tight">
       {children}
     </h1>
   ),
   h2: ({ children }) => (
-    <h2 style={{ fontStyle: 'normal' }} className="font-headline tracking-tight text-xl font-black text-slate-900 dark:text-white mt-9 mb-4 pl-3 border-l-2 border-[color:var(--primary-neon)]/70 leading-snug">
+    <h2 style={{ fontStyle: 'normal' }} className="font-headline tracking-tight text-xl font-black text-slate-950 dark:text-white mt-9 mb-4 pl-3 border-l-2 border-slate-900 dark:border-white leading-snug">
       {children}
     </h2>
   ),
   h3: ({ children }) => (
-    <h3 style={{ fontStyle: 'normal' }} className="font-headline text-lg font-bold text-slate-900 dark:text-white mt-6 mb-2.5">
+    <h3 style={{ fontStyle: 'normal' }} className="font-headline text-lg font-bold text-slate-950 dark:text-white mt-6 mb-2.5">
       {children}
     </h3>
   ),
   p: ({ children }) => (
-    <p className="text-[18px] text-slate-900 dark:text-white leading-[1.85] mb-7 break-words">{children}</p>
+    <p className="text-[18px] text-slate-950 dark:text-white leading-[1.85] mb-7 break-words">{children}</p>
   ),
   strong: ({ children }) => (
-    <strong className="font-bold text-slate-900 dark:text-white">{children}</strong>
+    <strong className="font-bold text-slate-950 dark:text-white">{children}</strong>
   ),
   em: ({ children }) => (
-    <em className="italic text-slate-700 dark:text-white">{children}</em>
+    <em className="italic text-slate-950 dark:text-white">{children}</em>
   ),
   hr: () => <hr className="my-4 border-slate-200 dark:border-white/10" />,
 
   blockquote: ({ children }) => (
-    <blockquote className="my-6 px-4 py-3 bg-slate-50 dark:bg-white/[0.03] rounded-r-xl border-l-2 border-[color:var(--primary-neon)]/60 text-slate-900 dark:text-white text-[18px] leading-[1.85] not-italic">
+    <blockquote className="my-6 px-4 py-3 bg-slate-50 dark:bg-slate-900 rounded-r-xl border-l-2 border-slate-900 dark:border-white text-slate-950 dark:text-white text-[18px] leading-[1.85] not-italic">
       {children}
     </blockquote>
   ),
 
   table: ({ children }) => (
     <div className="overflow-x-auto w-full my-6 rounded-xl border border-slate-200 dark:border-white/10 -mx-1">
-      <table className="w-full text-sm border-collapse min-w-[280px]">
+      <table className="w-full text-[16px] border-collapse min-w-[280px]">
         {children}
       </table>
     </div>
   ),
   thead: ({ children }) => (
-    <thead className="bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-white">{children}</thead>
+    <thead className="bg-slate-100 dark:bg-slate-900 text-slate-950 dark:text-white">{children}</thead>
   ),
   tbody: ({ children }) => <tbody>{children}</tbody>,
   tr: ({ children }) => (
-    <tr className="border-b border-slate-100 dark:border-white/5 even:bg-slate-50/50 dark:even:bg-white/[0.02] hover:bg-slate-100/60 dark:hover:bg-white/[0.04] transition-colors">
+    <tr className="border-b border-slate-100 dark:border-white/15 even:bg-slate-50 dark:even:bg-slate-900">
       {children}
     </tr>
   ),
   th: ({ children }) => (
-    <th className="px-3 py-2 text-left font-bold text-xs tracking-wide text-slate-600 dark:text-white/80 whitespace-nowrap border-b border-slate-200 dark:border-white/10">
+    <th className="px-3 py-2.5 text-left font-bold text-[15px] tracking-wide text-slate-950 dark:text-white whitespace-nowrap border-b border-slate-200 dark:border-white/15">
       {children}
     </th>
   ),
   td: ({ children }) => (
-    <td className="px-3 py-2.5 text-slate-900 dark:text-white align-middle text-base font-medium tabular-nums">{children}</td>
+    <td className="px-3 py-3 text-slate-950 dark:text-white align-middle text-[16px] font-medium tabular-nums">{children}</td>
   ),
 
   ul: ({ children }) => (
@@ -76,15 +76,15 @@ const MD_COMPONENTS: Record<string, React.FC<any>> = {
     <ol className="my-4 space-y-2 pl-5 list-decimal">{children}</ol>
   ),
   li: ({ children }) => (
-    <li className="flex items-start gap-2.5 text-[18px] text-slate-900 dark:text-white leading-[1.85] break-words">
-      <span className="mt-2.5 w-1.5 h-1.5 rounded-full bg-[color:var(--primary-neon)] shrink-0" />
+    <li className="flex items-start gap-2.5 text-[18px] text-slate-950 dark:text-white leading-[1.85] break-words">
+      <span className="mt-2.5 w-1.5 h-1.5 rounded-full bg-slate-900 dark:bg-white shrink-0" />
       <span>{children}</span>
     </li>
   ),
 
   // v10+: `inline` prop removed. Block code: pre wraps code. Inline code: no pre wrapper.
   pre: ({ children }: any) => (
-    <pre className="my-4 p-4 bg-slate-50 dark:bg-white/5 rounded-xl overflow-x-auto text-[13px] font-mono text-slate-800 dark:text-white leading-[1.6]">
+    <pre className="my-4 p-4 bg-slate-50 dark:bg-slate-900 rounded-xl overflow-x-auto text-[14px] font-mono text-slate-950 dark:text-white leading-[1.7]">
       {children}
     </pre>
   ),
@@ -94,7 +94,7 @@ const MD_COMPONENTS: Record<string, React.FC<any>> = {
       return <code className={className}>{children}</code>;
     }
     return (
-      <code className="px-1.5 py-0.5 bg-slate-100 dark:bg-white/10 rounded text-[13px] font-mono text-[color:var(--primary-neon)]">
+      <code className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-900 rounded text-[14px] font-mono text-slate-950 dark:text-white">
         {children}
       </code>
     );
@@ -181,7 +181,7 @@ export default function ReportMarkdown({
   const { publicMd, vipMd, hasVip } = chunkMarkdown(content);
 
   return (
-    <div className="bg-slate-50/50 dark:bg-transparent rounded-xl overflow-hidden text-slate-900 dark:text-white font-body">
+    <div className="bg-white dark:bg-transparent rounded-xl overflow-hidden text-slate-950 dark:text-white font-body">
 
       {/* ── Public 内容 ── */}
       {publicMd.trim() && (

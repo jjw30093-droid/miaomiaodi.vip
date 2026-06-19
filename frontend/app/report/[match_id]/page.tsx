@@ -25,7 +25,7 @@ import WcRecentFormCard from '@/components/report/WcRecentFormCard';
 // WC 游客预览页（无需登录，展示摘要 + 联系管理员）
 import ContactAdminPanel from '@/components/ContactAdminPanel';
 import {
-  ChevronLeft, Lock, BarChart2, Crosshair, TrendingUp, Star, Activity, FileText,
+  ChevronLeft, Lock, BarChart2, Crosshair, TrendingUp, Activity, FileText,
 } from 'lucide-react';
 import { MatchTimeDisplay } from '@/components/MatchTimeDisplay';
 import ThemeToggleButton from '@/components/ThemeToggleButton';
@@ -85,12 +85,12 @@ function LoginPrompt({ matchId }: { matchId: string }) {
   );
 }
 
-/** 统一卡片容器 class — 浅深单态 */
-const CARD = 'rounded-2xl border border-slate-900/10 dark:border-white/[0.08] bg-white/90 dark:bg-[var(--panel-bg-strong)] shadow-[0_1px_4px_rgba(15,23,42,0.05)] dark:shadow-none';
+/** 统一卡片容器：朴素、清楚、适合手机阅读 */
+const CARD = 'rounded-lg border border-slate-200 dark:border-white/15 bg-white dark:bg-slate-950 shadow-sm dark:shadow-none';
 
 /** 分区标题行 */
 function SectionLabel({
-  icon,
+  icon: _icon,
   label,
   badge,
 }: {
@@ -100,10 +100,8 @@ function SectionLabel({
   badge?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-2.5 mb-4">
-      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-[color:var(--primary-neon)]" />
-      <span className="text-sm font-bold tracking-wide text-slate-700 dark:text-white flex items-center gap-1.5">
-        {icon}
+    <div className="flex items-center gap-2 mb-4 border-b border-slate-200 dark:border-white/15 pb-3">
+      <span className="text-[18px] font-bold text-slate-950 dark:text-white flex items-center gap-1.5 leading-snug">
         {label}
       </span>
       {badge && <span className="ml-auto">{badge}</span>}
@@ -246,29 +244,6 @@ async function ReportContent({
     ? (report.drawProb ?? Math.max(0, Math.round(100 - probHome! - probAway!)))
     : null;
 
-  // ── System Verdict ─────────────────────────────────────────────────────────
-  const verdict =
-    probHome != null && probAway != null
-      ? probHome > probAway + 10 ? 'HOME DOMINANCE'
-      : probAway > probHome + 10 ? 'AWAY DOMINANCE'
-      : 'CONTESTED MATCH'
-      : 'AWAITING DATA';
-
-  // Derive 系统预判 display text from inference when available (consistent with 核心结论)
-  const verdictDisplay = (() => {
-    if (report.inference) {
-      const rest = report.inference.replace(/【[^】]+】/, '').trim();
-      // 完整方向标签（与 GlassPickBlock / BeginnerView 一致），不截首词，
-      // 否则 "2.25 小球" 会被截成 "2.25"。
-      const label = rest.split('@')[0].trim();
-      if (label) return label;
-    }
-    return verdict === 'HOME DOMINANCE' ? '主队优势'
-      : verdict === 'AWAY DOMINANCE' ? '客队优势'
-      : verdict === 'CONTESTED MATCH' ? '势均力敌'
-      : '等待数据';
-  })();
-
   // ─────────────────────────────────────────────────────────────────────────
   // MOCK 数据：仅保留尚未对接的字段（双方近5场战绩、一句话解读、模块②14d命中率）
   // 模块⑤战绩卡已切换为后端真实数据 report.bestRecentStat
@@ -396,42 +371,42 @@ async function ReportContent({
 
         </section>
 
-        {/* ── 5. 长文分析（结论→分析→数据漏斗）──────────────────────────── */}
+        {/* ── 5. 长文分析（推荐→理由→数据支撑）──────────────────────────── */}
         <section id="tactics" className="flex flex-col gap-5">
           {(report.markdownSections?.ahAnalysis || report.markdownSections?.ouAnalysis || report.markdownSections?.overallComparison) ? (
             <div className={`${CARD} p-5 overflow-hidden flex flex-col gap-6`}>
               {report.markdownSections?.ahAnalysis && (
                 <div>
-                  <SectionLabel icon={<BarChart2 size={11} />} label="亚盘深度分析 · AI" />
+                  <SectionLabel icon={<BarChart2 size={11} />} label="盘口位置判断" />
                   <ReportMarkdown content={report.markdownSections.ahAnalysis} />
                 </div>
               )}
               {report.markdownSections?.ouAnalysis && (
                 <div>
-                  <SectionLabel icon={<BarChart2 size={11} />} label="进球数深度分析 · AI" />
+                  <SectionLabel icon={<BarChart2 size={11} />} label="进球数判断" />
                   <ReportMarkdown content={report.markdownSections.ouAnalysis} />
                 </div>
               )}
               {report.markdownSections?.overallComparison && (
                 <div>
-                  <SectionLabel icon={<BarChart2 size={11} />} label="综合战力对比 · AI" />
+                  <SectionLabel icon={<BarChart2 size={11} />} label="比赛过程与基本面" />
                   <ReportMarkdown content={report.markdownSections.overallComparison} />
                 </div>
               )}
             </div>
           ) : report.markdownSections?.tacticalAnalysis ? (
             <div className={`${CARD} p-5 overflow-hidden`}>
-              <SectionLabel icon={<BarChart2 size={11} />} label="战术博弈分析 · AI" />
+              <SectionLabel icon={<BarChart2 size={11} />} label="比赛过程与战术背景" />
               <ReportMarkdown content={report.markdownSections.tacticalAnalysis} />
             </div>
           ) : !report.markdownContent || report.markdownContent.startsWith('报告内容正在同步中') ? (
             <div className={`${CARD} p-5 overflow-hidden`}>
-              <SectionLabel icon={<BarChart2 size={11} />} label="AI 神经分析 · 赛前结论" />
+              <SectionLabel icon={<BarChart2 size={11} />} label="推荐理由与数据支撑" />
               <PostMatchPlaceholder title="研报生成中" icon={<FileText size={26} />} />
             </div>
           ) : (
             <div className={`${CARD} p-5 overflow-hidden`}>
-              <SectionLabel icon={<BarChart2 size={11} />} label="AI 神经分析 · 赛前结论" />
+              <SectionLabel icon={<BarChart2 size={11} />} label="推荐理由与数据支撑" />
               <ReportMarkdown content={(report.markdownContent ?? '').replace(/^##\s[^\n]*·\s*世界杯[^\n]*\n+/, '')} />
             </div>
           )}
@@ -644,7 +619,7 @@ async function ReportContent({
               <div className="bg-white/90 dark:bg-[var(--panel-bg-strong)] border border-yellow-500/20 rounded-2xl p-6 flex flex-col items-center gap-3 text-center">
                 <Lock size={24} className="text-yellow-400/60" />
                 <p className="text-sm font-black text-slate-900 dark:text-white">赛后量化复盘 · 仅 VIP 可见</p>
-                <p className="text-xs text-slate-600 dark:text-white font-mono">包含模型回测、实际期望进球对比、AI 审计报告</p>
+                <p className="text-xs text-slate-600 dark:text-white">包含模型回测、实际期望进球对比、赛后复盘</p>
                 <Link href="/login" className="mt-1 px-4 py-2 rounded-full bg-yellow-400/10 border border-yellow-400/30 text-yellow-700 dark:text-yellow-400 text-xs font-black tracking-widest hover:bg-yellow-400/20 transition-all">
                   联系管理员开通 →
                 </Link>
@@ -715,7 +690,7 @@ async function ReportContent({
                 <div className={`${CARD} p-5 overflow-hidden`}>
                   <SectionLabel
                     icon={<BarChart2 size={11} />}
-                    label="赛后量化复盘 · AI 审计"
+                    label="赛后量化复盘"
                   />
                   {report.postMatchReview ? (
                     <MarkdownRenderer content={report.postMatchReview} />
@@ -735,33 +710,6 @@ async function ReportContent({
 
       </div>
 
-      {/* ── 底部固定栏 ────────────────────────────────────────────────────── */}
-      <div className="fixed bottom-0 left-0 right-0 bg-[var(--header-bg)] backdrop-blur-xl border-t border-[var(--header-border)] px-4 pt-3 pb-6 z-50">
-        <div className="max-w-2xl mx-auto flex items-center justify-between gap-4">
-          <div className="min-w-0">
-            <span className="block text-[#005faf] dark:text-[#3B82F6] text-xs font-black tracking-wide mb-0.5">
-              系统预判
-            </span>
-            <span className="text-slate-900 dark:text-white font-black text-base tracking-tight truncate block">
-              {verdictDisplay}
-            </span>
-          </div>
-          {accessLevel !== 'vip' && (
-            <Link
-              href="/register"
-              className="flex-shrink-0 flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-bold
-                         bg-gradient-to-r from-red-600 to-rose-500 text-white
-                         dark:bg-none dark:bg-white dark:text-black dark:from-white dark:to-white
-                         shadow-[0_0_15px_rgba(239,68,68,0.4)] dark:shadow-none
-                         hover:shadow-[0_0_25px_rgba(239,68,68,0.6)] dark:hover:bg-white/90
-                         active:scale-95 transition-all"
-            >
-              <Star size={14} />
-              解锁 VIP
-            </Link>
-          )}
-        </div>
-      </div>
     </>
   );
 
@@ -825,7 +773,7 @@ export default async function ReportPage({
   }
 
   return (
-    <main className="relative min-h-screen bg-[var(--color-background)] text-[var(--color-foreground)] overflow-x-hidden w-full font-body selection:bg-primary-neon/20">
+    <main className="relative min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-950 dark:text-white overflow-x-hidden w-full font-body">
 
       <div className="relative z-10 w-full">
 
@@ -847,7 +795,7 @@ export default async function ReportPage({
                 </header>
                 <div className="flex flex-col items-center justify-center py-60 gap-8">
                   <Activity size={40} className="text-primary-neon animate-spin" />
-                  <p className="text-xs font-black text-primary-neon/40 tracking-wide animate-pulse">
+                  <p className="text-xs font-black text-primary-neon tracking-wide animate-pulse">
                     数据加载中
                   </p>
                 </div>
@@ -863,9 +811,9 @@ export default async function ReportPage({
 
         {/* 免责声明 */}
         <div className="mt-8 mb-4 mx-auto w-full max-w-2xl px-4">
-          <div className="px-4 py-3 border border-slate-300 dark:border-white/10 rounded-lg bg-slate-50/50 dark:bg-white/[0.02]">
-            <p className="text-xs text-slate-600 dark:text-white/60 leading-relaxed">
-              ⚠️ 免责声明：本页面所有内容（包括但不限于 AI 分析、概率预测、市场价格分析）均基于历史数据和统计模型生成，
+          <div className="px-4 py-3 border border-slate-300 dark:border-white/15 rounded-lg bg-white dark:bg-slate-950">
+            <p className="text-[13px] text-slate-700 dark:text-slate-100 leading-relaxed">
+              ⚠️ 免责声明：本页面所有内容（包括但不限于概率预测、市场价格分析）均基于历史数据和统计模型生成，
               仅供数据分析参考，<span className="font-bold">绝不构成任何形式的投注、博彩或理财建议</span>。模型存在固有误差，过往表现不代表未来结果。
               使用本站内容所产生的任何后果由用户自行承担。
               <Link href="/terms#disclaimer" className="text-[#005faf] dark:text-primary-neon hover:underline ml-1">完整条款 →</Link>
@@ -873,7 +821,7 @@ export default async function ReportPage({
           </div>
         </div>
 
-        <footer className="mt-12 pt-8 border-t border-slate-200 dark:border-white/5 w-full max-w-2xl mx-auto px-4 flex justify-between items-center text-xs font-bold text-slate-600 dark:text-white tracking-wide">
+        <footer className="mt-12 pt-8 border-t border-slate-200 dark:border-white/15 w-full max-w-2xl mx-auto px-4 flex justify-between items-center text-xs font-bold text-slate-700 dark:text-white tracking-wide">
           <span>喵弟量化实验室</span>
         </footer>
         <Footer />

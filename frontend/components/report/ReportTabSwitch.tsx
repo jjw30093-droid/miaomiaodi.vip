@@ -1,18 +1,17 @@
 'use client';
 
 import { ReactNode, useEffect, useRef, useState } from 'react';
-import { Sparkles, Microscope } from 'lucide-react';
 
 /**
- * Client-side Tab switcher between Beginner ("新手版") and Pro ("专业版").
+ * Client-side Tab switcher between concise and full report views.
  *
  * Behaviour
  * ─────────
- * - 默认 Tab：新手版（抖音引流场景）
+ * - 默认 Tab：专业版（付费用户默认阅读完整研报）
  * - 用户选择持久化到 localStorage（key: `report-view`）
  * - 切换不重新请求 API；纯前端 display 切换
  * - 切换后 smooth scroll 到 Tab 顶部
- * - SSR 默认渲染新手版；客户端 hydrate 后根据 localStorage 切换
+ * - SSR 默认渲染专业版；客户端 hydrate 后根据 localStorage 切换
  */
 export default function ReportTabSwitch({
   beginner,
@@ -46,33 +45,31 @@ export default function ReportTabSwitch({
   }, []);
 
   const baseTab =
-    'flex items-center justify-center gap-1.5 flex-1 py-2 px-3 rounded-full text-xs font-black tracking-widest transition-all duration-200';
+    'flex items-center justify-center flex-1 py-2.5 px-3 rounded-md text-[15px] font-bold transition-colors';
   const activeTab =
-    'bg-[#E91E63] text-white shadow-sm dark:bg-primary-neon dark:text-[#06080C]';
+    'bg-slate-900 text-white dark:bg-white dark:text-slate-950';
   const inactiveTab =
-    'text-slate-600 dark:text-white/60 hover:text-slate-900 dark:hover:text-white';
+    'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800';
 
   return (
     <>
-      <div ref={anchorRef} className="px-4 pt-4 max-w-2xl mx-auto">
-        <div className="flex items-center gap-1 p-1 rounded-full
-          bg-white/85 backdrop-blur border border-slate-900/10 shadow-[0_2px_8px_rgba(15,23,42,0.06)]
-          dark:bg-white/[0.04] dark:border-white/10 dark:shadow-none">
+      <div ref={anchorRef} className="px-4 pt-3 max-w-2xl mx-auto">
+        <div className="flex items-center gap-1 p-1 rounded-lg
+          bg-white border border-slate-200 shadow-sm
+          dark:bg-slate-900 dark:border-slate-700">
           <button
             type="button"
             onClick={() => switchTo('beginner')}
             className={`${baseTab} ${active === 'beginner' ? activeTab : inactiveTab}`}
           >
-            <Sparkles size={12} />
-            <span>新手版</span>
+            <span>简明版</span>
           </button>
           <button
             type="button"
             onClick={() => switchTo('pro')}
             className={`${baseTab} ${active === 'pro' ? activeTab : inactiveTab}`}
           >
-            <Microscope size={12} />
-            <span>专业版</span>
+            <span>完整研报</span>
           </button>
         </div>
       </div>

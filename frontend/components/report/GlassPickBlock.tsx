@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Star, AlertTriangle, Flame } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { translateTeam } from '@/lib/teamNames';
 
 interface ParsedInference {
@@ -81,6 +81,10 @@ export default function GlassPickBlock({
   const { confidence, label, odds } = parseInference(inference);
   const pickType = getPickType(inference);
   const stars = STARS_FOR_CONF[confidence] ?? 3;
+  const strengthLabel =
+    stars >= 5 ? '高' :
+    stars >= 4 ? '中高' :
+    stars >= 3 ? '中' : '谨慎';
 
   // Market mini-table: only for WDL when both model and market probs are present
   const recDir = classifyDirection(label || inference);
@@ -110,63 +114,50 @@ export default function GlassPickBlock({
     : null;
 
   return (
-    <div className="rounded-2xl overflow-hidden relative
-                    bg-white/90 dark:bg-[#0A1220]
-                    border border-slate-900/10 dark:border-primary-neon/25
-                    border-l-4 border-l-[#005faf]
-                    dark:border-l-[3px] dark:border-l-primary-neon
-                    shadow-[0_1px_4px_rgba(15,23,42,0.05)] dark:shadow-none
-                    p-4 space-y-3">
+    <div className="rounded-lg overflow-hidden relative
+                    bg-white dark:bg-slate-950
+                    border border-slate-200 dark:border-white/15
+                    shadow-sm dark:shadow-none
+                    p-4 space-y-4">
 
-      {/* Badge + Stars */}
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-black tracking-[0.1em] px-2.5 py-1 rounded-full
-                         bg-[#005faf] text-white
-                         dark:bg-primary-neon dark:text-[#06080C]">
-          核心结论
+      {/* Recommendation header */}
+      <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/15 pb-3">
+        <span className="text-[15px] font-bold text-slate-900 dark:text-white">
+          推荐方向
         </span>
-        <div className="flex gap-0.5">
-          {[...Array(5)].map((_, i) => (
-            <Star
-              key={i}
-              size={12}
-              className={i < stars
-                ? 'text-amber-500 fill-amber-500 dark:text-[#FFB800] dark:fill-[#FFB800]'
-                : 'text-slate-300 dark:text-white/20'
-              }
-            />
-          ))}
-        </div>
+        <span className="text-[13px] font-bold text-slate-700 dark:text-slate-200">
+          推荐强度：{strengthLabel}
+        </span>
       </div>
 
       {/* Main pick */}
       <div>
-        <p className="text-3xl sm:text-4xl font-black leading-tight tracking-tight
-                      text-slate-900 dark:text-primary-neon">
+        <p className="text-[34px] sm:text-4xl font-black leading-tight tracking-tight
+                      text-slate-950 dark:text-white">
           {(() => {
             const [team, ...rest] = label.split(/\s+/);
             return [translateTeam(team), ...rest].filter(Boolean).join(' ') || '—';
           })()}
         </p>
         {odds && (
-          <p className="text-xl font-black mt-1 text-[#005faf] dark:text-primary-neon">
-            @{odds}
+          <p className="text-[18px] font-bold mt-2 text-slate-800 dark:text-slate-100">
+            参考价格：@{odds}
           </p>
         )}
       </div>
 
       {/* coreLogic — one-line rationale */}
       {coreLogic && (
-        <p className="text-[15px] text-slate-700 dark:text-white/85 leading-relaxed">
+        <p className="text-[17px] text-slate-900 dark:text-white leading-[1.75]">
           {coreLogic}
         </p>
       )}
 
       {/* Market mini-table (WDL only when market data exists) */}
       {showMiniTable && (
-        <div className="rounded-xl bg-slate-50 dark:bg-black/30 border border-slate-200 dark:border-white/10 overflow-hidden">
+        <div className="rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-white/15 overflow-hidden">
           {/* Header */}
-          <div className="grid grid-cols-[52px_1fr_1fr_1fr] gap-1 px-3 py-1.5 text-[11px] font-bold tracking-wide text-slate-500 dark:text-white/40 border-b border-slate-100 dark:border-white/10">
+          <div className="grid grid-cols-[52px_1fr_1fr_1fr] gap-1 px-3 py-2 text-[13px] font-bold text-slate-700 dark:text-slate-200 border-b border-slate-200 dark:border-white/15">
             <span></span>
             <span className="text-right">市场</span>
             <span className="text-right">模型</span>
@@ -175,37 +166,35 @@ export default function GlassPickBlock({
           {/* Rows */}
           {rows.map(({ key, market, model }) => {
             const edge  = model - market;
-            const isHot = edge >= 5;
             const isPos = edge >= 0;
             const isRec = key === recRow;
             return (
               <div
                 key={key}
-                className={`grid grid-cols-[52px_1fr_1fr_1fr] gap-1 items-center px-3 py-2 text-[13px] ${
+                className={`grid grid-cols-[52px_1fr_1fr_1fr] gap-1 items-center px-3 py-2.5 text-[15px] ${
                   isRec
-                    ? 'bg-[#005faf]/8 dark:bg-primary-neon/10 ring-inset ring-1 ring-[#005faf]/20 dark:ring-primary-neon/25'
+                    ? 'bg-slate-200 dark:bg-white/10'
                     : ''
                 }`}
               >
-                <span className={`font-bold ${isRec ? 'text-[#005faf] dark:text-primary-neon' : 'text-slate-600 dark:text-white/70'}`}>
+                <span className={`font-bold ${isRec ? 'text-slate-950 dark:text-white' : 'text-slate-700 dark:text-slate-200'}`}>
                   {ROW_LABEL[key]}
                 </span>
-                <span className="tabular-nums text-right text-slate-600 dark:text-white/60">{market.toFixed(1)}%</span>
+                <span className="tabular-nums text-right text-slate-800 dark:text-slate-100">{market.toFixed(1)}%</span>
                 <span className="tabular-nums text-right text-slate-900 dark:text-white font-bold">{model.toFixed(1)}%</span>
                 <span className={`tabular-nums text-right font-bold inline-flex items-center justify-end gap-0.5 ${
-                  isPos ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-white/40'
+                  isPos ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-700 dark:text-slate-200'
                 }`}>
                   {edge >= 0 ? '+' : ''}{edge.toFixed(1)}%
-                  {isHot && <Flame size={11} className="text-amber-500" />}
                 </span>
               </div>
             );
           })}
           {/* Footer */}
           {footerText && (
-            <div className="px-3 py-2 border-t border-slate-100 dark:border-white/10
-                            text-[12px] text-slate-600 dark:text-white/60 leading-relaxed">
-              💡 {footerText}
+            <div className="px-3 py-2.5 border-t border-slate-200 dark:border-white/15
+                            text-[15px] text-slate-900 dark:text-white leading-relaxed">
+              {footerText}
             </div>
           )}
         </div>
@@ -213,9 +202,9 @@ export default function GlassPickBlock({
 
       {/* Key risk */}
       {keyRisk && (
-        <div className="flex items-start gap-2.5 pt-1 border-t border-slate-100 dark:border-white/10">
-          <AlertTriangle size={13} className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-          <p className="text-[13px] text-slate-700 dark:text-white/80 leading-relaxed">{keyRisk}</p>
+        <div className="flex items-start gap-2.5 pt-3 border-t border-slate-200 dark:border-white/15">
+          <AlertTriangle size={16} className="text-amber-700 dark:text-amber-300 flex-shrink-0 mt-1" />
+          <p className="text-[16px] text-slate-900 dark:text-white leading-relaxed">{keyRisk}</p>
         </div>
       )}
     </div>
