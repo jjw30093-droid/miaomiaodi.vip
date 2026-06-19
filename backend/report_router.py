@@ -339,7 +339,7 @@ def _get_wc_cards(user) -> list:
               AND wr.home_team NOT LIKE 'TBD%'
               AND wr.away_team NOT LIKE 'TBD%'
             ORDER BY wr.match_time DESC
-            LIMIT 20
+            LIMIT 120
         """).fetchall()
         conn.close()
     except Exception:
