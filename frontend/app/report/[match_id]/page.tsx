@@ -9,7 +9,7 @@ import InteractiveShotMapClient from '@/components/InteractiveShotMapClient';
 import GlassPickBlock from '@/components/report/GlassPickBlock';
 import PostMatchCompareCard from '@/components/report/PostMatchCompareCard';
 import ReportTabSwitch from '@/components/report/ReportTabSwitch';
-import BeginnerView, { type FormResult } from '@/components/report/BeginnerView';
+import BeginnerView from '@/components/report/BeginnerView';
 import ModelVerdictCard from '@/components/report/ModelVerdictCard';
 import SectionNavBar from '@/components/report/SectionNavBar';
 import InsightLine from '@/components/report/InsightLine';
@@ -244,20 +244,6 @@ async function ReportContent({
     ? (report.drawProb ?? Math.max(0, Math.round(100 - probHome! - probAway!)))
     : null;
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // MOCK 数据：仅保留尚未对接的字段（双方近5场战绩、一句话解读、模块②14d命中率）
-  // 模块⑤战绩卡已切换为后端真实数据 report.bestRecentStat
-  // TODO: 接入 home_recent_form / away_recent_form / beginner_summary
-  // ─────────────────────────────────────────────────────────────────────────
-  const MOCK_BEGINNER = {
-    beginnerSummary: '主队近5个主场全胜对手0进球，客队连续3轮没破门，模型主胜信心拉满。',
-    homeRecentForm:  ['W','W','D','W','L'] as FormResult[],
-    awayRecentForm:  ['L','W','W','L','W'] as FormResult[],
-    recentHitRate14d: 71.4,
-    recentHitRate14dN: 14,
-    pipelineStatus: 'FINAL_REPORT_READY',
-  };
-
   // ─── Beginner subtree ────────────────────────────────────────────────────
   const beginnerSubtree = (
     <BeginnerView
@@ -272,12 +258,12 @@ async function ReportContent({
       awayProb={report.awayProb}
       drawProb={report.drawProb}
       inference={report.inference}
-      beginnerSummary={MOCK_BEGINNER.beginnerSummary}
-      homeRecentForm={MOCK_BEGINNER.homeRecentForm}
-      awayRecentForm={MOCK_BEGINNER.awayRecentForm}
-      recentHitRate14d={MOCK_BEGINNER.recentHitRate14d}
-      recentHitRate14dN={MOCK_BEGINNER.recentHitRate14dN}
-      pipelineStatus={MOCK_BEGINNER.pipelineStatus}
+      beginnerSummary={report.beginnerSummary}
+      homeRecentForm={null}
+      awayRecentForm={null}
+      recentHitRate14d={null}
+      recentHitRate14dN={null}
+      pipelineStatus={report.pipelineStatus}
       bestRecentStat={report.bestRecentStat}
     />
   );

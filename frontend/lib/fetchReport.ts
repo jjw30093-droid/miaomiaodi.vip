@@ -243,6 +243,7 @@ function adaptCloudPayload(payload: CloudReportPayload): ReportData {
     lineupImpact:   payload.lineup_impact_data ?? null,
     generatedAt:    payload.updated_at || new Date().toISOString(),
     matchStatus:    payload.match_status   || 'upcoming',
+    pipelineStatus: payload.pipeline_status ?? null,
     isGated:        payload.is_gated ?? false,
     lineupStatus:   (payload.lineup_status as ReportData['lineupStatus']) ?? 'predicted',
     lineupConfirmedAt: payload.lineup_confirmed_at ?? null,

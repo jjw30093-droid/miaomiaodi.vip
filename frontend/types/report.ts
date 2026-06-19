@@ -132,6 +132,7 @@ export interface CloudReportPayload {
   is_gated?:         boolean;
   is_free?:          boolean;
   match_status?:       string;
+  pipeline_status?:    string | null;
   post_match_review?:  string | null;
   post_match_shots?:   PostMatchShots | null;
   /** 后端归一化后的首发/伤停阵容数据（LineupImpact JSON，公开字段，无 VIP gate） */
@@ -270,6 +271,7 @@ export interface ReportData {
   lineupImpact?:     LineupImpact | null;
   generatedAt?:      string;
   matchStatus?:      string;
+  pipelineStatus?:   string | null;
   postMatchReview?:  string | null;
   postMatchShots?:   PostMatchShots | null;
   /** true = 后端已有研报但权限不足（非"数据未同步"） */

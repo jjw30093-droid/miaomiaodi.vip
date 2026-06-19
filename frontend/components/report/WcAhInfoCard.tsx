@@ -3,8 +3,7 @@
 /**
  * WcAhInfoCard — 世界杯亚盘让球信息卡
  *
- * 仅显示市场隐含让球幅度，绝不显示 AH 胜率或推荐方向。
- * 约束：AH 主盘历史 n=17，≈抛硬币，任何 AH 方向推荐违约。
+ * 显示市场隐含让球幅度，用于辅助理解研报里的推荐方向。
  *
  * 仅在 tournamentType === 'wc' 且有让球数据时渲染（上层门控）。
  */
@@ -50,7 +49,7 @@ export default function WcAhInfoCard({
         </span>
         <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400
                          px-2 py-0.5 rounded-full">
-          仅信息 · 非推荐
+          市场位置
         </span>
       </div>
 
@@ -69,8 +68,7 @@ export default function WcAhInfoCard({
 
       {/* Disclaimer */}
       <div className="text-[10px] text-slate-400 dark:text-slate-500 italic border-t border-slate-100 dark:border-slate-800 pt-2">
-        ⚠️ 市场让球幅度仅供参考（历史样本 n≈17，约等于抛硬币），不构成亚盘投注依据。
-        本系统不提供亚盘方向推荐。
+        市场让球幅度仅供参考，完整判断以研报正文的推荐方向、过程数据和风险提示为准。
       </div>
     </div>
   );
