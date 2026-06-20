@@ -355,7 +355,6 @@ export default function FootballLabPage() {
   const [contactOpen, setContactOpen] = useState(false);
   const [hasMoreMatches, setHasMoreMatches] = useState(false);
   const [nextOffset, setNextOffset] = useState<number | null>(0);
-  const loadMoreRef = React.useRef<HTMLDivElement | null>(null);
   const autoLoadLockedRef = React.useRef(false);
   const pageRequestInFlightRef = React.useRef(false);
 
@@ -938,7 +937,7 @@ export default function FootballLabPage() {
                 )}
 
                 {hasMoreMatches && (
-                  <div ref={loadMoreRef} className="py-8 flex flex-col items-center gap-2">
+                  <div className="py-8 flex flex-col items-center gap-2">
                     <button
                       type="button"
                       onClick={loadMoreMatches}
@@ -982,7 +981,7 @@ export default function FootballLabPage() {
                  </div>
                )}
                {hasMoreMatches && (
-                 <div ref={loadMoreRef} className="py-8 flex flex-col items-center gap-2">
+                 <div className="py-8 flex flex-col items-center gap-2">
                    <button
                      type="button"
                      onClick={loadMoreMatches}
