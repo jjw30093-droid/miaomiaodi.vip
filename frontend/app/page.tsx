@@ -355,8 +355,9 @@ export default function FootballLabPage() {
   const [contactOpen, setContactOpen] = useState(false);
   const [hasMoreMatches, setHasMoreMatches] = useState(false);
   const [nextOffset, setNextOffset] = useState<number | null>(0);
-  const [feedTotal, setFeedTotal] = useState(0);
   const loadMoreRef = React.useRef<HTMLDivElement | null>(null);
+  const autoLoadLockedRef = React.useRef(false);
+  const pageRequestInFlightRef = React.useRef(false);
 
   const handleCardClick = (id: string) => {
     const match = matches.find(m => m.id === id);
@@ -376,8 +377,11 @@ export default function FootballLabPage() {
   }, []);
 
   const fetchReportPage = React.useCallback(async (offset = 0, append = false) => {
+    if (append && pageRequestInFlightRef.current) return;
+
     try {
       if (append) {
+        pageRequestInFlightRef.current = true;
         setLoadingMore(true);
       } else {
         setLoading(true);
@@ -399,7 +403,6 @@ export default function FootballLabPage() {
         });
         return merged;
       });
-      setFeedTotal(data.total || 0);
       setNextOffset(data.next_offset);
       setHasMoreMatches(Boolean(data.has_more));
     } catch (e) {
@@ -407,6 +410,7 @@ export default function FootballLabPage() {
       if (!append) setError('服务连接超时，请检查网络。');
     } finally {
       if (append) {
+        pageRequestInFlightRef.current = false;
         setLoadingMore(false);
       } else {
         setLoading(false);
@@ -418,8 +422,9 @@ export default function FootballLabPage() {
     if (status === 'loading') return; // 等 session 落定再请求
     setMatches([]);
     setNextOffset(0);
-    setFeedTotal(0);
     setHasMoreMatches(false);
+    autoLoadLockedRef.current = false;
+    pageRequestInFlightRef.current = false;
     fetchReportPage(0, false);
   }, [fetchReportPage, status]);
 
@@ -513,25 +518,10 @@ export default function FootballLabPage() {
     return filteredMatches;
   }, [filteredMatches]);
 
-  const currentFeedTotal = feedTotal || matches.length;
   const loadMoreMatches = React.useCallback(() => {
     if (!hasMoreMatches || nextOffset == null || loading || loadingMore) return;
     fetchReportPage(nextOffset, true);
   }, [fetchReportPage, hasMoreMatches, loading, loadingMore, nextOffset]);
-
-  useEffect(() => {
-    if (!hasMoreMatches || loading) return;
-    const el = loadMoreRef.current;
-    if (!el) return;
-
-    const observer = new IntersectionObserver((entries) => {
-      if (!entries[0]?.isIntersecting) return;
-      loadMoreMatches();
-    }, { rootMargin: '260px 0px' });
-
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [hasMoreMatches, loadMoreMatches, loading, loadingMore]);
 
   useEffect(() => {
     if (!hasMoreMatches || loading) return;
@@ -543,8 +533,13 @@ export default function FootballLabPage() {
       const scrollTop = window.scrollY || doc.scrollTop || document.body.scrollTop || 0;
       const viewportHeight = window.innerHeight || doc.clientHeight;
       const scrollHeight = Math.max(doc.scrollHeight, document.body.scrollHeight);
-      if (scrollHeight - (scrollTop + viewportHeight) < 560) {
+      const nearBottom = scrollHeight - (scrollTop + viewportHeight) < 96;
+
+      if (nearBottom && !autoLoadLockedRef.current) {
+        autoLoadLockedRef.current = true;
         loadMoreMatches();
+      } else if (!nearBottom) {
+        autoLoadLockedRef.current = false;
       }
     };
     const onScroll = () => {
@@ -556,7 +551,6 @@ export default function FootballLabPage() {
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('wheel', onScroll, { passive: true });
     window.addEventListener('touchmove', onScroll, { passive: true });
-    checkNearBottom();
 
     return () => {
       window.removeEventListener('scroll', onScroll);
@@ -958,9 +952,6 @@ export default function FootballLabPage() {
                     >
                       {loadingMore ? '加载中' : '加载更多比赛'}
                     </button>
-                    <span suppressHydrationWarning className={`text-xs font-medium ${isDark ? 'text-white/30' : 'text-[#8f6f73]/70'}`}>
-                      已加载 {matches.length} / {currentFeedTotal} 场
-                    </span>
                   </div>
                 )}
               </>
@@ -1005,9 +996,6 @@ export default function FootballLabPage() {
                    >
                      {loadingMore ? '加载中' : '加载更多比赛'}
                    </button>
-                   <span suppressHydrationWarning className={`text-xs font-medium ${isDark ? 'text-white/30' : 'text-[#8f6f73]/70'}`}>
-                     已加载 {matches.length} / {currentFeedTotal} 场
-                   </span>
                  </div>
                )}
             </section>
