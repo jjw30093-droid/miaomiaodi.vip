@@ -65,12 +65,22 @@ def _find_report_file(match_id: str) -> Optional[str]:
                         return os.path.join(month_path, fn)
     return None
 def _parse_match_time(match_time_str: str) -> datetime | None:
-    """将 'MM-DD HH:MM' 或 'YYYY-MM-DD HH:MM:SS' 格式统一解析为 datetime。"""
+    """将 ISO UTC、'MM-DD HH:MM' 或 'YYYY-MM-DD HH:MM:SS' 格式统一解析为 UTC naive datetime。"""
     if not match_time_str:
         return None
+    raw = str(match_time_str).strip()
+
+    try:
+        dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        if dt.tzinfo is not None:
+            dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+        return dt
+    except ValueError:
+        pass
+
     for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%m-%d %H:%M"):
         try:
-            dt = datetime.strptime(match_time_str, fmt)
+            dt = datetime.strptime(raw, fmt)
             # 无年份时补当前年份
             if dt.year == 1900:
                 dt = dt.replace(year=datetime.now().year)
