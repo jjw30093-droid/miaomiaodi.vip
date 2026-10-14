@@ -55,6 +55,28 @@ _NEXT_DATA_RE = re.compile(
 )
 
 
+STATUS_FINISH = "Finish"
+STATUS_NOT_STARTED = "NotStarted"
+STATUS_IN_PLAY = "InPlay"
+STATUS_CANCELLED = "Cancelled"
+
+
+def derive_match_status(status_obj: Any) -> str:
+    """将 FotMob 状态归一化为站内封闭词表。
+
+    FotMob 的中止比赛可能同时返回 ``finished=true`` 和
+    ``cancelled=true``。中止状态必须优先，否则该场会被误计入完赛聚合。
+    """
+    status = status_obj if isinstance(status_obj, dict) else {}
+    if status.get("cancelled"):
+        return STATUS_CANCELLED
+    if status.get("finished"):
+        return STATUS_FINISH
+    if status.get("started"):
+        return STATUS_IN_PLAY
+    return STATUS_NOT_STARTED
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 内部：球员 stat 解析工具（支持新旧两种 FotMob 格式）
 # ─────────────────────────────────────────────────────────────────────────────
@@ -327,7 +349,7 @@ class FotMobClient:
                 h_score = a_score = 0
 
         # ── 比赛状态 ─────────────────────────────────────────────────────
-        match_status = "Finish" if status_obj.get("finished") else status_obj.get("reason", {}).get("short", "Unknown")
+        match_status = derive_match_status(status_obj)
 
         # ── 联赛 ID / 日期（来自调用方，或从 general 推断）──────────────
         if league_id is None:
